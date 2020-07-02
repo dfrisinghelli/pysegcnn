@@ -64,7 +64,7 @@ class SegNet(nn.Module):
         return self.classifier(x)
 
     def save(self, optimizer, state_file,
-             outpath=os.path.join(os.getcwd(), 'models')):
+             outpath=os.path.join(os.getcwd(), '_models')):
 
         # check if the output path exists and if not, create it
         if not os.path.isdir(outpath):
@@ -86,7 +86,7 @@ class SegNet(nn.Module):
 
 
     def load(self, optimizer, state_file,
-             inpath=os.path.join(os.getcwd(), 'models')):
+             inpath=os.path.join(os.getcwd(), '_models')):
 
         # load the model state file
         state = os.path.join(inpath, state_file)

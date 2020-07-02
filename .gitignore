@@ -2,4 +2,4 @@
 *egg-info
 *.swp
 __pycache__/
-models/
+_models/

@@ -23,8 +23,8 @@ def predict(model, dataloader, optimizer, accuracy, state_file=None):
     # set the model to evaluation mode
     model.eval()
 
-    # list of accuracies on the validation/test set
-    accuracies = []
+    # initialize confusion matrix
+    cm = torch.zeros(model.nclasses, model.nclasses)
 
     # number of batches in the validation set
     nbatches = int(len(dataloader.dataset) / dataloader.batch_size)
@@ -41,17 +41,20 @@ def predict(model, dataloader, optimizer, accuracy, state_file=None):
             outputs = model(inputs)
 
         # calculate predicted class labels
-        ypred = F.softmax(outputs, dim=1).argmax(dim=1)
+        pred = F.softmax(outputs, dim=1).argmax(dim=1)
 
         # calculate accuracy
-        acc = accuracy(ypred, labels)
-        accuracies.append(acc)
+        acc = accuracy(pred, labels)
 
         # print progress
         print('Batch: {:d}/{:d}, Accuracy: {:.2f}'.format(batch,
                                                           nbatches, acc))
 
-    return accuracies
+        # update confusion matrix
+        for ytrue, ypred in zip(labels.view(-1), pred.view(-1)):
+            cm[ytrue.long(), ypred.long()] += 1
+
+    return cm
 
 
 def accuracy_function(outputs, labels):

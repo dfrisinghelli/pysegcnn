@@ -46,7 +46,7 @@ test_dl = DataLoader(test_ds, batch_size=batch_size, shuffle=True)
 
 print('------------------- Network architecture -------------------------')
 # instanciate the segmentation network
-net = SegNet(in_channels=len(dataset.bands),
+net = SegNet(in_channels=len(dataset.use_bands),
              nclasses=len(dataset.labels),
              filters=filters,
              skip=skip_connection,
@@ -59,11 +59,3 @@ optimizer = optimizer(net.parameters(), lr)
 
 # add network name to state file
 state_file = net.__class__.__name__ + state_file
-
-# test network forward pass
-# import time
-# i, l = next(iter(train_dl))
-# s = time.time()
-# o = net(i)
-# e = time.time()
-# print(e - s)

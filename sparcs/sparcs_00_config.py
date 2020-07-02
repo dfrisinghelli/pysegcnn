@@ -16,21 +16,20 @@ import torch.optim as optim
 # -----------------------------------------------------------------------------
 
 # define path to working directory
-wd = 'C:/Eurac/2020/Tutorial/'
+wd = 'C:/Eurac/2020/'
 # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # path to the downloaded sparcs archive
-sparcs_archive = os.path.join(wd, 'Datasets/Archives/l8cloudmasks.zip')
+sparcs_archive = os.path.join(wd, '_Datasets/Archives/l8cloudmasks.zip')
 
 # path to save preprocessed sparcs dataset
-sparcs_path = os.path.join(wd, 'Datasets/Sparcs')
+sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
 
 # define the bands to use to train the segmentation network:
 # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
-# or -1, which corresponds to using all available bands
+# or [], which corresponds to using all available bands
 # bands = ['red', 'green', 'blue', 'nir']
-bands = ['red', 'green', 'blue', 'nir', 'swir2']
-# bands = -1
+bands = ['red', 'green', 'blue', 'nir']
 
 # define the size of the network input
 # if None, the size will default to the size of a scene, i.e. (1000 x 1000)
@@ -83,14 +82,14 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 
 # define the number of epochs: the number of iterations over the whole training
 # dataset
-epochs = 1
+epochs = 50
 
 # define the number of threads
-nthreads = 1
+nthreads = os.cpu_count()
 
 # file to save model state to: let the filename start with an underscore,
 # since the network name will be appended to it
-bformat = ''.join([b[0] for b in bands]) if isinstance(bands, list) else 'all'
+bformat = ''.join([b[0] for b in bands]) if bands else 'all'
 state_file = '_Sparcs_t{}_b{}_{}.pt'.format(tile_size, batch_size, bformat)
 
 # -----------------------------------------------------------------------------

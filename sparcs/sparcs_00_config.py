@@ -82,7 +82,7 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 
 # define the number of epochs: the number of iterations over the whole training
 # dataset
-epochs = 50
+epochs = 1000
 
 # define the number of threads
 nthreads = os.cpu_count()

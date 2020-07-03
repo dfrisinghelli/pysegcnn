@@ -53,7 +53,7 @@ class ImageDataset(Dataset):
         # calculate number of resulting tiles and check whether the images are
         # evenly divisible in square tiles of size (tile_size x tile_size)
         if self.tile_size is None:
-            self.tiles = None
+            self.tiles = 1
         else:
             self.tiles = self.is_divisible(self.size, self.tile_size)
 
@@ -412,31 +412,17 @@ class SparcsDataset(ImageDataset):
         # create an entry for each scene/tile
         scene_data = []
 
-        # check whether the scenes are divided into tiles
-        if self.tiles is None:
+        # iterate over the tiles
+        for tile in range(self.tiles):
 
-            # store the bands and the ground truth mask of the current schene
+            # store the bands and the ground truth mask of the tile
             data = self._store_bands(bands, gt)
 
-            # indicate that no tiling was applied
-            data['tile'] = None
+            # store tile number
+            data['tile'] = tile
 
             # append to list
             scene_data.append(data)
-
-        else:
-
-            # iterate over the tiles
-            for tile in range(self.tiles):
-
-                # store the bands and the ground truth mask of the tile
-                data = self._store_bands(bands, gt)
-
-                # store tile number
-                data['tile'] = tile
-
-                # append to list
-                scene_data.append(data)
 
         return scene_data
 
@@ -506,35 +492,45 @@ class Cloud95(ImageDataset):
         biter = self.bands[1]
         for file in os.listdir(band_dirs[biter]):
 
-            # initialize dictionary to store bands of current patch
-            scene = {}
+            # iterate over the tiles
+            for tile in range(self.tiles):
 
-            # iterate over the bands of interest
-            for band in band_dirs.keys():
-                # save path to current band TIFF file to dictionary
-                scene[band] = os.path.join(band_dirs[band],
-                                           file.replace(biter, band))
+                # initialize dictionary to store bands of current patch
+                scene = {}
 
-            # append patch to list of all patches
-            scenes.append(scene)
+                # iterate over the bands of interest
+                for band in band_dirs.keys():
+                    # save path to current band TIFF file to dictionary
+                    scene[band] = os.path.join(band_dirs[band],
+                                               file.replace(biter, band))
+
+                # store tile number
+                scene['tile'] = tile
+
+                # append patch to list of all patches
+                scenes.append(scene)
 
         return scenes
 
 
 if __name__ == '__main__':
 
+    # define path to working directory
+    # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
+    wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
+    # wd = 'C:/Eurac/2020/'
+
     # path to the preprocessed sparcs dataset
-    # sparcs_path = "C:/Eurac/2020/_Datasets/Sparcs"
-    sparcs_path = "/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/Sparcs"
-    
+    sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
+
     # path to the Cloud-95 dataset
-    cloud_path = "/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/Cloud95/Training"
-    
+    cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
+
     # instanciate the Cloud-95 dataset
     cloud_dataset = Cloud95(cloud_path)
 
     # instanciate the SparcsDataset class
-    sparcs_dataset = SparcsDataset(sparcs_path, tile_size=125,
+    sparcs_dataset = SparcsDataset(sparcs_path, tile_size=None,
                                    use_bands=['nir', 'red', 'green'])
 
     # randomly sample an integer from [0, nsamples]

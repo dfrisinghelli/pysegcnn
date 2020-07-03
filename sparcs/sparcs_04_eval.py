@@ -46,6 +46,8 @@ if __name__ == '__main__':
             y_pred = F.softmax(net(net_inputs), dim=1).argmax(dim=1).squeeze()
 
         # plot inputs, ground truth and model predictions
-        fig, ax = valid_ds.dataset.dataset.plot_sample(inputs, labels, y_pred)
+        fig, ax = valid_ds.dataset.dataset.plot_sample(inputs, labels, y_pred,
+                                                       bands=['nir', 'red',
+                                                              'green'])
 
     plt.show()

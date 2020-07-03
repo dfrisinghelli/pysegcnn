@@ -34,9 +34,18 @@ print(*['Class {}: {}'.format(k, v) for k, v in dataset.labels.items()],
 print('------------------------------------------------------------------')
 
 print('------------------- Dataset split --------------------------------')
-# training, validation and test data
-train_ds, valid_ds, test_ds = train_test_split(dataset, ttratio, tvratio,
-                                               seed)
+
+# split dataset into training and test data
+train_ds, test_ds = train_test_split(dataset, ttratio, seed)
+
+# split training dataset into training and validation data
+train_ds, valid_ds = train_test_split(train_ds, tvratio, seed)
+
+# print the dataset ratios
+print(*['{} set: {:.2f}%'.format(k, v) for k, v in
+        {'Training': ttratio * tvratio,
+         'Validation': ttratio * (1 - tvratio),
+         'Test': 1 - ttratio}.items()], sep='\n')
 print('------------------------------------------------------------------')
 
 # instanciate the DataLoader class

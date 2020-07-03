@@ -492,18 +492,18 @@ class Cloud95(ImageDataset):
         for dirpath, dirname, files in os.walk(root_dir):
             # check if the current directory path includes the name of a band
             # or the name of the ground truth mask
-            cband = [band for band in self.bands + ['gt'] if band in dirpath
-                     and os.path.isdir(dirpath)]
+            cband = [band for band in [*self.bands.values()] + ['gt'] if
+                     dirpath.endswith(band) and os.path.isdir(dirpath)]
 
             # add path to current band files to dictionary
             if cband:
-                band_dirs[cband] = dirpath
+                band_dirs[cband.pop()] = dirpath
 
         # create empty list to store all patches to
         scenes = []
 
         # iterate over all the patches of the following band
-        biter = self.bands[0]
+        biter = self.bands[1]
         for file in os.listdir(band_dirs[biter]):
 
             # initialize dictionary to store bands of current patch
@@ -524,8 +524,14 @@ class Cloud95(ImageDataset):
 if __name__ == '__main__':
 
     # path to the preprocessed sparcs dataset
-    sparcs_path = "C:/Eurac/2020/_Datasets/Sparcs"
-    # sparcs_path = "/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/Sparcs"
+    # sparcs_path = "C:/Eurac/2020/_Datasets/Sparcs"
+    sparcs_path = "/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/Sparcs"
+    
+    # path to the Cloud-95 dataset
+    cloud_path = "/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/Cloud95/Training"
+    
+    # instanciate the Cloud-95 dataset
+    cloud_dataset = Cloud95(cloud_path)
 
     # instanciate the SparcsDataset class
     sparcs_dataset = SparcsDataset(sparcs_path, tile_size=125,

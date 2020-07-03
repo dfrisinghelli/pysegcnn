@@ -91,38 +91,19 @@ def ds_len(ds, ratio):
     return int(np.round(len(ds) * ratio))
 
 
-def train_test_split(ds, ttratio, tvratio=None, seed=0):
+def train_test_split(ds, ratio, seed=0):
 
     # set the random seed for reproducibility
     torch.manual_seed(seed)
 
     # length of the training and validation data set
-    train_len = ds_len(ds, ttratio)
+    train_len = ds_len(ds, ratio)
 
     # length of the test data set
-    test_len = ds_len(ds, 1 - ttratio)
+    test_len = ds_len(ds, 1 - ratio)
 
     # split dataset into training and test set
     # (ttratio * 100) % will be used for training and validation
-    training_data, test_ds = random_split(ds, (train_len, test_len))
+    train_ds, test_ds = random_split(ds, (train_len, test_len))
 
-    # (ttratio * tvratio * 100) % will be used for training
-    if tvratio is None:
-        tvratio = ttratio
-
-    # length of the actual training dataset
-    train_len = ds_len(training_data, tvratio)
-
-    # length of the validation set
-    valid_len = ds_len(training_data, 1 - tvratio)
-
-    # training and validation datasets
-    train_ds, valid_ds = random_split(training_data, (train_len, valid_len))
-
-    # print training, validation and test data split
-    print(*['{} set: {:.1f}%'.format(k, (v * 100) / len(ds))
-            for k, v in {'Training': len(train_ds),
-                         'Validation': len(valid_ds),
-                         'Test': len(test_ds)}.items()], sep='\n')
-
-    return (train_ds, valid_ds, test_ds)
+    return train_ds, test_ds

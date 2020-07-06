@@ -20,7 +20,7 @@ from pytorch.train import NetworkTrainer
 from pytorch.models import SegNet
 from sparcs.sparcs_00_config import (sparcs_path, bands, tile_size, tvratio,
                                      filters, skip_connection, kwargs,
-                                     loss_function, optimizer, lr,
+                                     loss_function, optimizer, lr, ttratio,
                                      batch_size, seed, state_file)
 
 
@@ -58,5 +58,6 @@ state_file = net.__class__.__name__ + state_file
 # instanciate NetworkTrainer class
 print('------------------------ Dataset split ---------------------------')
 trainer = NetworkTrainer(net, dataset, loss_function, optimizer,
-                         batch_size=batch_size, tvratio=tvratio, seed=seed)
+                         batch_size=batch_size, tvratio=tvratio,
+                         ttratio=ttratio, seed=seed)
 print('------------------------------------------------------------------')

@@ -16,8 +16,8 @@ import torch.optim as optim
 # -----------------------------------------------------------------------------
 
 # define path to working directory
-wd = 'C:/Eurac/2020/'
-# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
+# wd = 'C:/Eurac/2020/'
+wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # path to the downloaded sparcs archive
 sparcs_archive = os.path.join(wd, '_Datasets/Archives/l8cloudmasks.zip')
@@ -40,7 +40,7 @@ tile_size = 125
 seed = 0
 
 # (ttratio * 100) % of the dataset will be used for training and validation
-ttratio = 0.8
+ttratio = 1
 
 # (ttratio * tvratio) * 100 % will be used as the training dataset
 # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
@@ -49,7 +49,7 @@ tvratio = 0.8
 # define the batch size
 # determines how many samples of the dataset are processed until the weights
 # of the network are updated
-batch_size = 16
+batch_size = 64
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------

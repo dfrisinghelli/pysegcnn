@@ -80,9 +80,9 @@ def train(model, dataloader, loss_function, optimizer, accuracy, state_file,
         # save model state to file
         state = model.save(optimizer, state_file)
 
-    # save losses and accuracy to file
-    torch.save({'loss': losses, 'accuracy': accuracies},
-               state.split('.pt')[0] + '_loss.pt')
+        # save losses and accuracy to file
+        torch.save({'loss': losses, 'accuracy': accuracies},
+                   state.split('.pt')[0] + '_loss.pt')
 
     return losses, accuracies
 
@@ -103,7 +103,7 @@ def train_test_split(ds, ratio, seed=0):
     test_len = ds_len(ds, 1 - ratio)
 
     # split dataset into training and test set
-    # (ttratio * 100) % will be used for training and validation
+    # (ratio * 100) % will be used for training and validation
     train_ds, test_ds = random_split(ds, (train_len, test_len))
 
     return train_ds, test_ds

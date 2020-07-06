@@ -372,7 +372,10 @@ class ImageDataset(Dataset):
         nclasses = len(labels)
 
         # string format to plot values of confusion matrix
-        fmt = 'd'
+        fmt = '.0f'
+
+        # minimum and maximum values of the colorbar
+        vmin, vmax = 0, cm.max()
 
         # check whether to normalize the confusion matrix
         if normalize:
@@ -381,6 +384,7 @@ class ImageDataset(Dataset):
 
             # change string format to floating point
             fmt = '.2f'
+            vmin, vmax= 0, 1
 
         # create figure
         fig, ax = plt.subplots(1, 1, figsize=figsize)
@@ -389,13 +393,13 @@ class ImageDataset(Dataset):
         cmap = colormap.get_cmap(cmap, 256)
 
         # plot confusion matrix
-        im = ax.imshow(cm, cmap=cmap)
+        im = ax.imshow(cm, cmap=cmap, vmin=vmin, vmax=vmax)
 
         # threshold determining the color of the values
         thresh = (cm.max() + cm.min()) / 2
 
         # brightest/darkest color of current colormap
-        cmap_min, cmap_max = im.cmap(0), im.cmap(256)
+        cmap_min, cmap_max = cmap(0), cmap(256)
 
         # plot values of confusion matrix
         for i, j in itertools.product(range(nclasses), range(nclasses)):

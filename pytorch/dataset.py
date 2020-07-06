@@ -365,8 +365,12 @@ class ImageDataset(Dataset):
 
     # plot_confusion_matrix() plots the confusion matrix of the validation/test
     # set returned by the pytorch.predict function
-    def plot_confusion_matrix(cm, labels, normalize=True,
+    def plot_confusion_matrix(self, cm, labels=None, normalize=True,
                               figsize=(10, 10), cmap='Blues'):
+
+        # check if labels are provided
+        if labels is None:
+            labels = [label['label'] for _, label in self.labels.items()]
 
         # number of classes
         nclasses = len(labels)

@@ -16,16 +16,15 @@ import torch
 sys.path.append('..')
 
 # local modules
-from pytorch.train import train
-from pytorch.eval import accuracy_function
-from sparcs.sparcs_00_config import loss_function, epochs, nthreads
-from sparcs.sparcs_02_dataset import net, train_dl, optimizer, state_file
-
+from sparcs.sparcs_00_config import (epochs, nthreads, checkpoint, early_stop,
+                                     mode, delta, patience, state_path)
+from sparcs.sparcs_02_dataset import state_file, trainer
 
 if __name__ == '__main__':
 
     # train the network
     print('----------------------- Network training -------------------------')
-    losses, accuracies = train(net, train_dl, loss_function,
-                               optimizer, accuracy_function, state_file,
-                               epochs, nthreads)
+    loss, accuracy = trainer.train(state_path, state_file, epochs=epochs,
+                                   resume=checkpoint, early_stop=early_stop,
+                                   nthreads=nthreads, mode=mode,
+                                   min_delta=delta, patience=patience)

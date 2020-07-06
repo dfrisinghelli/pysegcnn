@@ -16,8 +16,8 @@ import torch.optim as optim
 # -----------------------------------------------------------------------------
 
 # define path to working directory
-# wd = 'C:/Eurac/2020/'
-wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
+wd = 'C:/Eurac/2020/'
+# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # path to the downloaded sparcs archive
 sparcs_archive = os.path.join(wd, '_Datasets/Archives/l8cloudmasks.zip')
@@ -44,12 +44,12 @@ ttratio = 0.8
 
 # (ttratio * tvratio) * 100 % will be used as the training dataset
 # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-tvratio = ttratio
+tvratio = 0.8
 
 # define the batch size
 # determines how many samples of the dataset are processed until the weights
 # of the network are updated
-batch_size = 32
+batch_size = 16
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -65,6 +65,35 @@ filters = [32, 64, 128, 256]
 # True (recommended) or False
 skip_connection = True
 
+# configuration for each convolutional layer
+kwargs = {'kernel_size': 3,  # the size of the convolving kernel
+          'stride': 1,  # the step size of the kernel
+          'dilation': 1  # the field of view of the kernel
+          }
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+# ------------------------- Training configuration ----------------------------
+# -----------------------------------------------------------------------------
+
+# whether to resume training from an existing model checkpoint
+checkpoint = True
+
+# whether to early stop training if the accuracy (loss) on the validation set
+# does not increase (decrease) more than delta over patience epochs
+early_stop = True
+mode = 'max'
+delta = 0.005
+patience = 5
+
+# define the number of epochs: the number of maximum iterations over the whole
+# training dataset
+epochs = 200
+
+# define the number of threads
+nthreads = os.cpu_count()
+
 # define a loss function to calculate the network error
 loss_function = nn.CrossEntropyLoss()
 
@@ -74,18 +103,8 @@ optimizer = optim.Adam
 # define the learning rate
 lr = 0.001
 
-# configuration for each convolutional layer
-kwargs = {'kernel_size': 3,  # the size of the convolving kernel
-          'stride': 1,  # the step size of the kernel
-          'dilation': 1  # the field of view of the kernel
-          }
-
-# define the number of epochs: the number of iterations over the whole training
-# dataset
-epochs = 1000
-
-# define the number of threads
-nthreads = os.cpu_count()
+# path to save trained models
+state_path = os.path.join(os.getcwd(), '_models/')
 
 # file to save model state to: let the filename start with an underscore,
 # since the network name will be appended to it

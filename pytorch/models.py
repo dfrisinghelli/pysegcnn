@@ -25,7 +25,7 @@ from pytorch.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
 class SegNet(nn.Module):
 
     def __init__(self, in_channels, nclasses, filters, skip, **kwargs):
-        super(SegNet, self).__init__()
+        super().__init__()
 
         # get the configuration for the convolutional layers of the encoder
         self.filters = np.hstack([np.array(in_channels), np.array(filters)])
@@ -102,16 +102,3 @@ class SegNet(nn.Module):
         optimizer.load_state_dict(model_state['optim_state_dict'])
 
         return state
-
-
-if __name__ == '__main__':
-
-    # initialize segmentation network
-    net = SegNet(in_channels=3,
-                 nclasses=7,
-                 filters=[32, 64, 128, 256],
-                 skip=True,
-                 kernel_size=3)
-
-    # print network structure
-    print(net)

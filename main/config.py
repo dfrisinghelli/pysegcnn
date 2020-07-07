@@ -7,6 +7,7 @@ Created on Tue Jun 30 11:40:35 2020
 """
 # builtins
 import os
+import inspect
 
 # externals
 import torch.nn as nn
@@ -19,8 +20,17 @@ import torch.optim as optim
 # wd = 'C:/Eurac/2020/'
 wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
+# define which dataset to train on
+dataset_name = 'Sparcs'
+# dataset_name= 'Cloud95'
+
 # path to the dataset
 dataset_path = os.path.join(wd, '_Datasets/Sparcs')
+# dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
+
+# the csv file containing the names of the informative patches of the
+# Cloud95 dataset
+patches = 'training_patches_95-cloud_nonempty.csv'
 
 # define the bands to use to train the segmentation network:
 # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -30,22 +40,6 @@ bands = ['red', 'green', 'blue', 'nir']
 # define the size of the network input
 # if None, the size will default to the size of a scene
 tile_size = 125
-
-# set random seed for reproducibility of the training, validation
-# and test data split
-seed = 0
-
-# (ttratio * 100) % of the dataset will be used for training and validation
-ttratio = 1
-
-# (ttratio * tvratio) * 100 % will be used as the training dataset
-# (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-tvratio = 0.8
-
-# define the batch size
-# determines how many samples of the dataset are processed until the weights
-# of the network are updated
-batch_size = 64
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -73,8 +67,24 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 # ------------------------- Training configuration ----------------------------
 # -----------------------------------------------------------------------------
 
+# set random seed for reproducibility of the training, validation
+# and test data split
+seed = 0
+
+# (ttratio * 100) % of the dataset will be used for training and validation
+ttratio = 1
+
+# (ttratio * tvratio) * 100 % will be used as the training dataset
+# (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
+tvratio = 0.8
+
+# define the batch size
+# determines how many samples of the dataset are processed until the weights
+# of the network are updated
+batch_size = 64
+
 # whether to resume training from an existing model checkpoint
-checkpoint = True
+checkpoint = False
 
 # whether to early stop training if the accuracy (loss) on the validation set
 # does not increase (decrease) more than delta over patience epochs
@@ -122,3 +132,7 @@ plot_bands = ['nir', 'red', 'green']
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
+
+# compile configuration dictionary
+config = {var: eval(var) for var in dir() if not var.startswith('_') and
+          not inspect.ismodule(eval(var))}

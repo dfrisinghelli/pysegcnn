@@ -18,7 +18,7 @@ sys.path.append('..')
 # local modules
 from main.config import (epochs, nthreads, checkpoint, early_stop,
                          mode, delta, patience, state_path)
-from main.data import state_file, trainer
+from main.init import state_file, trainer
 
 if __name__ == '__main__':
 

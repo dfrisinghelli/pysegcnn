@@ -3,3 +3,5 @@
 *.swp
 __pycache__/
 _models/
+_graphics/
+_samples/

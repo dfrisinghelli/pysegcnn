@@ -15,6 +15,12 @@ import torch.nn.functional as F
 from torch.utils.data import random_split, DataLoader
 
 
+class InitNetwork(object):
+    def __init__(self, config):
+        for k, v in config.items():
+            setattr(self, k, v)
+
+
 class NetworkTrainer(object):
 
     def __init__(self, model, dataset, loss_function, optimizer, batch_size=32,

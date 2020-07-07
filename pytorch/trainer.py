@@ -91,6 +91,10 @@ class NetworkTrainer(object):
         # set the number of threads
         torch.set_num_threads(nthreads)
 
+        # store path to model state
+        self.state = os.path.join(state_path, state_file)
+        self.loss_state = self.state.replace('.pt', '_loss.pt')
+
         # instanciate early stopping class
         if early_stop:
             es = EarlyStopping(**kwargs)
@@ -99,7 +103,7 @@ class NetworkTrainer(object):
             max_accuracy = 0
 
         # whether to resume training from an existing model
-        if os.path.exists(os.path.join(state_path, state_file)) and resume:
+        if os.path.exists(self.state) and resume:
             state = self.model.load(self.optimizer, state_file, state_path)
             print('Resuming training from {} ...'.format(state))
             print('Model epoch: {:d}'.format(self.model.epoch))
@@ -107,8 +111,21 @@ class NetworkTrainer(object):
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
 
-        # number of batches per epoch
+        # number of batches in the validation set
+        nvbatches = int(len(self.valid_ds) / self.batch_size)
+
+        # number of batches in the training set
         nbatches = int(len(self.train_ds) / self.batch_size)
+
+        # create arrays of the observed losses and accuracies on the
+        # training set
+        losses = np.zeros(shape=(nbatches, epochs))
+        accuracies = np.zeros(shape=(nbatches, epochs))
+
+        # create arrays of the observed losses and accuracies on the
+        # validation set
+        vlosses = np.zeros(shape=(nvbatches, epochs))
+        vaccuracies = np.zeros(shape=(nvbatches, epochs))
 
         # initialize the training: iterate over the entire training data set
         for epoch in range(epochs):
@@ -116,10 +133,6 @@ class NetworkTrainer(object):
             # set the model to training mode
             print('Setting model to training mode ...')
             self.model.train()
-
-            # create arrays of the observed losses and accuracies
-            losses = np.zeros(shape=(nbatches, epochs))
-            accuracies = np.zeros(shape=(nbatches, epochs))
 
             # iterate over the dataloader object
             for batch, (inputs, labels) in enumerate(self.train_dl):
@@ -165,33 +178,49 @@ class NetworkTrainer(object):
             if early_stop:
 
                 # model predictions on the validation set
-                _, validation_accuracies = self.predict()
+                _, vacc, vloss = self.predict()
+
+                # append observed accuracy and loss to arrays
+                vaccuracies[:, epoch] = vacc
+                vlosses[:, epoch] = vloss
 
                 # metric to assess model performance on the validation set
-                epoch_acc = validation_accuracies.mean()
+                epoch_acc = vacc.mean()
 
                 # whether the model improved with respect to the previous epoch
                 if epoch_acc > max_accuracy:
                     max_accuracy = epoch_acc
                     # save model state if the model improved with
                     # respect to the previous epoch
-                    state = self.model.save(self.optimizer, state_file,
-                                            state_path)
+                    _ = self.model.save(self.optimizer, state_file, state_path)
 
                 # whether the early stopping criterion is met
                 if es.stop(epoch_acc):
+
+                    # save losses and accuracy before exiting training
+                    torch.save({'epoch': epoch,
+                                'training_loss': losses,
+                                'training_accuracy': accuracies,
+                                'validation_loss': vlosses,
+                                'validation_accuracy': vaccuracies},
+                               self.loss_state)
+
                     break
 
             else:
                 # if no early stopping is required, the model state is saved
                 # after each epoch
-                state = self.model.save(self.optimizer, state_file, state_path)
+                _ = self.model.save(self.optimizer, state_file, state_path)
 
             # save losses and accuracy after each epoch to file
-            torch.save({'loss': losses, 'accuracy': accuracies},
-                       state.split('.pt')[0] + '_loss.pt')
+            torch.save({'epoch': epoch,
+                        'training_loss': losses,
+                        'training_accuracy': accuracies,
+                        'validation_loss': vlosses,
+                        'validation_accuracy': vaccuracies},
+                       self.loss_state)
 
-        return losses, accuracies
+        return losses, accuracies, vlosses, vaccuracies
 
     def predict(self, state_path=None, state_file=None, confusion=False):
 
@@ -212,9 +241,12 @@ class NetworkTrainer(object):
         # number of batches in the validation set
         nbatches = int(len(self.valid_ds) / self.batch_size)
 
+        # create arrays of the observed losses and accuracies
+        accuracies = np.zeros(shape=(nbatches, 1))
+        losses = np.zeros(shape=(nbatches, 1))
+
         # iterate over the validation/test set
         print('Calculating accuracy on validation set ...')
-        accuracies = np.zeros(shape=(nbatches, 1))
         for batch, (inputs, labels) in enumerate(self.valid_dl):
 
             # send the data to the gpu if available
@@ -224,6 +256,10 @@ class NetworkTrainer(object):
             # calculate network outputs
             with torch.no_grad():
                 outputs = self.model(inputs)
+
+            # compute loss
+            loss = self.loss_function(outputs, labels.long())
+            losses[batch, 0] = loss.detach().numpy().item()
 
             # calculate predicted class labels
             pred = F.softmax(outputs, dim=1).argmax(dim=1)
@@ -247,9 +283,9 @@ class NetworkTrainer(object):
 
         # save confusion matrix and accuracies to file
         if state_file is not None and confusion:
-            torch.save({'cm': cm}, state.split('.pt')[0] + '_cm.pt')
+            torch.save({'cm': cm}, state.replace('.pt', '_cm.pt'))
 
-        return cm, accuracies
+        return cm, accuracies, losses
 
 
 class EarlyStopping(object):
@@ -289,10 +325,13 @@ class EarlyStopping(object):
                 self.best = metric
             else:
                 self.counter += 1
+                print('Early stopping counter: {}/{}'.format(self.counter,
+                                                             self.patience))
 
             # if the metric did not improve over the last patience epochs,
             # the early stopping criterion is met
             if self.counter >= self.patience:
+                print('Early stopping criterion met, exiting training ...')
                 self.early_stop = True
 
         else:

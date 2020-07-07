@@ -187,11 +187,11 @@ class NetworkTrainer(object):
                 _, vacc, vloss = self.predict()
 
                 # append observed accuracy and loss to arrays
-                vaccuracies[:, epoch] = vacc
-                vlosses[:, epoch] = vloss
+                vaccuracies[:, epoch] = vacc.squeeze()
+                vlosses[:, epoch] = vloss.squeeze()
 
                 # metric to assess model performance on the validation set
-                epoch_acc = vacc.mean()
+                epoch_acc = vacc.squeeze().mean()
 
                 # whether the model improved with respect to the previous epoch
                 if epoch_acc > max_accuracy:

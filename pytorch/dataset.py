@@ -318,10 +318,11 @@ class ImageDataset(Dataset):
     # plot_sample() plots a false color composite of the scene/tile together
     # with the model prediction and the corresponding ground truth
     def plot_sample(self, x, y, y_pred=None, figsize=(10, 10),
-                    bands=['red', 'green', 'blue'], stretch=False, **kwargs):
+                    bands=['red', 'green', 'blue'], stretch=False, state=None,
+                    outpath=os.path.join(os.getcwd(), '_samples/'),  **kwargs):
 
         # check whether to apply constrast stretching
-        if kwargs: stretch = True
+        stretch = True if kwargs else False
         func = self.contrast_stretching if stretch else lambda x: x
 
         # create an rgb stack
@@ -339,19 +340,25 @@ class ImageDataset(Dataset):
 
         # create figure: check whether to plot model prediction
         if y_pred is not None:
+
+            # compute accuracy
+            acc = (y_pred == y).float().mean()
+
+            # plot model prediction
             fig, ax = plt.subplots(1, 3, figsize=figsize)
             ax[2].imshow(y_pred, cmap=cmap, interpolation='nearest', norm=norm)
-            ax[2].set_title('Prediction', pad=20)
+            ax[2].set_title('Prediction ({:.2f}%)'.format(acc * 100), pad=15)
+
         else:
             fig, ax = plt.subplots(1, 2, figsize=figsize)
 
         # plot false color composite
         ax[0].imshow(rgb)
-        ax[0].set_title('R = {}, G = {}, B = {}'.format(*bands), pad=20)
+        ax[0].set_title('R = {}, G = {}, B = {}'.format(*bands), pad=15)
 
         # plot ground thruth mask
         ax[1].imshow(y, cmap=cmap, interpolation='nearest', norm=norm)
-        ax[1].set_title('Ground truth', pad=20)
+        ax[1].set_title('Ground truth', pad=15)
 
         # create a patch (proxy artist) for every color
         patches = [mpatches.Patch(color=c, label=l) for c, l in
@@ -361,12 +368,19 @@ class ImageDataset(Dataset):
         plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
                    frameon=False)
 
+        # save figure
+        if state is not None:
+            os.makedirs(outpath, exist_ok=True)
+            fig.savefig(os.path.join(outpath, state.replace('.pt', '.png')),
+                        dpi=300, bbox_inches='tight')
+
         return fig, ax
 
     # plot_confusion_matrix() plots the confusion matrix of the validation/test
     # set returned by the pytorch.predict function
     def plot_confusion_matrix(self, cm, labels=None, normalize=True,
-                              figsize=(10, 10), cmap='Blues'):
+                              figsize=(10, 10), cmap='Blues', state=None,
+                              outpath=os.path.join(os.getcwd(), '_graphics/')):
 
         # check if labels are provided
         if labels is None:
@@ -422,6 +436,71 @@ class ImageDataset(Dataset):
         cax = fig.add_axes([ax.get_position().x1 + 0.025, ax.get_position().y0,
                             0.05, ax.get_position().y1 - ax.get_position().y0])
         fig.colorbar(im, cax=cax)
+
+        # save figure
+        if state is not None:
+            os.makedirs(outpath, exist_ok=True)
+            fig.savefig(os.path.join(outpath, state.replace('.pt', '_cm.png')),
+                        dpi=300, bbox_inches='tight')
+
+        return fig, ax
+
+    def plot_loss(self, state_file, figsize=(10, 10),
+                  colors=['lightgreen', 'darkgreen', 'skyblue', 'steelblue'],
+                  outpath=os.path.join(os.getcwd(), '_graphics/')):
+
+        # load the model loss
+        state = torch.load(state_file)
+
+        # get all non-zero elements, i.e. get number of epochs trained before
+        # early stop
+        loss = {k: v[np.nonzero(v)].reshape(v.shape[0], -1) for k, v in
+                state.items() if k != 'epoch'}
+
+        # number of epochs trained
+        epochs = np.arange(0, state['epoch'])
+
+        # instanciate figure
+        fig, ax1 = plt.subplots(1, 1, figsize=figsize)
+
+        # plot training and validation mean loss per epoch
+        [ax1.plot(epochs, v.mean(axis=0),
+                  label=k.capitalize().replace('_', ' '), color=c, lw=2)
+         for (k, v), c in zip(loss.items(), colors) if 'loss' in k]
+
+        # plot training and validation loss per batch
+        ax2 = ax1.twiny()
+        [ax2.plot(v.flatten('F'), color=c, alpha=0.5)
+         for (k, v), c in zip(loss.items(), colors) if 'loss' in k]
+
+        # plot training and validation mean accuracy per epoch
+        ax3 = ax1.twinx()
+        [ax3.plot(epochs, v.mean(axis=0),
+                  label=k.capitalize().replace('_', ' '), color=c, lw=2)
+         for (k, v), c in zip(loss.items(), colors) if 'accuracy' in k]
+
+        # plot training and validation accuracy per batch
+        ax4 = ax3.twiny()
+        [ax4.plot(v.flatten('F'), color=c, alpha=0.5)
+         for (k, v), c in zip(loss.items(), colors) if 'accuracy' in k]
+
+        # plot early stopping point
+        # ax2.vlines(loss['validation_accuracy'].mean(axis=0).max())
+        ax1.legend(frameon=False, loc='lower right')
+        ax3.legend(frameon=False, loc='upper left')
+
+        # axes properties and labels
+        for ax in [ax2, ax4]:
+            ax.set(xticks=[], xticklabels=[])
+        ax1.set(xlabel='Epoch',
+                ylabel='Loss')
+        ax3.set(ylabel='Accuracy',
+                ylim=(0, 1))
+
+        # save figure
+        os.makedirs(outpath, exist_ok=True)
+        fig.savefig(os.path.join(outpath, state_file.replace('.pt', '.png')),
+                    dpi=300, bbox_inches='tight')
 
         return fig, ax
 

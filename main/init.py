@@ -15,16 +15,23 @@ import torch
 sys.path.append('..')
 
 # local modules
-from pytorch.dataset import SparcsDataset
+from pytorch.dataset import SparcsDataset, Cloud95Dataset
 from pytorch.trainer import NetworkTrainer
 from pytorch.models import SegNet
-from main.config import (dataset_path, bands, tile_size, tvratio, filters,
-                         skip_connection, kwargs, loss_function, optimizer,
-                         lr, ttratio, batch_size, seed)
+from main.config import (dataset_name, dataset_path, bands, tile_size, tvratio,
+                         filters, skip_connection, kwargs, loss_function,
+                         optimizer, lr, ttratio, batch_size, seed, patches)
 
-
-# instanciate the SparcsDataset class
-dataset = SparcsDataset(dataset_path, bands, tile_size)
+# check which dataset the model is trained on
+if dataset_name == 'Sparcs':
+    # instanciate the SparcsDataset
+    dataset = SparcsDataset(dataset_path, use_bands=bands, tile_size=tile_size)
+elif dataset_name == 'Cloud95':
+    dataset = Cloud95Dataset(dataset_path, use_bands=bands,
+                             tile_size=tile_size, exclude=patches)
+else:
+    raise ValueError('{} is not a valid dataset. Available datasets are '
+                     '"Sparcs" and "Cloud95".'.format(dataset_name))
 
 # print the bands used for the segmentation
 print('------------------------ Input bands -----------------------------')

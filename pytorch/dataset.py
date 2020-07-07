@@ -13,6 +13,7 @@ your custom dataset.
 
 # builtins
 import os
+import csv
 import glob
 import itertools
 
@@ -613,9 +614,14 @@ class SparcsDataset(ImageDataset):
 
 class Cloud95Dataset(ImageDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None):
+    def __init__(self, root_dir, use_bands=[], tile_size=None, exclude=None):
+
         # initialize super class ImageDataset
         super().__init__(root_dir, use_bands, tile_size)
+
+        # whether to exclude patches with more than 80% black pixels, i.e.
+        # patches resulting from the black margins around a Landsat 8 scene
+        self.exclude = exclude
 
         # list of all scenes in the root directory
         # each scene is divided into tiles blocks
@@ -648,6 +654,14 @@ class Cloud95Dataset(ImageDataset):
 
     def compose_scenes(self, root_dir):
 
+        # whether to exclude patches with more than 80% black pixels
+        ipatches = []
+        if self.exclude is not None:
+            with open(os.path.join(self.root, self.exclude), newline='') as f:
+                reader = csv.reader(f)
+                # list of informative patches
+                ipatches = list(itertools.chain.from_iterable(reader))
+
         # get the names of the directories containing the TIFF files of
         # the bands of interest
         band_dirs = {}
@@ -667,6 +681,13 @@ class Cloud95Dataset(ImageDataset):
         # iterate over all the patches of the following band
         biter = self.bands[1]
         for file in os.listdir(band_dirs[biter]):
+
+            # get name of the current patch
+            patchname = file.split('.')[0].replace(biter + '_', '')
+
+            # check whether the current file is an informative patch
+            if ipatches and patchname not in ipatches:
+                continue
 
             # iterate over the tiles
             for tile in range(self.tiles):
@@ -702,8 +723,11 @@ if __name__ == '__main__':
     # path to the Cloud-95 dataset
     cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
 
+    # the csv file containing the names of the informative patches
+    patches = 'training_patches_95-cloud_nonempty.csv'
+
     # instanciate the Cloud-95 dataset
-    cloud_dataset = Cloud95Dataset(cloud_path, tile_size=192)
+    cloud_dataset = Cloud95Dataset(cloud_path, tile_size=192, exclude=patches)
 
     # instanciate the SparcsDataset class
     sparcs_dataset = SparcsDataset(sparcs_path, tile_size=None,

@@ -194,7 +194,7 @@ class NetworkTrainer(object):
                 epoch_acc = vacc.squeeze().mean()
 
                 # whether the model improved with respect to the previous epoch
-                if epoch_acc > max_accuracy:
+                if es.increased(epoch_acc, max_accuracy, kwargs['min_delta']):
                     max_accuracy = epoch_acc
                     # save model state if the model improved with
                     # respect to the previous epoch

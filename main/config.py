@@ -124,7 +124,7 @@ plot_samples = True
 
 # number of samples to plot
 # if nsamples = -1, all samples are plotted
-nsamples = 10
+nsamples = 50
 
 # plot_bands defines the bands used to plot a false color composite of the
 # input scene: red = bands[0], green = bands[1], blue = bands[2]

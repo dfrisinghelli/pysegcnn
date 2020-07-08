@@ -1,4 +1,5 @@
 # builtins
+import os
 import sys
 
 # externals
@@ -20,17 +21,18 @@ if __name__ == '__main__':
     cm, accuracy, loss = trainer.predict(state_path, state_file,
                                          confusion=True)
 
-    # calculate overal accuracy
+    # # calculate overal accuracy
     acc = (cm.diag().sum() / cm.sum()).numpy().item()
     print('After training for {:d} epochs, we achieved an overall accuracy of '
           '{:.2f}%  on the validation set!'.format(trainer.model.epoch,
                                                    acc * 100))
 
-    # plot confusion matrix
+    # # plot confusion matrix
     trainer.dataset.plot_confusion_matrix(cm, state=state_file)
 
     # plot loss and accuracy
-    trainer.dataset.plot_loss(trainer.loss_state)
+    trainer.dataset.plot_loss(
+        os.path.join(state_path, state_file.replace('.pt', '_loss.pt')))
 
     # whether to plot the samples of the validation dataset
     if plot_samples:
@@ -65,4 +67,5 @@ if __name__ == '__main__':
             fig, ax = trainer.dataset.plot_sample(inputs, labels, y_pred,
                                                   bands=plot_bands,
                                                   state=sname,
-                                                  stretch=True)
+                                                  stretch=True,
+						  alpha=5)

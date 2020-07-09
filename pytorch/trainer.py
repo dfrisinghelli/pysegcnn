@@ -40,8 +40,10 @@ class NetworkTrainer(object):
         self.batch_size = batch_size
 
         # the training and validation dataloaders
-        self.train_dl = DataLoader(self.train_ds, batch_size, shuffle=True)
-        self.valid_dl = DataLoader(self.valid_ds, batch_size, shuffle=True)
+        self.train_dl = DataLoader(self.train_ds, batch_size, shuffle=True,
+                                   drop_last=True)
+        self.valid_dl = DataLoader(self.valid_ds, batch_size, shuffle=True,
+                                   drop_last=True)
 
         # the loss function to compute the model error
         self.loss_function = loss_function

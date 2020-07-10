@@ -16,5 +16,5 @@ For further information or ideas for future development please contact: daniel.f
 
 ## License
 If not explicitly stated otherwise, this repository is licensed under the **GNU GENERAL PUBLIC LICENSE v3.0**
-(see [LICENSE](https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning/-/blob/dev/LICENSE)).<br>
+(see [LICENSE](https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning/-/blob/master/LICENSE)).<br>
 <br>![](http://www.eurac.edu/Style%20Library/logoEURAC.jpg)<br><br>

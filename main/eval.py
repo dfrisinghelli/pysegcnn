@@ -12,23 +12,25 @@ import matplotlib.pyplot as plt
 sys.path.append('..')
 
 # local modules
-from main.config import state_path, plot_samples, nsamples, plot_bands, seed
+from main.config import (state_path, plot_samples, nsamples, plot_bands, seed,
+                         plot_cm)
 from main.init import state_file, trainer
 
 if __name__ == '__main__':
 
-    # predict each batch in the validation set
-    cm, accuracy, loss = trainer.predict(state_path, state_file,
-                                         confusion=True)
+    if plot_cm:
+        # predict each batch in the validation set
+        cm, accuracy, loss = trainer.predict(state_path, state_file,
+                                             confusion=True)
 
-    # # calculate overal accuracy
-    acc = (cm.diag().sum() / cm.sum()).numpy().item()
-    print('After training for {:d} epochs, we achieved an overall accuracy of '
-          '{:.2f}%  on the validation set!'.format(trainer.model.epoch,
-                                                   acc * 100))
+        # calculate overal accuracy
+        acc = (cm.diag().sum() / cm.sum()).numpy().item()
+        print('After training for {:d} epochs, we achieved an overall '
+              'accuracy of {:.2f}%  on the validation set!'
+              .format(trainer.model.epoch, acc * 100))
 
-    # # plot confusion matrix
-    trainer.dataset.plot_confusion_matrix(cm, state=state_file)
+        # plot confusion matrix
+        trainer.dataset.plot_confusion_matrix(cm, state=state_file)
 
     # plot loss and accuracy
     trainer.dataset.plot_loss(
@@ -36,6 +38,10 @@ if __name__ == '__main__':
 
     # whether to plot the samples of the validation dataset
     if plot_samples:
+
+        # load pretrained model
+        state = trainer.model.load(trainer.optimizer, state_file, state_path)
+        trainer.model.eval()
 
         # base filename for each sample
         fname = state_file.split('.pt')[0]
@@ -68,4 +74,4 @@ if __name__ == '__main__':
                                                   bands=plot_bands,
                                                   state=sname,
                                                   stretch=True,
-						  alpha=5)
+                                                  alpha=5)

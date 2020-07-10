@@ -21,12 +21,12 @@ import torch.optim as optim
 wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # define which dataset to train on
-dataset_name = 'Sparcs'
-# dataset_name= 'Cloud95'
+# dataset_name = 'Sparcs'
+dataset_name= 'Cloud95'
 
 # path to the dataset
-dataset_path = os.path.join(wd, '_Datasets/Sparcs')
-# dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
+# dataset_path = os.path.join(wd, '_Datasets/Sparcs')
+dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
 
 # the csv file containing the names of the informative patches of the
 # Cloud95 dataset
@@ -39,7 +39,7 @@ bands = ['red', 'green', 'blue', 'nir']
 
 # define the size of the network input
 # if None, the size will default to the size of a scene
-tile_size = 125
+tile_size = 192
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ ttratio = 1
 
 # (ttratio * tvratio) * 100 % will be used as the training dataset
 # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-tvratio = 0.8
+tvratio = 0.2
 
 # define the batch size
 # determines how many samples of the dataset are processed until the weights
@@ -88,14 +88,14 @@ checkpoint = False
 
 # whether to early stop training if the accuracy (loss) on the validation set
 # does not increase (decrease) more than delta over patience epochs
-early_stop = True
+early_stop = False
 mode = 'max'
-delta = 0.005
+delta = 0
 patience = 10
 
 # define the number of epochs: the number of maximum iterations over the whole
 # training dataset
-epochs = 200
+epochs = 5
 
 # define the number of threads
 nthreads = os.cpu_count()
@@ -116,6 +116,9 @@ state_path = os.path.join(os.getcwd(), '_models/')
 
 # ------------------------- Plotting configuration ----------------------------
 # -----------------------------------------------------------------------------
+
+# whether to compute and plot confusion matrix for the entire validation set
+plot_cm = False
 
 # whether to save plots of (input, ground truth, prediction) of the validation
 # dataset to disk

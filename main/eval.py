@@ -12,16 +12,18 @@ import matplotlib.pyplot as plt
 sys.path.append('..')
 
 # local modules
-from main.config import (state_path, plot_samples, nsamples, plot_bands, seed,
-                         plot_cm)
-from main.init import state_file, trainer
+from pytorch.trainer import NetworkTrainer
+from main.config import config
+
 
 if __name__ == '__main__':
 
-    if plot_cm:
+    # instanciate the NetworkTrainer class
+    trainer = NetworkTrainer(config)
+
+    if trainer.plot_cm:
         # predict each batch in the validation set
-        cm, accuracy, loss = trainer.predict(state_path, state_file,
-                                             confusion=True)
+        cm, accuracy, loss = trainer.predict(pretrained=True, confusion=True)
 
         # calculate overal accuracy
         acc = (cm.diag().sum() / cm.sum()).numpy().item()
@@ -30,29 +32,30 @@ if __name__ == '__main__':
               .format(trainer.model.epoch, acc * 100))
 
         # plot confusion matrix
-        trainer.dataset.plot_confusion_matrix(cm, state=state_file)
+        trainer.dataset.plot_confusion_matrix(cm, state=trainer.state_file)
 
     # plot loss and accuracy
-    trainer.dataset.plot_loss(
-        os.path.join(state_path, state_file.replace('.pt', '_loss.pt')))
+    trainer.dataset.plot_loss(trainer.loss_state)
 
     # whether to plot the samples of the validation dataset
-    if plot_samples:
+    if trainer.plot_samples:
 
         # load pretrained model
-        state = trainer.model.load(trainer.optimizer, state_file, state_path)
+        state = trainer.model.load(trainer.optimizer, trainer.state_file,
+                                   trainer.state_path)
         trainer.model.eval()
 
         # base filename for each sample
-        fname = state_file.split('.pt')[0]
+        fname = trainer.state_file.split('.pt')[0]
 
         # set random seed for reproducibility
-        np.random.seed(seed)
+        np.random.seed(trainer.seed)
 
         # draw a number of samples from the validation set
         samples = np.arange(0, len(trainer.valid_ds))
-        if nsamples > 0:
-            samples = np.random.randint(len(trainer.valid_ds), size=nsamples)
+        if trainer.nsamples > 0:
+            samples = np.random.randint(len(trainer.valid_ds),
+                                        size=trainer.nsamples)
 
         # iterate over the samples and plot inputs, ground truth and
         # model predictions
@@ -71,7 +74,7 @@ if __name__ == '__main__':
             # plot inputs, ground truth and model predictions
             sname = fname + '_sample_{}.pt'.format(sample)
             fig, ax = trainer.dataset.plot_sample(inputs, labels, y_pred,
-                                                  bands=plot_bands,
+                                                  bands=trainer.plot_bands,
                                                   state=sname,
                                                   stretch=True,
                                                   alpha=5)

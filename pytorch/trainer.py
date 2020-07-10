@@ -7,6 +7,7 @@ Created on Fri Jun 26 16:31:36 2020
 """
 # builtins
 import os
+import sys
 
 # externals
 import numpy as np
@@ -14,46 +15,100 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import random_split, DataLoader
 
+# append path to local files to the python search path
+sys.path.append('..')
 
-class InitNetwork(object):
-    def __init__(self, config):
-        for k, v in config.items():
-            setattr(self, k, v)
+# local modules
+from pytorch.dataset import SparcsDataset, Cloud95Dataset
+from pytorch.models import SegNet
 
 
 class NetworkTrainer(object):
 
-    def __init__(self, model, dataset, loss_function, optimizer, batch_size=32,
-                 tvratio=0.8, ttratio=1, seed=0):
+    def __init__(self, config):
 
-        # the model to train
-        self.model = model
+        # the configuration file as defined in main.config.py
+        for k, v in config.items():
+            setattr(self, k, v)
 
-        # the dataset to train the model on
-        self.dataset = dataset
+        # check which dataset the model is trained on
+        if self.dataset_name == 'Sparcs':
+            # instanciate the SparcsDataset
+            self.dataset = SparcsDataset(self.dataset_path,
+                                         use_bands=self.bands,
+                                         tile_size=self.tile_size)
+        elif self.dataset_name == 'Cloud95':
+            # instanciate the Cloud95Dataset
+            self.dataset = Cloud95Dataset(self.dataset_path,
+                                          use_bands=self.bands,
+                                          tile_size=self.tile_size,
+                                          exclude=self.patches)
+        else:
+            raise ValueError('{} is not a valid dataset. Available datasets '
+                             'are "Sparcs" and "Cloud95".'
+                             .format(self.dataset_name))
+
+        # print the bands used for the segmentation
+        print('------------------------ Input bands -------------------------')
+        print(*['Band {}: {}'.format(i, b) for i, b in
+                enumerate(self.dataset.use_bands)], sep='\n')
+        print('--------------------------------------------------------------')
+
+        # print the classes of interest
+        print('-------------------------- Classes ---------------------------')
+        print(*['Class {}: {}'.format(k, v['label']) for k, v in
+                self.dataset.labels.items()], sep='\n')
+        print('--------------------------------------------------------------')
+
+        # instanciate the segmentation network
+        print('------------------- Network architecture ---------------------')
+        self.model = SegNet(in_channels=len(self.dataset.use_bands),
+                            nclasses=len(self.dataset.labels),
+                            filters=self.filters,
+                            skip=self.skip_connection,
+                            **self.kwargs)
+        print(self.model)
+        print('--------------------------------------------------------------')
 
         # the training and validation dataset
+        print('------------------------ Dataset split -----------------------')
         self.train_ds, self.valid_ds, self.test_ds = self.train_val_test_split(
-            self.dataset, tvratio, ttratio, seed)
-
-        # the batch size
-        self.batch_size = batch_size
+            self.dataset, self.tvratio, self.ttratio, self.seed)
+        print('--------------------------------------------------------------')
 
         # the training and validation dataloaders
-        self.train_dl = DataLoader(self.train_ds, batch_size, shuffle=True,
+        self.train_dl = DataLoader(self.train_ds,
+                                   self.batch_size,
+                                   shuffle=True,
                                    drop_last=True)
-        self.valid_dl = DataLoader(self.valid_ds, batch_size, shuffle=True,
+        self.valid_dl = DataLoader(self.valid_ds,
+                                   self.batch_size,
+                                   shuffle=True,
                                    drop_last=True)
-
-        # the loss function to compute the model error
-        self.loss_function = loss_function
 
         # the optimizer used to update the model weights
-        self.optimizer = optimizer
+        self.optimizer = self.optimizer(self.model.parameters(), self.lr)
 
         # whether to use the gpu
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else
                                    "cpu")
+
+        # file to save model state to
+        # format: networkname_datasetname_t(tilesize)_b(batchsize)_bands.pt
+        bformat = ''.join([b[0] for b in self.bands]) if self.bands else 'all'
+        self.state_file = ('{}_{}_t{}_b{}_{}.pt'
+                           .format(self.model.__class__.__name__,
+                                   self.dataset.__class__.__name__,
+                                   self.tile_size,
+                                   self.batch_size,
+                                   bformat))
+
+        # path to model state
+        self.state = os.path.join(self.state_path, self.state_file)
+
+        # path to model loss/accuracy
+        self.loss_state = self.state.replace('.pt', '_loss.pt')
+
 
     def ds_len(self, ds, ratio):
         return int(np.round(len(ds) * ratio))
@@ -93,26 +148,25 @@ class NetworkTrainer(object):
     def accuracy_function(self, outputs, labels):
         return (outputs == labels).float().mean()
 
-    def train(self, state_path, state_file, epochs=1, resume=True,
-              early_stop=True, nthreads=os.cpu_count(), **kwargs):
+    def train(self):
 
         # set the number of threads
-        torch.set_num_threads(nthreads)
-
-        # store path to model state
-        self.state = os.path.join(state_path, state_file)
-        self.loss_state = self.state.replace('.pt', '_loss.pt')
+        torch.set_num_threads(self.nthreads)
 
         # instanciate early stopping class
-        if early_stop:
-            es = EarlyStopping(**kwargs)
+        if self.early_stop:
+            es = EarlyStopping(self.mode, self.delta, self.patience)
+            print('Initializing early stopping ...')
+            print('mode = {}, delta = {}, patience = {} epochs ...'
+                  .format(self.mode, self.delta, self.patience))
 
             # initial accuracy on the validation set
             max_accuracy = 0
 
         # whether to resume training from an existing model
-        if os.path.exists(self.state) and resume:
-            state = self.model.load(self.optimizer, state_file, state_path)
+        if os.path.exists(self.state) and self.resume:
+            state = self.model.load(self.optimizer, self.state_file,
+                                    self.state_path)
             print('Resuming training from {} ...'.format(state))
             print('Model epoch: {:d}'.format(self.model.epoch))
 
@@ -127,16 +181,16 @@ class NetworkTrainer(object):
 
         # create arrays of the observed losses and accuracies on the
         # training set
-        losses = np.zeros(shape=(nbatches, epochs))
-        accuracies = np.zeros(shape=(nbatches, epochs))
+        losses = np.zeros(shape=(nbatches, self.epochs))
+        accuracies = np.zeros(shape=(nbatches, self.epochs))
 
         # create arrays of the observed losses and accuracies on the
         # validation set
-        vlosses = np.zeros(shape=(nvbatches, epochs))
-        vaccuracies = np.zeros(shape=(nvbatches, epochs))
+        vlosses = np.zeros(shape=(nvbatches, self.epochs))
+        vaccuracies = np.zeros(shape=(nvbatches, self.epochs))
 
         # initialize the training: iterate over the entire training data set
-        for epoch in range(epochs):
+        for epoch in range(self.epochs):
 
             # set the model to training mode
             print('Setting model to training mode ...')
@@ -175,15 +229,16 @@ class NetworkTrainer(object):
 
                 # print progress
                 print('Epoch: {:d}/{:d}, Batch: {:d}/{:d}, Loss: {:.2f}, '
-                      'Accuracy: {:.2f}'.format(epoch, epochs, batch, nbatches,
-                                                losses[batch, epoch], acc))
+                      'Accuracy: {:.2f}'.format(epoch, self.epochs, batch,
+                                                nbatches, losses[batch, epoch],
+                                                acc))
 
             # update the number of epochs trained
             self.model.epoch += 1
 
             # whether to evaluate model performance on the validation set and
             # early stop the training process
-            if early_stop:
+            if self.early_stop:
 
                 # model predictions on the validation set
                 _, vacc, vloss = self.predict()
@@ -196,11 +251,12 @@ class NetworkTrainer(object):
                 epoch_acc = vacc.squeeze().mean()
 
                 # whether the model improved with respect to the previous epoch
-                if es.increased(epoch_acc, max_accuracy, kwargs['min_delta']):
+                if es.increased(epoch_acc, max_accuracy, self.delta):
                     max_accuracy = epoch_acc
                     # save model state if the model improved with
                     # respect to the previous epoch
-                    _ = self.model.save(self.optimizer, state_file, state_path)
+                    _ = self.model.save(self.optimizer, self.state_file,
+                                        self.state_path)
 
                 # whether the early stopping criterion is met
                 if es.stop(epoch_acc):
@@ -218,7 +274,8 @@ class NetworkTrainer(object):
             else:
                 # if no early stopping is required, the model state is saved
                 # after each epoch
-                _ = self.model.save(self.optimizer, state_file, state_path)
+                _ = self.model.save(self.optimizer, self.state_file,
+                                    self.state_path)
 
             # save losses and accuracy after each epoch to file
             torch.save({'epoch': epoch,
@@ -230,11 +287,12 @@ class NetworkTrainer(object):
 
         return losses, accuracies, vlosses, vaccuracies
 
-    def predict(self, state_path=None, state_file=None, confusion=False):
+    def predict(self, pretrained=False, confusion=False):
 
-        # load the model state if provided
-        if state_file is not None:
-            state = self.model.load(self.optimizer, state_file, state_path)
+        # load the model state if evaluating a pretrained model is required
+        if pretrained:
+            state = self.model.load(self.optimizer, self.state_file,
+                                    self.state_path)
 
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
@@ -290,7 +348,7 @@ class NetworkTrainer(object):
               .format(accuracies.mean() * 100))
 
         # save confusion matrix and accuracies to file
-        if state_file is not None and confusion:
+        if pretrained and confusion:
             torch.save({'cm': cm}, state.replace('.pt', '_cm.pt'))
 
         return cm, accuracies, losses
@@ -298,7 +356,7 @@ class NetworkTrainer(object):
 
 class EarlyStopping(object):
 
-    def __init__(self, mode='min', min_delta=0, patience=5):
+    def __init__(self, mode='max', min_delta=0, patience=10):
 
         # check if mode is correctly specified
         if mode not in ['min', 'max']:
@@ -307,6 +365,9 @@ class EarlyStopping(object):
                              'decreased, e.g. loss) or "max" (check whether '
                              'the metric increased, e.g. accuracy).'
                              .format(mode))
+
+        # mode to determine if metric improved
+        self.mode = mode
 
         # whether to check for an increase or a decrease in a given metric
         self.is_better = self.decreased if mode == 'min' else self.increased

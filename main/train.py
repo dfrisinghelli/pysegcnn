@@ -16,15 +16,15 @@ import torch
 sys.path.append('..')
 
 # local modules
-from main.config import (epochs, nthreads, checkpoint, early_stop,
-                         mode, delta, patience, state_path)
-from main.init import state_file, trainer
+from pytorch.trainer import NetworkTrainer
+from main.config import config
+
 
 if __name__ == '__main__':
 
+    # instanciate the NetworkTrainer class
+    trainer = NetworkTrainer(config)
+
     # train the network
     print('----------------------- Network training -------------------------')
-    loss, accuracy, vloss, vaccuracy = trainer.train(
-        state_path, state_file, epochs=epochs, resume=checkpoint,
-        early_stop=early_stop, nthreads=nthreads, mode=mode,
-        min_delta=delta, patience=patience)
+    loss, accuracy, vloss, vaccuracy = trainer.train()

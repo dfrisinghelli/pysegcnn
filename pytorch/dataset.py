@@ -467,7 +467,7 @@ class ImageDataset(Dataset):
         # plot training and validation mean loss per epoch
         [ax1.plot(epochs, v.mean(axis=0),
                   label=k.capitalize().replace('_', ' '), color=c, lw=2)
-         for (k, v), c in zip(loss.items(), colors) if 'loss' in k]
+         for (k, v), c in zip(loss.items(), colors) if v.any() and 'loss' in k]
 
         # plot training loss per batch
         ax2 = ax1.twiny()
@@ -479,7 +479,8 @@ class ImageDataset(Dataset):
         ax3 = ax1.twinx()
         [ax3.plot(epochs, v.mean(axis=0),
                   label=k.capitalize().replace('_', ' '), color=c, lw=2)
-         for (k, v), c in zip(loss.items(), colors) if 'accuracy' in k]
+         for (k, v), c in zip(loss.items(), colors) if v.any() and 'accuracy'
+         in k]
 
         # plot training accuracy per batch
         ax4 = ax3.twiny()
@@ -497,14 +498,16 @@ class ImageDataset(Dataset):
                 ylim=(0, 1))
 
         # compute early stopping point
-        esepoch = np.argmax(loss['validation_accuracy'].mean(axis=0))
-        esacc = np.max(loss['validation_accuracy'].mean(axis=0))
-        ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
-                   ls='--', color='grey')
-        ax1.text(esepoch - 1, ax1.get_ylim()[0] + 0.01,
-                 'epoch = {}'.format(esepoch), ha='right', color='grey')
-        ax1.text(esepoch + 1, ax1.get_ylim()[0] + 0.01,
-                 'acc = {:.2f}%'.format(esacc * 100), ha='left', color='grey')
+        if loss['validation_accuracy'].any():
+            esepoch = np.argmax(loss['validation_accuracy'].mean(axis=0))
+            esacc = np.max(loss['validation_accuracy'].mean(axis=0))
+            ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
+                       ls='--', color='grey')
+            ax1.text(esepoch - 1, ax1.get_ylim()[0] + 0.01,
+                     'epoch = {}'.format(esepoch), ha='right', color='grey')
+            ax1.text(esepoch + 1, ax1.get_ylim()[0] + 0.01,
+                     'acc = {:.2f}%'.format(esacc * 100), ha='left',
+                     color='grey')
 
         # add legends
         ax1.legend(frameon=False, loc='lower left')

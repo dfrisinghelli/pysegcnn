@@ -79,7 +79,7 @@ if __name__ == '__main__':
                                   labels,
                                   trainer.dataset.use_bands,
                                   trainer.dataset.labels,
-                                  ypred=ypred,
+                                  ypred=y_pred,
                                   bands=trainer.plot_bands,
                                   state=sname,
                                   stretch=True,

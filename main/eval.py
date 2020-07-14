@@ -13,6 +13,7 @@ sys.path.append('..')
 
 # local modules
 from pytorch.trainer import NetworkTrainer
+from pytorch.graphics import plot_confusion_matrix, plot_loss, plot_sample
 from main.config import config
 
 
@@ -31,11 +32,12 @@ if __name__ == '__main__':
               'accuracy of {:.2f}%  on the validation set!'
               .format(trainer.model.epoch, acc * 100))
 
-        # plot confusion matrix
-        trainer.dataset.plot_confusion_matrix(cm, state=trainer.state_file)
+        # plot confusion matrix: labels of the dataset
+        labels = [label['label'] for label in trainer.dataset.labels.values()]
+        plot_confusion_matrix(cm, labels, state=trainer.state_file)
 
     # plot loss and accuracy
-    trainer.dataset.plot_loss(trainer.loss_state)
+    plot_loss(trainer.loss_state)
 
     # whether to plot the samples of the validation dataset
     if trainer.plot_samples:
@@ -73,8 +75,12 @@ if __name__ == '__main__':
 
             # plot inputs, ground truth and model predictions
             sname = fname + '_sample_{}.pt'.format(sample)
-            fig, ax = trainer.dataset.plot_sample(inputs, labels, y_pred,
-                                                  bands=trainer.plot_bands,
-                                                  state=sname,
-                                                  stretch=True,
-                                                  alpha=5)
+            fig, ax = plot_sample(inputs,
+                                  labels,
+                                  trainer.dataset.use_bands,
+                                  trainer.dataset.labels,
+                                  ypred=ypred,
+                                  bands=trainer.plot_bands,
+                                  state=sname,
+                                  stretch=True,
+                                  alpha=5)

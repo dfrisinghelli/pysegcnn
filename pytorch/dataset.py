@@ -525,7 +525,7 @@ class Cloud95Dataset(ImageDataset):
         scenes = []
 
         # iterate over all the patches of the following band
-        biter = self.bands[1]
+        biter = [*band_dirs.keys()][0]
         for file in os.listdir(band_dirs[biter]):
 
             # get name of the current patch
@@ -560,8 +560,8 @@ if __name__ == '__main__':
 
     # define path to working directory
     # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-    # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
-    wd = 'C:/Eurac/2020/'
+    wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
+    # wd = 'C:/Eurac/2020/'
 
     # path to the preprocessed sparcs dataset
     sparcs_path = os.path.join(wd, '_Datasets/Sparcs')

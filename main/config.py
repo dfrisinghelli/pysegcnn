@@ -7,22 +7,29 @@ Created on Tue Jun 30 11:40:35 2020
 """
 # builtins
 import os
+import sys
 import inspect
 
 # externals
 import torch.nn as nn
 import torch.optim as optim
 
+# append path to local files to the python search path
+sys.path.append('..')
+
+from pytorch.models import UNet
+
 # ------------------------- Dataset configuration -----------------------------
 # -----------------------------------------------------------------------------
 
 # define path to working directory
+# wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
 # wd = 'C:/Eurac/2020/'
 wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # define which dataset to train on
 # dataset_name = 'Sparcs'
-dataset_name= 'Cloud95'
+dataset_name = 'Cloud95'
 
 # path to the dataset
 # dataset_path = os.path.join(wd, '_Datasets/Sparcs')
@@ -47,6 +54,9 @@ tile_size = 192
 # ------------------------- Network configuration -----------------------------
 # -----------------------------------------------------------------------------
 
+# define the model
+net = UNet
+
 # define the number of filters for each convolutional layer
 # the number of filters should increase with depth
 filters = [32, 64, 128, 256]
@@ -67,6 +77,20 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 # ------------------------- Training configuration ----------------------------
 # -----------------------------------------------------------------------------
 
+# Pretrained models -----------------------------------------------------------
+
+# path to save trained models
+state_path = os.path.join(wd, 'git/deep-learning/main/_models/')
+
+# whether to use a pretrained model
+pretrained = True
+
+# name of the pretrained model
+pretrained_model = 'UNet_SparcsDataset_t125_b64_rgbn.pt'
+
+
+# Dataset split ---------------------------------------------------------------
+
 # set random seed for reproducibility of the training, validation
 # and test data split
 seed = 0
@@ -76,12 +100,14 @@ ttratio = 1
 
 # (ttratio * tvratio) * 100 % will be used as the training dataset
 # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-tvratio = 0.2
+tvratio = 0.05
 
 # define the batch size
 # determines how many samples of the dataset are processed until the weights
 # of the network are updated
 batch_size = 64
+
+# Training configuration ------------------------------------------------------
 
 # whether to resume training from an existing model checkpoint
 checkpoint = False
@@ -100,6 +126,8 @@ epochs = 5
 # define the number of threads
 nthreads = os.cpu_count()
 
+# Optimizer and loss ----------------------------------------------------------
+
 # define a loss function to calculate the network error
 loss_function = nn.CrossEntropyLoss()
 
@@ -109,8 +137,6 @@ optimizer = optim.Adam
 # define the learning rate
 lr = 0.001
 
-# path to save trained models
-state_path = os.path.join(os.getcwd(), '_models/')
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 

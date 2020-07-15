@@ -20,7 +20,7 @@ sys.path.append('..')
 
 # local modules
 from pytorch.dataset import SparcsDataset, Cloud95Dataset
-from pytorch.models import SegNet
+from pytorch.constants import SparcsLabels, Cloud95Labels
 
 
 class NetworkTrainer(object):
@@ -30,6 +30,8 @@ class NetworkTrainer(object):
         # the configuration file as defined in main.config.py
         for k, v in config.items():
             setattr(self, k, v)
+
+    def initialize(self):
 
         # check which dataset the model is trained on
         if self.dataset_name == 'Sparcs':
@@ -62,11 +64,14 @@ class NetworkTrainer(object):
 
         # instanciate the segmentation network
         print('------------------- Network architecture ---------------------')
-        self.model = SegNet(in_channels=len(self.dataset.use_bands),
-                            nclasses=len(self.dataset.labels),
-                            filters=self.filters,
-                            skip=self.skip_connection,
-                            **self.kwargs)
+        if self.pretrained:
+            self.model = self.from_pretrained()
+        else:
+            self.model = self.net(in_channels=len(self.dataset.use_bands),
+                                  nclasses=len(self.dataset.labels),
+                                  filters=self.filters,
+                                  skip=self.skip_connection,
+                                  **self.kwargs)
         print(self.model)
         print('--------------------------------------------------------------')
 
@@ -108,6 +113,44 @@ class NetworkTrainer(object):
 
         # path to model loss/accuracy
         self.loss_state = self.state.replace('.pt', '_loss.pt')
+
+
+    def from_pretrained(self):
+
+        # name of the dataset the pretrained model was trained on
+        dataset_name = self.pretrained_model.split('_')[1]
+
+        # input bands of the pretrained model
+        bands = self.pretrained_model.split('_')[-1].split('.')[0]
+
+        if dataset_name == SparcsDataset.__name__:
+
+            # number of input channels
+            in_channels = len(bands) if bands != 'all' else 10
+
+            # instanciate pretrained model architecture
+            model = self.net(in_channels=in_channels,
+                             nclasses=len(SparcsLabels),
+                             filters=self.filters,
+                             skip=self.skip_connection,
+                             **self.kwargs)
+
+        if dataset_name == Cloud95Dataset.__name__:
+
+            # number of input channels
+            in_channels = len(bands) if bands != 'all' else 4
+
+            # instanciate pretrained model architecture
+            model = self.net(in_channels=in_channels,
+                             nclasses=len(Cloud95Labels),
+                             filters=self.filters,
+                             skip=self.skip_connection,
+                             **self.kwargs)
+
+        # load pretrained model weights
+        model.load(self.pretrained_model, inpath=self.state_path)
+
+        return model
 
 
     def ds_len(self, ds, ratio):
@@ -164,8 +207,8 @@ class NetworkTrainer(object):
             max_accuracy = 0
 
         # whether to resume training from an existing model
-        if os.path.exists(self.state) and self.resume:
-            state = self.model.load(self.optimizer, self.state_file,
+        if os.path.exists(self.state) and self.checkpoint:
+            state = self.model.load(self.state_file, self.optimizer,
                                     self.state_path)
             print('Resuming training from {} ...'.format(state))
             print('Model epoch: {:d}'.format(self.model.epoch))
@@ -291,7 +334,7 @@ class NetworkTrainer(object):
 
         # load the model state if evaluating a pretrained model is required
         if pretrained:
-            state = self.model.load(self.optimizer, self.state_file,
+            state = self.model.load(self.state_file, self.optimizer,
                                     self.state_path)
 
         # send the model to the gpu if available

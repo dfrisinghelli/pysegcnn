@@ -27,4 +27,4 @@ if __name__ == '__main__':
 
     # train the network
     print('----------------------- Network training -------------------------')
-    loss, accuracy, vloss, vaccuracy = trainer.train()
+    training_state = trainer.train()

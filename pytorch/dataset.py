@@ -23,7 +23,6 @@ import itertools
 import gdal
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 
 # append path to local files to the python search path
@@ -32,8 +31,8 @@ sys.path.append('..')
 # locals
 from pytorch.constants import (Landsat8, Sentinel2, SparcsLabels,
                                Cloud95Labels, ProSnowLabels)
-from pytorch.graphics import plot_sample
 from pytorch.utils import parse_landsat8_date, parse_sentinel2_date
+
 
 # generic image dataset class
 class ImageDataset(Dataset):
@@ -163,7 +162,7 @@ class ImageDataset(Dataset):
         # read each band of the scene into a numpy array
         scene_data = {key: (self.img2np(value, tile_size=self.tile_size,
                                         tile=scene['tile'])
-                            if key != 'tile' else value)
+                            if key != 'tile' and key != 'date' else value)
                       for key, value in scene.items()}
 
         return scene_data
@@ -463,7 +462,7 @@ class ProSnowDataset(StandardEoDataset):
     # class labels of the ProSnow dataset
     def get_labels(self):
         return {band.value[0]: {'label': band.name, 'color': band.value[1]}
-               for band in ProSnowLabels}
+                for band in ProSnowLabels}
 
     # preprocessing of the ProSnow dataset
     def preprocess(self, data, gt):

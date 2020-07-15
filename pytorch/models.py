@@ -22,16 +22,73 @@ from pytorch.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
                             Conv2dUpsample, Conv2dSame)
 
 
-class SegNet(nn.Module):
+class Network(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def freeze(self):
+        for param in self.parameters():
+            param.requires_grad = False
+
+    def unfreeze(self):
+        for param in self.parameters():
+            param.requires_grad = True
+
+    def save(self, optimizer, state_file,
+             outpath=os.path.join(os.getcwd(), '_models')):
+
+        # check if the output path exists and if not, create it
+        if not os.path.isdir(outpath):
+            os.makedirs(outpath, exist_ok=True)
+
+        # create a dictionary that stores the model state
+        model_state = {
+            'epoch': self.epoch,
+            'model_state_dict': self.state_dict(),
+            'optim_state_dict': optimizer.state_dict()
+            }
+
+        # model state dictionary stores the values of all trainable parameters
+        state = os.path.join(outpath, state_file)
+        torch.save(model_state, state)
+        print('Network parameters saved in {}'.format(state))
+
+        return state
+
+    def load(self, state_file, optimizer=None,
+             inpath=os.path.join(os.getcwd(), '_models')):
+
+        # load the model state file
+        state = os.path.join(inpath, state_file)
+        model_state = torch.load(state)
+
+        # resume network parameters
+        print('Loading network parameters from {} ...'.format(state))
+        self.load_state_dict(model_state['model_state_dict'])
+        self.epoch = model_state['epoch']
+
+        # resume optimizer parameters
+        if optimizer is not None:
+            print('Loading optimizer parameters from {} ...'.format(state))
+            optimizer.load_state_dict(model_state['optim_state_dict'])
+
+        return state
+
+
+class UNet(Network):
 
     def __init__(self, in_channels, nclasses, filters, skip, **kwargs):
         super().__init__()
 
+        # number of input channels
+        self.in_channels = in_channels
+
+        # number of classes
+        self.nclasses = nclasses
+
         # get the configuration for the convolutional layers of the encoder
         self.filters = np.hstack([np.array(in_channels), np.array(filters)])
-
-        # number of classes to segment
-        self.nclasses = nclasses
 
         # number of epochs trained
         self.epoch = 0
@@ -62,43 +119,3 @@ class SegNet(nn.Module):
 
         # classification
         return self.classifier(x)
-
-    def save(self, optimizer, state_file,
-             outpath=os.path.join(os.getcwd(), '_models')):
-
-        # check if the output path exists and if not, create it
-        if not os.path.isdir(outpath):
-            os.makedirs(outpath, exist_ok=True)
-
-        # create a dictionary that stores the model state
-        model_state = {
-            'epoch': self.epoch,
-            'model_state_dict': self.state_dict(),
-            'optim_state_dict': optimizer.state_dict()
-            }
-
-        # model state dictionary stores the values of all trainable parameters
-        state = os.path.join(outpath, state_file)
-        torch.save(model_state, state)
-        print('Network parameters saved in {}'.format(state))
-
-        return state
-
-
-    def load(self, optimizer, state_file,
-             inpath=os.path.join(os.getcwd(), '_models')):
-
-        # load the model state file
-        state = os.path.join(inpath, state_file)
-        model_state = torch.load(state)
-
-        # resume network parameters
-        print('Loading network parameters from {} ...'.format(state))
-        self.load_state_dict(model_state['model_state_dict'])
-        self.epoch = model_state['epoch']
-
-        # resume optimizer parameters
-        print('Loading optimizer parameters from {} ...'.format(state))
-        optimizer.load_state_dict(model_state['optim_state_dict'])
-
-        return state

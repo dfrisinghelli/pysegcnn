@@ -43,7 +43,8 @@ if __name__ == '__main__':
     if trainer.plot_samples:
 
         # load pretrained model
-        state = trainer.model.load(trainer.optimizer, trainer.state_file,
+        state = trainer.model.load(trainer.state_file,
+                                   trainer.optimizer,
                                    trainer.state_path)
         trainer.model.eval()
 
@@ -79,7 +80,7 @@ if __name__ == '__main__':
                                   labels,
                                   trainer.dataset.use_bands,
                                   trainer.dataset.labels,
-                                  ypred=y_pred,
+                                  y_pred=y_pred,
                                   bands=trainer.plot_bands,
                                   state=sname,
                                   stretch=True,

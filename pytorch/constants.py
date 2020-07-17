@@ -7,6 +7,7 @@ Created on Tue Jul 14 10:58:20 2020
 # builtins
 import enum
 
+
 # Landsat 8 bands
 class Landsat8(enum.Enum):
     violet = 1
@@ -37,6 +38,7 @@ class Sentinel2(enum.Enum):
     cirrus = 10
     swir1 = 11
     swir2 = 12
+
 
 # labels of the Sparcs dataset
 class SparcsLabels(enum.Enum):

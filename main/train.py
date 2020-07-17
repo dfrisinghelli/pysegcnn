@@ -6,14 +6,11 @@ Created on Tue Jun 30 09:33:38 2020
 @author: Daniel
 """
 # builtins
+from __future__ import absolute_import
 import os
-import sys
 
 # externals
 import torch
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 # local modules
 from pytorch.trainer import NetworkTrainer

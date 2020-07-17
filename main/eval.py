@@ -1,15 +1,12 @@
 # builtins
+from __future__ import absolute_import
 import os
-import sys
 
 # externals
 import numpy as np
 import torch
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 # local modules
 from pytorch.trainer import NetworkTrainer

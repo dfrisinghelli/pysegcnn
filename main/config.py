@@ -6,16 +6,13 @@ Created on Tue Jun 30 11:40:35 2020
 @author: Daniel
 """
 # builtins
+from __future__ import absolute_import
 import os
-import sys
 import inspect
 
 # externals
 import torch.nn as nn
 import torch.optim as optim
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 from pytorch.models import UNet
 

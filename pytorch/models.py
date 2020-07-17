@@ -6,16 +6,13 @@ Created on Fri Jun 26 16:31:36 2020
 @author: Daniel
 """
 # builtins
+from __future__ import absolute_import
 import os
-import sys
 
 # externals
 import numpy as np
 import torch
 import torch.nn as nn
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 # locals
 from pytorch.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,

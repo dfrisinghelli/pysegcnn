@@ -6,17 +6,14 @@ Created on Fri Jun 26 16:31:36 2020
 @author: Daniel
 """
 # builtins
+from __future__ import absolute_import
 import os
-import sys
 
 # externals
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import random_split, DataLoader
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 # local modules
 from pytorch.dataset import SparcsDataset, Cloud95Dataset

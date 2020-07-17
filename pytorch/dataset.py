@@ -12,21 +12,19 @@ your custom dataset.
 # -*- coding: utf-8 -*-
 
 # builtins
+from __future__ import absolute_import
 import os
 import re
-import sys
 import csv
 import glob
 import itertools
+
 
 # externals
 import gdal
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
-# append path to local files to the python search path
-sys.path.append('..')
 
 # locals
 from pytorch.constants import (Landsat8, Sentinel2, SparcsLabels,
@@ -404,6 +402,7 @@ class StandardEoDataset(ImageDataset):
 
         return scenes
 
+
 # SparcsDataset class: inherits from the generic ImageDataset class
 class SparcsDataset(StandardEoDataset):
 
@@ -504,6 +503,9 @@ class Cloud95Dataset(ImageDataset):
         # patches resulting from the black margins around a Landsat 8 scene
         self.exclude = exclude
 
+        # function that parses the date from a Landsat 8 scene id
+        self.date_parser = parse_landsat8_date
+
         # list of all scenes in the root directory
         # each scene is divided into tiles blocks
         self.scenes = self.compose_scenes()
@@ -565,6 +567,9 @@ class Cloud95Dataset(ImageDataset):
             # get name of the current patch
             patchname = file.split('.')[0].replace(biter + '_', '')
 
+            # get the date of the current scene
+            date = self.date_parser(patchname)
+
             # check whether the current file is an informative patch
             if ipatches and patchname not in ipatches:
                 continue
@@ -584,8 +589,15 @@ class Cloud95Dataset(ImageDataset):
                 # store tile number
                 scene['tile'] = tile
 
+                # store date
+                scene['date'] = date
+
                 # append patch to list of all patches
                 scenes.append(scene)
+
+        # sort list of scenes in chronological order
+        if self.sort:
+            scenes.sort(key=lambda k: k['date'])
 
         return scenes
 
@@ -594,8 +606,8 @@ if __name__ == '__main__':
 
     # define path to working directory
     # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-    wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
-    # wd = 'C:/Eurac/2020/'
+    # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
+    wd = 'C:/Eurac/2020/'
 
     # path to the preprocessed sparcs dataset
     sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
@@ -625,7 +637,7 @@ if __name__ == '__main__':
                                tile_size=None,
                                use_bands=['nir', 'red', 'green'],
                                sort=True)
-    obergurgl = ProSnowObergurgl(os.path.join(prosnow_path, 'Obergurgl'),
-                                 tile_size=None,
-                                 use_bands=['nir', 'red', 'green'],
-                                 sort=True)
+    # obergurgl = ProSnowObergurgl(os.path.join(prosnow_path, 'Obergurgl'),
+    #                              tile_size=None,
+    #                              use_bands=['nir', 'red', 'green'],
+    #                              sort=True)

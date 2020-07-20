@@ -5,8 +5,12 @@ Created on Tue Jul 14 10:58:20 2020
 @author: Daniel
 """
 # builtins
+from __future__ import absolute_import
 import enum
 
+# locals
+from pytorch.dataset import (SparcsDataset, Cloud95Dataset, ProSnowGarmisch,
+                             ProSnowObergurgl)
 
 # Landsat 8 bands
 class Landsat8(enum.Enum):
@@ -62,3 +66,10 @@ class ProSnowLabels(enum.Enum):
     Land = 0, 'grey'
     Cloud = 1, 'white'
     Snow = 2, 'lightblue'
+
+
+class SupportedDatasets(enum.Enum):
+    Sparcs = {'name': 'Sparcs', 'class': SparcsDataset}
+    Cloud95 = {'name': 'Cloud95', 'class': Cloud95Dataset}
+    Garmisch = {'name': 'Garmisch', 'class': ProSnowGarmisch}
+    Obergurgl = {'name': 'Obergurgl', 'class': ProSnowObergurgl}

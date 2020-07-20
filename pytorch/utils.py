@@ -8,6 +8,140 @@ Created on Tue Jul 14 15:02:23 2020
 import re
 import datetime
 
+# externals
+import gdal
+import numpy as np
+
+# the following functions are utility functions for common image
+# manipulation operations
+
+
+# this function reads an image to a numpy array
+def img2np(path, tile_size=None, tile=None):
+
+    # open the tif file
+    if path is None:
+        print('Path is of NoneType, returning.')
+        return
+    img = gdal.Open(path)
+
+    # check whether to read the image in tiles
+    if tile_size is None:
+
+        # create empty numpy array to store whole image
+        image = np.empty(shape=(img.RasterCount, img.RasterYSize,
+                                img.RasterXSize))
+
+        # iterate over the bands of the image
+        for b in range(img.RasterCount):
+
+            # read the data of band b
+            band = img.GetRasterBand(b+1)
+            data = band.ReadAsArray()
+
+            # append band b to numpy image array
+            image[b, :, :] = data
+
+    else:
+
+        # check whether the image is evenly divisible in square tiles
+        # of size (tile_size x tile_size)
+        ntiles = is_divisible((img.RasterXSize, img.RasterYSize), tile_size)
+
+        # get the indices of the top left corner for each tile
+        topleft = tile_offsets((img.RasterYSize, img.RasterXSize), tile_size)
+
+        # check whether to read all tiles or a single tile
+        if tile is None:
+
+            # create empty numpy array to store all tiles
+            image = np.empty(shape=(ntiles, img.RasterCount,
+                                    tile_size, tile_size))
+
+            # iterate over the tiles
+            for k, v in topleft.items():
+
+                # iterate over the bands of the image
+                for b in range(img.RasterCount):
+
+                    # read the data of band b
+                    band = img.GetRasterBand(b+1)
+                    data = band.ReadAsArray(v[1], v[0],
+                                            tile_size, tile_size)
+
+                    # append band b to numpy image array
+                    image[k, b, :, :] = data
+
+        else:
+
+            # create empty numpy array to store a single tile
+            image = np.empty(shape=(img.RasterCount, tile_size, tile_size))
+
+            # the tile of interest
+            tile = topleft[tile]
+
+            # iterate over the bands of the image
+            for b in range(img.RasterCount):
+
+                # read the data of band b
+                band = img.GetRasterBand(b+1)
+                data = band.ReadAsArray(tile[1], tile[0],
+                                        tile_size, tile_size)
+
+                # append band b to numpy image array
+                image[b, :, :] = data
+
+    # check if there are more than 1 band
+    if not img.RasterCount > 1:
+        image = image.squeeze()
+
+    # close tif file
+    del img
+
+    # return the image
+    return image
+
+
+# this function checks whether an image is evenly divisible
+# in square tiles of defined size tile_size
+def is_divisible(img_size, tile_size):
+    # calculate number of pixels per tile
+    pixels_per_tile = tile_size ** 2
+
+    # check whether the image is evenly divisible in square tiles of size
+    # (tile_size x tile_size)
+    ntiles = ((img_size[0] * img_size[1]) / pixels_per_tile)
+    assert ntiles.is_integer(), ('Image not evenly divisible in '
+                                 ' {} x {} tiles.').format(tile_size,
+                                                           tile_size)
+
+    return int(ntiles)
+
+
+# this function returns the top-left corners for each tile
+# if the image is evenly divisible in square tiles of
+# defined size tile_size
+def tile_offsets(img_size, tile_size):
+
+    # check if divisible
+    _ = is_divisible(img_size, tile_size)
+
+    # number of tiles along the width (columns) of the image
+    ntiles_columns = int(img_size[1] / tile_size)
+
+    # number of tiles along the height (rows) of the image
+    ntiles_rows = int(img_size[0] / tile_size)
+
+    # get the indices of the top left corner for each tile
+    indices = {}
+    k = 0
+    for i in range(ntiles_rows):
+        for j in range(ntiles_columns):
+            indices[k] = (i * tile_size, j * tile_size)
+            k += 1
+
+    return indices
+
 
 def parse_landsat8_date(scene):
 

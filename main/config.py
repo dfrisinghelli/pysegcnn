@@ -15,26 +15,23 @@ import torch.nn as nn
 import torch.optim as optim
 
 from pytorch.models import UNet
+from pytorch.transforms import Augment, FlipLr, FlipUd, Noise
 
 # ------------------------- Dataset configuration -----------------------------
 # -----------------------------------------------------------------------------
 
 # define path to working directory
 # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-# wd = 'C:/Eurac/2020/'
-wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
+wd = 'C:/Eurac/2020/'
+# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # define which dataset to train on
-# dataset_name = 'Sparcs'
-dataset_name = 'Cloud95'
+dataset_name = 'Sparcs'
+# dataset_name = 'Cloud95'
 
 # path to the dataset
-# dataset_path = os.path.join(wd, '_Datasets/Sparcs')
-dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
-
-# the csv file containing the names of the informative patches of the
-# Cloud95 dataset
-patches = 'training_patches_95-cloud_nonempty.csv'
+dataset_path = os.path.join(wd, '_Datasets/Sparcs')
+# dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
 
 # define the bands to use to train the segmentation network:
 # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -43,7 +40,33 @@ bands = ['red', 'green', 'blue', 'nir']
 
 # define the size of the network input
 # if None, the size will default to the size of a scene
-tile_size = 192
+tile_size = 125
+
+# whether to sort the dataset in chronological order, useful for time series
+# data
+sort = False
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+# ------------------------- Dataset augmentation ------------------------------
+# -----------------------------------------------------------------------------
+
+# whether to artificially increase the training data size using data
+# augmentation methods
+transforms = [None]
+augmentations = [
+    Augment([
+        FlipLr(),
+        FlipUd(),
+        Noise(mode='speckle', mean=0.1, var=0.05)
+        ])
+    ]
+
+# each transformation in this list is treated as a new sample in case
+transforms.extend(augmentations)
+
+# if no augmentation is required, comment line 67!
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -80,7 +103,7 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 state_path = os.path.join(wd, 'git/deep-learning/main/_models/')
 
 # whether to use a pretrained model
-pretrained = True
+pretrained = False
 
 # name of the pretrained model
 pretrained_model = 'UNet_SparcsDataset_t125_b128_rgbn.pt'

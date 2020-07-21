@@ -17,7 +17,7 @@ import numpy as np
 
 
 # this function reads an image to a numpy array
-def img2np(path, tile_size=None, tile=None):
+def img2np(path, tile_size=None, tile=None, pad=False):
 
     # open the tif file
     if path is None:
@@ -46,54 +46,71 @@ def img2np(path, tile_size=None, tile=None):
 
         # check whether the image is evenly divisible in square tiles
         # of size (tile_size x tile_size)
-        ntiles = is_divisible((img.RasterXSize, img.RasterYSize), tile_size)
+        ntiles, padding = is_divisible((img.RasterYSize, img.RasterXSize),
+                                       tile_size, pad)
+
+        # image size after padding
+        y_size = img.RasterYSize + padding[0] + padding[2]
+        x_size = img.RasterXSize + padding[1] + padding[3]
 
         # get the indices of the top left corner for each tile
-        topleft = tile_offsets((img.RasterYSize, img.RasterXSize), tile_size)
+        topleft = tile_topleft_corner((y_size, x_size), tile_size)
 
-        # check whether to read all tiles or a single tile
+        # whether to read all tiles or a single tile
         if tile is None:
-
-            # create empty numpy array to store all tiles
-            image = np.empty(shape=(ntiles, img.RasterCount,
-                                    tile_size, tile_size))
-
-            # iterate over the tiles
-            for k, v in topleft.items():
-
-                # iterate over the bands of the image
-                for b in range(img.RasterCount):
-
-                    # read the data of band b
-                    band = img.GetRasterBand(b+1)
-                    data = band.ReadAsArray(v[1], v[0],
-                                            tile_size, tile_size)
-
-                    # append band b to numpy image array
-                    image[k, b, :, :] = data
-
+            # create empty numpy array to store the tiles
+            image = np.zeros(shape=(ntiles, img.RasterCount, tile_size,
+                                    tile_size))
         else:
-
             # create empty numpy array to store a single tile
-            image = np.empty(shape=(img.RasterCount, tile_size, tile_size))
+            ntiles = 1
+            image = np.zeros(shape=(ntiles, img.RasterCount, tile_size,
+                                    tile_size))
 
-            # the tile of interest
-            tile = topleft[tile]
+        # iterate over the topleft corners of the tiles
+        for k, corner in topleft.items():
+
+            # in case a single tile is required, skip the rest of the tiles
+            if tile is not None:
+                if k != tile:
+                    continue
+                # set the key to 0 for correct array indexing when reading
+                # a single tile from the image
+                k = 0
+
+            # check whether the tile is on the image border
+            x_tl, y_tl = 0, 0
+            if corner[0] - tile_size < 0:
+                y_tl = corner[0] + padding[2]
+            if corner[1] - tile_size < 0:
+                x_tl = corner[1] + padding[1]
 
             # iterate over the bands of the image
             for b in range(img.RasterCount):
 
                 # read the data of band b
                 band = img.GetRasterBand(b+1)
-                data = band.ReadAsArray(tile[1], tile[0],
-                                        tile_size, tile_size)
+
+                # check if the current tile extend exists in the image
+                nrows, ncols = check_tile_extend(
+                    (img.RasterYSize, img.RasterXSize), corner, tile_size)
+
+                # read the current tile from the image
+                data = band.ReadAsArray(corner[1], corner[0], ncols, nrows)
 
                 # append band b to numpy image array
-                image[b, :, :] = data
+                image[k,
+                      b,
+                      y_tl:(y_tl + nrows),
+                      x_tl:(x_tl + ncols)] = data[y_tl:, x_tl:]
 
     # check if there are more than 1 band
     if not img.RasterCount > 1:
-        image = image.squeeze()
+        image = image.squeeze(axis=1)
+
+    # check if there are more than 1 tile
+    if not ntiles > 1:
+        image = image.squeeze(axis=0)
 
     # close tif file
     del img
@@ -104,27 +121,101 @@ def img2np(path, tile_size=None, tile=None):
 
 # this function checks whether an image is evenly divisible
 # in square tiles of defined size tile_size
-def is_divisible(img_size, tile_size):
+# if pad=True, a padding is returned to increase the image to the nearest size
+# evenly fiting ntiles of size (tile_size, tile_size)
+def is_divisible(img_size, tile_size, pad=False):
     # calculate number of pixels per tile
     pixels_per_tile = tile_size ** 2
 
     # check whether the image is evenly divisible in square tiles of size
-    # (tile_size x tile_size)
+    # (tile_size, tile_size)
     ntiles = ((img_size[0] * img_size[1]) / pixels_per_tile)
-    assert ntiles.is_integer(), ('Image not evenly divisible in '
-                                 ' {} x {} tiles.').format(tile_size,
-                                                           tile_size)
 
-    return int(ntiles)
+    # if it is evenly divisible, no padding is required
+    if ntiles.is_integer():
+        pad = 4 * (0,)
 
+    if not ntiles.is_integer() and not pad:
+        raise ValueError('Image of size {} not evenly divisible in ({}, {}) '
+                         'tiles.'.format(img_size, tile_size, tile_size))
+
+    if not ntiles.is_integer() and pad:
+
+        # calculate the desired image size, i.e. the smallest size that is
+        # evenly divisible into square tiles of size (tile_size, tile_size)
+        h_new = int(np.ceil(img_size[0] / tile_size) * tile_size)
+        w_new = int(np.ceil(img_size[1] / tile_size) * tile_size)
+
+        # calculate center offset
+        dh = h_new - img_size[0]
+        dw = w_new - img_size[1]
+
+        # check whether the center offsets are even or odd
+
+        # in case both offsets are even, the padding is symmetric on both the
+        # bottom/top and left/right
+        if not dh % 2 and not dw % 2:
+            pad = (dh // 2, dw // 2, dh // 2, dw // 2)
+
+        # in case only one offset is even, the padding is symmetric along the
+        # even offset and asymmetric along the odd offset
+        if not dh % 2 and dw % 2:
+            pad = (dh // 2, dw // 2, dh // 2, dw // 2 + 1)
+        if dh % 2 and not dw % 2:
+            pad = (dh // 2, dw // 2, dh // 2 + 1, dw // 2)
+
+        # in case of offsets are odd, the padding is asymmetric on both the
+        # bottom/top and left/right
+        if dh % 2 and dw % 2:
+            pad = (dh // 2, dw // 2, dh // 2 + 1, dw // 2 + 1)
+
+        # calculate number of tiles on padded image
+        ntiles = (h_new * w_new) / (tile_size ** 2)
+
+    return int(ntiles), pad
+
+
+# check whether a tile of size (tile_size, tile_size) with topleft corner at
+# topleft exists in an image of size img_size
+def check_tile_extend(img_size, topleft, tile_size):
+
+    # check if the tile is within both the rows and the columns of the image
+    if (topleft[0] + tile_size < img_size[0] and
+            topleft[1] + tile_size < img_size[1]):
+
+        # both rows and columns can be equal to the tile size
+        nrows, ncols = tile_size, tile_size
+
+    # check if the tile exceeds one of rows or columns of the image
+    if (topleft[0] + tile_size < img_size[0] and not
+            topleft[1] + tile_size < img_size[1]):
+
+        # adjust columns to remaining columns in the original image
+        nrows, ncols = tile_size, img_size[1] - topleft[1]
+
+    if (topleft[1] + tile_size < img_size[1] and not
+            topleft[0] + tile_size < img_size[0]):
+
+        # adjust rows to remaining rows in the original image
+        nrows, ncols = img_size[0] - topleft[0], tile_size
+
+    # check if the tile exceeds both the rows and the columns of the image
+    if (not topleft[0] + tile_size < img_size[0] and not
+            topleft[1] + tile_size < img_size[1]):
+
+        # adjust both rows and columns to the remaining ones
+        nrows, ncols = img_size[0] - topleft[0], img_size[1] - topleft[1]
+
+    return nrows, ncols
 
 # this function returns the top-left corners for each tile
 # if the image is evenly divisible in square tiles of
 # defined size tile_size
-def tile_offsets(img_size, tile_size):
+def tile_topleft_corner(img_size, tile_size):
 
-    # check if divisible
-    _ = is_divisible(img_size, tile_size)
+    # check if the image is divisible into square tiles of size
+    # (tile_size, tile_size)
+    _, _ = is_divisible(img_size, tile_size, pad=False)
 
     # number of tiles along the width (columns) of the image
     ntiles_columns = int(img_size[1] / tile_size)

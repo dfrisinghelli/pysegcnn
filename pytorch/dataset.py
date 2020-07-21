@@ -17,6 +17,7 @@ import os
 import re
 import csv
 import glob
+import enum
 import itertools
 
 
@@ -512,6 +513,13 @@ class Cloud95Dataset(ImageDataset):
             scenes.sort(key=lambda k: k['date'])
 
         return scenes
+
+
+class SupportedDatasets(enum.Enum):
+    Sparcs = {'name': 'Sparcs', 'class': SparcsDataset}
+    Cloud95 = {'name': 'Cloud95', 'class': Cloud95Dataset}
+    Garmisch = {'name': 'Garmisch', 'class': ProSnowGarmisch}
+    Obergurgl = {'name': 'Obergurgl', 'class': ProSnowObergurgl}
 
 
 if __name__ == '__main__':

@@ -45,7 +45,7 @@ def running_mean(x, w):
 # plot_sample() plots a false color composite of the scene/tile together
 # with the model prediction and the corresponding ground truth
 def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
-                bands=['red', 'green', 'blue'], stretch=False, state=None,
+                bands=['nir', 'red', 'green'], stretch=False, state=None,
                 outpath=os.path.join(os.getcwd(), '_samples/'),  **kwargs):
 
     # check whether to apply constrast stretching

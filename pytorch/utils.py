@@ -17,7 +17,7 @@ import numpy as np
 
 
 # this function reads an image to a numpy array
-def img2np(path, tile_size=None, tile=None, pad=False):
+def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
 
     # open the tif file
     if path is None:
@@ -53,37 +53,48 @@ def img2np(path, tile_size=None, tile=None, pad=False):
         y_size = img.RasterYSize + padding[0] + padding[2]
         x_size = img.RasterXSize + padding[1] + padding[3]
 
+        if verbose:
+            print('Image size: {}'.format((img.RasterYSize, img.RasterXSize)))
+            print('Dividing image into {} tiles of size {} ...'
+                  .format(ntiles, (tile_size, tile_size)))
+            print('Padding image: bottom = {}, left = {}, top = {}, right = {}'
+                  ' ...'.format(*list(padding)))
+            print('Padded image size: {}'.format((y_size, x_size)))
+
         # get the indices of the top left corner for each tile
         topleft = tile_topleft_corner((y_size, x_size), tile_size)
 
         # whether to read all tiles or a single tile
-        if tile is None:
-            # create empty numpy array to store the tiles
-            image = np.zeros(shape=(ntiles, img.RasterCount, tile_size,
-                                    tile_size))
-        else:
-            # create empty numpy array to store a single tile
+        if tile is not None:
             ntiles = 1
-            image = np.zeros(shape=(ntiles, img.RasterCount, tile_size,
-                                    tile_size))
+
+        # create empty numpy array to store the tiles
+        image = np.ones((ntiles, img.RasterCount, tile_size, tile_size)) * cval
 
         # iterate over the topleft corners of the tiles
         for k, corner in topleft.items():
 
+            if verbose:
+                print('Creating tile {} with top-left corner {} ...'
+                      .format(k, corner))
+
             # in case a single tile is required, skip the rest of the tiles
             if tile is not None:
                 if k != tile:
+                    if verbose:
+                        print('Skipping tile {} ...'.format(k))
                     continue
                 # set the key to 0 for correct array indexing when reading
                 # a single tile from the image
+                if verbose:
+                    print('Processing tile {} ...'.format(k))
                 k = 0
 
-            # check whether the tile is on the image border
-            x_tl, y_tl = 0, 0
-            if corner[0] - tile_size < 0:
-                y_tl = corner[0] + padding[2]
-            if corner[1] - tile_size < 0:
-                x_tl = corner[1] + padding[1]
+            # calculate shift between padded and original image
+            row = corner[0] - padding[2] if corner[0] > 0 else corner[0]
+            col = corner[1] - padding[1] if corner[1] > 0 else corner[1]
+            y_tl = row + padding[2] if row == 0 else 0
+            x_tl = col + padding[1] if col == 0 else 0
 
             # iterate over the bands of the image
             for b in range(img.RasterCount):
@@ -93,16 +104,14 @@ def img2np(path, tile_size=None, tile=None, pad=False):
 
                 # check if the current tile extend exists in the image
                 nrows, ncols = check_tile_extend(
-                    (img.RasterYSize, img.RasterXSize), corner, tile_size)
+                    (img.RasterYSize, img.RasterXSize), (row, col), tile_size)
 
                 # read the current tile from the image
-                data = band.ReadAsArray(corner[1], corner[0], ncols, nrows)
+                data = band.ReadAsArray(col, row, ncols, nrows)
 
                 # append band b to numpy image array
-                image[k,
-                      b,
-                      y_tl:(y_tl + nrows),
-                      x_tl:(x_tl + ncols)] = data[y_tl:, x_tl:]
+                image[k, b, y_tl:nrows, x_tl:ncols] = data[0:(nrows - y_tl),
+                                                           0:(ncols - x_tl)]
 
     # check if there are more than 1 band
     if not img.RasterCount > 1:

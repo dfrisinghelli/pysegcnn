@@ -30,65 +30,139 @@ from torch.utils.data import Dataset
 # locals
 from pytorch.constants import (Landsat8, Sentinel2, SparcsLabels,
                                Cloud95Labels, ProSnowLabels)
-from pytorch.utils import (img2np, is_divisible, tile_offsets,
+from pytorch.utils import (img2np, is_divisible, tile_topleft_corner,
                            parse_landsat8_date, parse_sentinel2_date)
 
 
 # generic image dataset class
 class ImageDataset(Dataset):
 
-    def __init__(self, root_dir, use_bands, tile_size, sort=False,
-                 transforms=[None]):
+    def __init__(self, root_dir, **kwargs):
         super().__init__()
 
         # the root directory: path to the image dataset
         self.root = root_dir
 
+        # initialize keyword arguments
+        self._init_kwargs(kwargs)
+
         # the size of a scene/patch in the dataset
         self.size = self.get_size()
+        self._assert_get_size()
 
         # the available spectral bands in the dataset
-        self.bands = self.get_bands()
+        self.sensor = self.get_sensor()
+        self._assert_get_sensor()
+        self.bands = {band.value: band.name for band in self.sensor}
 
         # the class labels
         self.labels = self.get_labels()
+        self._assert_get_labels()
+        self.labels = {band.value[0]: {'label': band.name.replace('_', ' '),
+                                       'color': band.value[1]}
+                       for band in self.labels}
+
+        # the samples of the dataset
+        self.scenes = self.compose_scenes()
+        self._assert_compose_scenes()
+
+    def _init_kwargs(self, **kwargs):
+
+        # define allowed keyword arguments
+        self.default_kwargs = {
+            # which bands to use, if use_bands=[], use all available bands
+            'use_bands': [],
+
+            # each scene is divided into (tile_size x tile_size) blocks
+            # each of these blocks is treated as a single sample
+            'tile_size': None,
+
+            # whether to chronologically sort the samples
+            'sort': False,
+
+            # the transformations to apply to the original image
+            # artificially increases the training data size
+            'transforms': [None],
+
+            # whether to pad the image to be evenly divisible in square tiles
+            # of size (tile_size x tile_size)
+            'pad': False,
+
+            # the value to pad the samples
+            'cval': 0
+
+            }
+
+        # set default kwargs
+        for k, v in self.default_kwargs.items():
+            # store default keyword arguments as class attribute
+            setattr(self, k, v)
+
+        # check whether the keyword arguments are correctly specified
+        for k, v in kwargs.items():
+            if k not in self.default_kwargs.keys():
+                raise KeyError('{} is not a valid keyword argument. '
+                               'Supported keyword arguments are {}.'
+                               .format(k, *list(self.default_kwargs.keys())))
+
+            # store keyword argument as class attribute
+            setattr(self, k, v)
 
         # check which bands to use
-        self.use_bands = (use_bands if use_bands else [*self.bands.values()])
-
-        # each scene is divided into (tile_size x tile_size) blocks
-        # each of these blocks is treated as a single sample
-        self.tile_size = tile_size
+        self.use_bands = (self.use_bands if self.use_bands else
+                          [*self.bands.values()])
 
         # calculate number of resulting tiles and check whether the images are
         # evenly divisible in square tiles of size (tile_size x tile_size)
         if self.tile_size is None:
             self.tiles = 1
+            self.padding = 4 * (0,)
         else:
-            self.tiles = is_divisible(self.size, self.tile_size)
+            self.tiles, self.padding = is_divisible(self.size, self.tile_size,
+                                                    self.pad)
 
-        # whether to sort the list of samples:
-        # for time series data, set sort=True to obtain the scenes in
-        # chronological order
-        self.sort = sort
+    def _assert_compose_scenes(self):
 
-        # whether to artificially increase the training data size using
-        # transformations to apply to the original image
-        self.transforms = transforms
-        if self.transforms is None:
-            self.transforms = [self.transforms]
+        # list of required keys
+        self.keys = self.use_bands.extend(['date', 'tile', 'gt', 'transforms'])
 
-        # the samples of the dataset
-        self.scenes = self.compose_scenes()
-
-        # check whether the compose_scenes() method is correctly implemented
+        # check if each scene is correctly composed
         for scene in self.scenes:
-            assert isinstance(scene, dict), \
-                'method compose_scenes() should return a list of dict.'
-            assert [band in scene for band in self.use_bands], \
-                'dict expected to have keys {}'.format(self.use_bands)
-            assert 'date' in scene and 'tile' in scene and 'gt' in scene, \
-                'dict expected to have keys {}'.format(['date', 'tile', 'gt'])
+            # check the type of each scene
+            if not isinstance(scene, dict):
+                raise TypeError('{}.compose_scenes() should return a list of '
+                                'dictionaries.'.format(self.__class__.__name__)
+                                )
+
+            # check if each scene dictionary has the correct keys
+            if not all(k in scene for k in self.keys):
+                raise KeyError('Each scene dictionary should have keys {}.'
+                               .format(self.keys))
+
+    def _assert_get_size(self):
+        if not isinstance(self.size, tuple) and len(self.size) == 2:
+            raise TypeError('{}.get_size() should return the spatial size of '
+                            'an image sample as tuple, i.e. (height, width).'
+                            .format(self.__class__.__name__))
+
+    def _assert_get_sensor(self):
+        if not isinstance(self.sensor, enum.Enum):
+            raise TypeError('{}.get_sensor() should return an instance of '
+                            'enum.Enum, containing an enumeration of the '
+                            'spectral bands of the sensor the dataset is '
+                            'derived from. Examples can be found in '
+                            'pytorch.constants.py.'
+                            .format(self.__class__.__name__))
+
+    def _assert_get_labels(self):
+        if not isinstance(self.labels, enum.Enum):
+            raise TypeError('{}.get_labels() should return an instance of '
+                            'enum.Enum, containing an enumeration of the '
+                            'class labels, together with the corresponing id '
+                            'in the ground truth mask and a color for '
+                            'visualization. Examples can be found in '
+                            'pytorch.constants.py.'
+                            .format(self.__class__.__name__))
 
     # the __len__() method returns the number of samples in the dataset
     def __len__(self):
@@ -151,7 +225,7 @@ class ImageDataset(Dataset):
     #    - (2, band_2_name)
     #    - ...
     #    - (n, band_n_name)
-    def get_bands(self, *args, **kwargs):
+    def get_sensor(self, *args, **kwargs):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
@@ -197,7 +271,8 @@ class ImageDataset(Dataset):
         scene = self.scenes[idx]
 
         # read each band of the scene into a numpy array
-        scene_data = {key: img2np(value, self.tile_size, scene['tile'])
+        scene_data = {key: img2np(value, self.tile_size, scene['tile'],
+                                  self.pad, self.cval)
                       if isinstance(value, str) else value for key, value
                       in scene.items()}
 
@@ -221,11 +296,10 @@ class ImageDataset(Dataset):
 
 class StandardEoDataset(ImageDataset):
 
-    def __init__(self, root_dir, use_bands, tile_size, sort=False,
-                 transforms=[None]):
+    def __init__(self, root_dir, use_bands, tile_size, **kwargs):
 
         # initialize super class ImageDataset
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     # returns the band number of a Landsat8 or Sentinel2 tif file
     # x: path to a tif file
@@ -321,24 +395,22 @@ class StandardEoDataset(ImageDataset):
 class SparcsDataset(StandardEoDataset):
 
     def __init__(self, root_dir, use_bands=['red', 'green', 'blue'],
-                 tile_size=None, sort=False, transforms=[None]):
+                 tile_size=None, **kwargs):
 
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     # image size of the Sparcs dataset: (height, width)
     def get_size(self):
         return (1000, 1000)
 
     # Landsat 8 bands of the Sparcs dataset
-    def get_bands(self):
-        return {band.value: band.name for band in Landsat8}
+    def get_sensor(self):
+        return Landsat8
 
     # class labels of the Sparcs dataset
     def get_labels(self):
-        return {band.value[0]: {'label': band.name.replace('_', ' '),
-                                'color': band.value[1]}
-                for band in SparcsLabels}
+        return SparcsLabels
 
     # preprocessing of the Sparcs dataset
     def preprocess(self, data, gt):
@@ -354,20 +426,18 @@ class SparcsDataset(StandardEoDataset):
 
 class ProSnowDataset(StandardEoDataset):
 
-    def __init__(self, root_dir, use_bands, tile_size, sort=True,
-                 transforms=[None]):
+    def __init__(self, root_dir, use_bands, tile_size, **kwargs):
 
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     # Sentinel 2 bands
-    def get_bands(self):
-        return {band.value: band.name for band in Sentinel2}
+    def get_sensor(self):
+        return Sentinel2
 
     # class labels of the ProSnow dataset
     def get_labels(self):
-        return {band.value[0]: {'label': band.name, 'color': band.value[1]}
-                for band in ProSnowLabels}
+        return ProSnowLabels
 
     # preprocessing of the ProSnow dataset
     def preprocess(self, data, gt):
@@ -382,9 +452,8 @@ class ProSnowDataset(StandardEoDataset):
 
 class ProSnowGarmisch(ProSnowDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None, sort=True,
-                 transforms=[None]):
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+    def __init__(self, root_dir, use_bands=[], tile_size=None, **kwargs):
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     def get_size(self):
         return (615, 543)
@@ -392,9 +461,8 @@ class ProSnowGarmisch(ProSnowDataset):
 
 class ProSnowObergurgl(ProSnowDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None, sort=True,
-                 transforms=[None]):
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+    def __init__(self, root_dir, use_bands=[], tile_size=None, **kwargs):
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     def get_size(self):
         return (310, 270)
@@ -402,29 +470,28 @@ class ProSnowObergurgl(ProSnowDataset):
 
 class Cloud95Dataset(ImageDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None, sort=False,
-                 transforms=[None]):
+    def __init__(self, root_dir, use_bands=[], tile_size=None,
+                 exclude='training_patches_95-cloud_nonempty.csv', **kwargs):
 
         # the csv file containing the names of the informative patches
         # patches with more than 80% black pixels, i.e. patches resulting from
         # the black margins around a Landsat 8 scene are excluded
-        self.exclude = 'training_patches_95-cloud_nonempty.csv'
+        self.exclude = exclude
 
         # initialize super class ImageDataset
-        super().__init__(root_dir, use_bands, tile_size, sort, transforms)
+        super().__init__(root_dir, use_bands, tile_size, **kwargs)
 
     # image size of the Cloud-95 dataset: (height, width)
     def get_size(self):
         return (384, 384)
 
     # Landsat 8 bands in the Cloud-95 dataset
-    def get_bands(self):
-        return {band.value: band.name for band in Landsat8}
+    def get_sensor(self):
+        return Landsat8
 
     # class labels of the Cloud-95 dataset
     def get_labels(self):
-        return {band.value[0]: {'label': band.name, 'color': band.value[1]}
-                for band in Cloud95Labels}
+        return Cloud95Labels
 
     # preprocess Cloud-95 dataset
     def preprocess(self, data, gt):

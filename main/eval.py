@@ -18,16 +18,12 @@ if __name__ == '__main__':
 
     # instanciate the NetworkTrainer class
     trainer = NetworkTrainer(config)
+    print(trainer)
 
     if trainer.plot_cm:
         # predict each batch in the validation set
-        cm, accuracy, loss = trainer.predict(pretrained=True, confusion=True)
-
-        # calculate overal accuracy
-        acc = (cm.diag().sum() / cm.sum()).numpy().item()
-        print('After training for {:d} epochs, we achieved an overall '
-              'accuracy of {:.2f}%  on the validation set!'
-              .format(trainer.model.epoch, acc * 100))
+        cm, accuracy, loss = trainer.predict(pretrained=True, confusion=True,
+                                             test=config['test'])
 
         # plot confusion matrix: labels of the dataset
         labels = [label['label'] for label in trainer.dataset.labels.values()]
@@ -36,7 +32,7 @@ if __name__ == '__main__':
     # plot loss and accuracy
     plot_loss(trainer.loss_state)
 
-    # whether to plot the samples of the validation dataset
+    # whether to plot the samples of the validation/test dataset
     if trainer.plot_samples:
 
         # load pretrained model
@@ -51,17 +47,22 @@ if __name__ == '__main__':
         # set random seed for reproducibility
         np.random.seed(trainer.seed)
 
-        # draw a number of samples from the validation set
-        samples = np.arange(0, len(trainer.valid_ds))
+        # plot samples from the validation or test dataset
+        dataset = trainer.test_ds if config['test'] else trainer.valid_ds
+        dname = 'test' if config['test'] else 'val'
+
+        # draw a number of samples from the validation/test set
+        samples = np.arange(0, len(dataset))
         if trainer.nsamples > 0:
-            samples = np.random.randint(len(trainer.valid_ds),
-                                        size=trainer.nsamples)
+            samples = np.random.randint(len(dataset),
+                                        size=np.min(trainer.nsamples,
+                                                    len(dataset)))
 
         # iterate over the samples and plot inputs, ground truth and
         # model predictions
         for sample in samples:
-            # a sample from the validation set
-            inputs, labels = trainer.valid_ds[sample]
+            # a sample from the validation/test set
+            inputs, labels = dataset[sample]
 
             # convert to net input shape
             net_inputs = torch.tensor(np.expand_dims(inputs, axis=0))
@@ -72,7 +73,7 @@ if __name__ == '__main__':
                                    dim=1).argmax(dim=1).squeeze()
 
             # plot inputs, ground truth and model predictions
-            sname = fname + '_sample_{}.pt'.format(sample)
+            sname = fname + '_{}_sample_{}.pt'.format(dname, sample)
             fig, ax = plot_sample(inputs,
                                   labels,
                                   trainer.dataset.use_bands,

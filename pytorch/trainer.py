@@ -16,9 +16,8 @@ import torch.nn.functional as F
 from torch.utils.data import random_split, DataLoader
 
 # local modules
-from pytorch.dataset import SparcsDataset, Cloud95Dataset
+from pytorch.dataset import SparcsDataset, Cloud95Dataset, SupportedDatasets
 from pytorch.layers import Conv2dSame
-from pytorch.constants import SupportedDatasets
 
 
 class NetworkTrainer(object):
@@ -79,45 +78,9 @@ class NetworkTrainer(object):
 
         return model
 
-    def ds_len(self, ds, ratio):
-        return int(np.round(len(ds) * ratio))
-
-    def train_val_test_split(self, ds, tvratio, ttratio=1, seed=0):
-
-        # set the random seed for reproducibility
-        torch.manual_seed(seed)
-
-        # length of the training and validation dataset
-        trav_len = self.ds_len(ds, ttratio)
-
-        # length of the test dataset
-        test_len = self.ds_len(ds, 1 - ttratio)
-
-        # split dataset into training and test set
-        # (ttratio * 100) % will be used for training and validation
-        train_val_ds, test_ds = random_split(ds, (trav_len, test_len))
-
-        # length of the training set
-        train_len = self.ds_len(train_val_ds, tvratio)
-
-        # length of the validation dataset
-        valid_len = self.ds_len(train_val_ds, 1 - tvratio)
-
-        # split the training set into training and validation set
-        train_ds, valid_ds = random_split(train_val_ds, (train_len, valid_len))
-
-        # print the dataset ratios
-        print(*['{} set: {:.2f}%'.format(k, v * 100) for k, v in
-                {'Training': ttratio * tvratio,
-                 'Validation': ttratio * (1 - tvratio),
-                 'Test': 1 - ttratio}.items()], sep='\n')
-
-        return train_ds, valid_ds, test_ds
-
-    def accuracy_function(self, outputs, labels):
-        return (outputs == labels).float().mean()
-
     def train(self):
+
+        print('------------------------- Training ---------------------------')
 
         # set the number of threads
         torch.set_num_threads(self.nthreads)
@@ -199,16 +162,13 @@ class NetworkTrainer(object):
                 ypred = F.softmax(outputs, dim=1).argmax(dim=1)
 
                 # calculate accuracy on current batch
-                observed_accuracy = self.accuracy_function(ypred, labels)
+                observed_accuracy = accuracy_function(ypred, labels)
                 training_state['ta'][batch, epoch] = observed_accuracy
 
                 # print progress
-                print('Epoch: {:d}/{:d}, Batch: {:d}/{:d}, Loss: {:.2f}, '
-                      'Accuracy: {:.2f}'.format(epoch,
-                                                self.epochs,
-                                                batch,
-                                                self.nbatches,
-                                                observed_loss,
+                print('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, Loss: {:.2f}, '
+                      'Accuracy: {:.2f}'.format(epoch, self.epochs, batch + 1,
+                                                self.nbatches, observed_loss,
                                                 observed_accuracy))
 
             # update the number of epochs trained
@@ -262,7 +222,9 @@ class NetworkTrainer(object):
 
         return training_state
 
-    def predict(self, pretrained=False, confusion=False):
+    def predict(self, pretrained=False, confusion=False, test=False):
+
+        print('------------------------ Predicting --------------------------')
 
         # load the model state if evaluating a pretrained model is required
         if pretrained:
@@ -283,9 +245,26 @@ class NetworkTrainer(object):
         accuracies = np.zeros(shape=(self.nvbatches, 1))
         losses = np.zeros(shape=(self.nvbatches, 1))
 
+        # check which dataset to test the model on, either the validation or
+        # the test set
+        if self.valid_dl is None and self.test_dl is None:
+            raise ValueError('Can not evaluate model performance: validation '
+                             'and test set not specified.')
+        dataloader = self.valid_dl
+        set_name = 'validation'
+        if test:
+            # if the test set is empty, default to validation set
+            if self.test_dl is not None:
+                dataloader = self.test_dl
+                set_name = 'test'
+            else:
+                print('You requested to evaluate the model on the test set, '
+                      'but no test set is available. Falling back to evaluate '
+                      'the model on the validation set ...')
+
         # iterate over the validation/test set
-        print('Calculating accuracy on validation set ...')
-        for batch, (inputs, labels) in enumerate(self.valid_dl):
+        print('Calculating accuracy on the {} set ...'.format(set_name))
+        for batch, (inputs, labels) in enumerate(dataloader):
 
             # send the data to the gpu if available
             inputs = inputs.to(self.device)
@@ -303,26 +282,28 @@ class NetworkTrainer(object):
             pred = F.softmax(outputs, dim=1).argmax(dim=1)
 
             # calculate accuracy on current batch
-            acc = self.accuracy_function(pred, labels)
+            acc = accuracy_function(pred, labels)
             accuracies[batch, 0] = acc
 
             # print progress
-            print('Batch: {:d}/{:d}, Accuracy: {:.2f}'.format(batch,
-                                                              self.nvbatches,
-                                                              acc))
+            print('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
+                  .format(batch + 1, self.nvbatches, acc))
 
             # update confusion matrix
             if confusion:
                 for ytrue, ypred in zip(labels.view(-1), pred.view(-1)):
                     cm[ytrue.long(), ypred.long()] += 1
 
-        # calculate overall accuracy on the validation set
-        print('Current mean accuracy on the validation set: {:.2f}%'
-              .format(accuracies.mean() * 100))
+        # calculate overall accuracy on the validation/test set
+        acc = (cm.diag().sum() / cm.sum()).numpy().item()
+        print('After training for {:d} epochs, we achieved an overall '
+              'accuracy of {:.2f}%  on the {} set!'
+              .format(self.model.epoch, accuracies.mean() * 100, set_name))
 
         # save confusion matrix and accuracies to file
         if pretrained and confusion:
-            torch.save({'cm': cm}, state.replace('.pt', '_cm.pt'))
+            torch.save({'cm': cm}, state.replace('.pt',
+                                                 '_cm_{}.pt'.format(set_name)))
 
         return cm, accuracies, losses
 
@@ -332,33 +313,24 @@ class NetworkTrainer(object):
         self.dataset = None
         for dataset in SupportedDatasets:
             if self.dataset_name == dataset.name:
-                self.dataset = dataset.value['class'](self.dataset_path,
-                                                      self.bands,
-                                                      self.tile_size,
-                                                      self.sort,
-                                                      self.transforms)
+                self.dataset = dataset.value['class'](
+                    self.dataset_path,
+                    use_bands=self.bands,
+                    tile_size=self.tile_size,
+                    sort=self.sort,
+                    transforms=self.transforms,
+                    pad=self.pad,
+                    cval=self.cval)
+
         if self.dataset is None:
-            print('{} is not a valid dataset.').format(self.dataset_name)
-            print('Available datasets are:')
-            for name, _ in SupportedDatasets.__members__.items():
-                print(name)
-            raise ValueError('Dataset not supported.')
+            raise ValueError('{} is not a valid dataset. '
+                             .format(self.dataset_name) +
+                             'Available datasets are: \n' +
+                             '\n'.join(name for name, _ in
+                                       SupportedDatasets.__members__.items()))
 
-        # print the bands used for the segmentation
-        print('------------------------ Input bands -------------------------')
-        print(*['Band {}: {}'.format(i, b) for i, b in
-                enumerate(self.dataset.use_bands)], sep='\n')
-        print('--------------------------------------------------------------')
-
-        # print the classes of interest
-        print('-------------------------- Classes ---------------------------')
-        print(*['Class {}: {}'.format(k, v['label']) for k, v in
-                self.dataset.labels.items()], sep='\n')
-        print('--------------------------------------------------------------')
-
-        # the training and validation dataset
-        print('------------------------ Dataset split -----------------------')
-        self.train_ds, self.valid_ds, self.test_ds = self.train_val_test_split(
+        # the training, validation and dataset
+        self.train_ds, self.valid_ds, self.test_ds = random_tvt_split(
             self.dataset, self.tvratio, self.ttratio, self.seed)
 
         # number of batches in the validation set
@@ -366,24 +338,39 @@ class NetworkTrainer(object):
 
         # number of batches in the training set
         self.nbatches = int(len(self.train_ds) / self.batch_size)
-        print('Number of training batches: {}'.format(self.nbatches))
-        print('Number of validation batches: {}'.format(self.nvbatches))
-        print('--------------------------------------------------------------')
 
-        # the training and validation dataloaders
-        self.train_dl = DataLoader(self.train_ds,
-                                   self.batch_size,
-                                   shuffle=True,
-                                   drop_last=True)
-        self.valid_dl = DataLoader(self.valid_ds,
-                                   self.batch_size,
-                                   shuffle=True,
-                                   drop_last=True)
+        # number of batches in the test set
+        self.ntbatches = int(len(self.test_ds) / self.batch_size)
+
+        # the shape of a single batch
+        self.batch_shape = (len(self.bands), self.tile_size, self.tile_size)
+
+        # the training dataloader
+        self.train_dl = None
+        if len(self.train_ds) > 0:
+            self.train_dl = DataLoader(self.train_ds,
+                                       self.batch_size,
+                                       shuffle=True,
+                                       drop_last=True)
+        # the validation dataloader
+        self.valid_dl = None
+        if len(self.valid_ds) > 0:
+            self.valid_dl = DataLoader(self.valid_ds,
+                                       self.batch_size,
+                                       shuffle=True,
+                                       drop_last=True)
+
+        # the test dataloader
+        self.test_dl = None
+        if len(self.test_ds) > 0:
+            self.test_dl = DataLoader(self.test_ds,
+                                      self.batch_size,
+                                      shuffle=True,
+                                      drop_last=True)
 
     def _init_model(self):
 
         # instanciate the segmentation network
-        print('------------------- Network architecture ---------------------')
         if self.pretrained:
             self.model = self.from_pretrained()
         else:
@@ -392,8 +379,6 @@ class NetworkTrainer(object):
                                   filters=self.filters,
                                   skip=self.skip_connection,
                                   **self.kwargs)
-        print(self.model)
-        print('--------------------------------------------------------------')
 
         # the optimizer used to update the model weights
         self.optimizer = self.optimizer(self.model.parameters(), self.lr)
@@ -436,6 +421,41 @@ class NetworkTrainer(object):
                 self.loss_state)
         else:
             torch.save(training_state, self.loss_state)
+
+    def __repr__(self):
+
+        # representation string to print
+        fs = self.__class__.__name__ + '(\n'
+        fs += '    (bands):\n        '
+
+        # bands used for the segmentation
+        fs += '\n        '.join('- Band {}: {}'.format(i, b) for i, b in
+                                enumerate(self.dataset.use_bands))
+
+        # classes of interest
+        fs += '\n    (classes):\n        '
+        fs += '\n        '.join('- Class {}: {}'.format(k, v['label']) for
+                                k, v in self.dataset.labels.items())
+
+        # batch size
+        fs += '\n    (batch):\n        '
+        fs += '- batch size: {}\n        '.format(self.batch_size)
+        fs += '- batch shape (b, h, w): {}'.format(self.batch_shape)
+
+        # dataset split
+        fs += '\n    (dataset):\n        '
+        fs += '\n        '.join(
+            '- {}: {:d} batches ({:.2f}%)'
+            .format(k, v[0] * self.batch_size, v[1] * 100) for k, v in
+            {'Training': (self.nbatches, self.ttratio * self.tvratio),
+             'Validation': (self.nvbatches, self.ttratio * (1 - self.tvratio)),
+             'Test': (self.ntbatches, 1 - self.ttratio)}.items())
+
+        # model
+        fs += '\n    (model):\n        '
+        fs += ''.join(self.model.__repr__()).replace('\n', '\n        ')
+        fs += '\n)'
+        return fs
 
 
 class EarlyStopping(object):
@@ -497,3 +517,43 @@ class EarlyStopping(object):
 
     def increased(self, metric, best, min_delta):
         return metric > best + min_delta
+
+
+# function calculating prediction accuracy
+def accuracy_function(outputs, labels):
+    return (outputs == labels).float().mean()
+
+
+# function calculating number of samples in a dataset given a ratio
+def _ds_len(ds, ratio):
+    return int(np.round(len(ds) * ratio))
+
+
+# function randomly splitting a dataset into training, validation and test set
+def random_tvt_split(ds, tvratio, ttratio=1, seed=0):
+
+    # set the random seed for reproducibility
+    torch.manual_seed(seed)
+
+    # length of the training and validation dataset
+    trav_len = _ds_len(ds, ttratio)
+
+    # length of the test dataset
+    test_len = _ds_len(ds, 1 - ttratio)
+
+    # split dataset into training and test set
+    # (ttratio * 100) % will be used for training and validation
+    train_val_ds, test_ds = random_split(ds, (trav_len, test_len))
+
+    # length of the training set
+    train_len = _ds_len(train_val_ds, tvratio)
+
+    # length of the validation dataset
+    valid_len = _ds_len(train_val_ds, 1 - tvratio)
+
+    # split the training set into training and validation set
+    # (ttratio * tvratio) * 100 % will be used as the training dataset
+    # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
+    train_ds, valid_ds = random_split(train_val_ds, (train_len, valid_len))
+
+    return train_ds, valid_ds, test_ds

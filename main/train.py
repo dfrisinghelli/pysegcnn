@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     # instanciate the NetworkTrainer class
     trainer = NetworkTrainer(config)
+    print(trainer)
 
     # train the network
-    print('----------------------- Network training -------------------------')
     training_state = trainer.train()

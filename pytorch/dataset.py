@@ -43,9 +43,6 @@ class ImageDataset(Dataset):
         # the root directory: path to the image dataset
         self.root = root_dir
 
-        # initialize keyword arguments
-        self._init_kwargs(kwargs)
-
         # the size of a scene/patch in the dataset
         self.size = self.get_size()
         self._assert_get_size()
@@ -56,11 +53,12 @@ class ImageDataset(Dataset):
         self.bands = {band.value: band.name for band in self.sensor}
 
         # the class labels
-        self.labels = self.get_labels()
+        self._label_class = self.get_labels()
         self._assert_get_labels()
-        self.labels = {band.value[0]: {'label': band.name.replace('_', ' '),
-                                       'color': band.value[1]}
-                       for band in self.labels}
+        self.labels = self._build_labels()
+
+        # initialize keyword arguments
+        self._init_kwargs(**kwargs)
 
         # the samples of the dataset
         self.scenes = self.compose_scenes()
@@ -82,7 +80,7 @@ class ImageDataset(Dataset):
 
             # the transformations to apply to the original image
             # artificially increases the training data size
-            'transforms': [None],
+            'transforms': [],
 
             # whether to pad the image to be evenly divisible in square tiles
             # of size (tile_size x tile_size)
@@ -101,9 +99,10 @@ class ImageDataset(Dataset):
         # check whether the keyword arguments are correctly specified
         for k, v in kwargs.items():
             if k not in self.default_kwargs.keys():
-                raise KeyError('{} is not a valid keyword argument. '
-                               'Supported keyword arguments are {}.'
-                               .format(k, *list(self.default_kwargs.keys())))
+                raise TypeError('"{}" is not a valid keyword argument. '
+                                'Valid keyword arguments are: \n'.format(k) +
+                                '\n'.join('- {}'.format(k) for k in
+                                          self.default_kwargs.keys()))
 
             # store keyword argument as class attribute
             setattr(self, k, v)
@@ -114,17 +113,23 @@ class ImageDataset(Dataset):
 
         # calculate number of resulting tiles and check whether the images are
         # evenly divisible in square tiles of size (tile_size x tile_size)
-        if self.tile_size is None:
-            self.tiles = 1
-            self.padding = 4 * (0,)
-        else:
+        self.tiles, self.padding = 1, (0, 0, 0, 0)
+        if self.tile_size is not None:
             self.tiles, self.padding = is_divisible(self.size, self.tile_size,
                                                     self.pad)
+
+        # always use the original dataset together with the augmentations
+        self.transforms = [None] + self.transforms
+
+    def _build_labels(self):
+        return {band.value[0]: {'label': band.name.replace('_', ' '),
+                                'color': band.value[1]}
+                for band in self._label_class}
 
     def _assert_compose_scenes(self):
 
         # list of required keys
-        self.keys = self.use_bands.extend(['date', 'tile', 'gt', 'transforms'])
+        self.keys = self.use_bands + ['gt', 'date', 'tile', 'transform']
 
         # check if each scene is correctly composed
         for scene in self.scenes:
@@ -135,7 +140,7 @@ class ImageDataset(Dataset):
                                 )
 
             # check if each scene dictionary has the correct keys
-            if not all(k in scene for k in self.keys):
+            if not all([k in scene for k in self.keys]):
                 raise KeyError('Each scene dictionary should have keys {}.'
                                .format(self.keys))
 
@@ -146,7 +151,7 @@ class ImageDataset(Dataset):
                             .format(self.__class__.__name__))
 
     def _assert_get_sensor(self):
-        if not isinstance(self.sensor, enum.Enum):
+        if not isinstance(self.sensor, enum.EnumMeta):
             raise TypeError('{}.get_sensor() should return an instance of '
                             'enum.Enum, containing an enumeration of the '
                             'spectral bands of the sensor the dataset is '
@@ -155,7 +160,7 @@ class ImageDataset(Dataset):
                             .format(self.__class__.__name__))
 
     def _assert_get_labels(self):
-        if not isinstance(self.labels, enum.Enum):
+        if not isinstance(self._label_class, enum.EnumMeta):
             raise TypeError('{}.get_labels() should return an instance of '
                             'enum.Enum, containing an enumeration of the '
                             'class labels, together with the corresponing id '
@@ -296,13 +301,13 @@ class ImageDataset(Dataset):
 
 class StandardEoDataset(ImageDataset):
 
-    def __init__(self, root_dir, use_bands, tile_size, **kwargs):
+    def __init__(self, root_dir, **kwargs):
 
         # initialize super class ImageDataset
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+        super().__init__(root_dir, **kwargs)
 
     # returns the band number of a Landsat8 or Sentinel2 tif file
-    # x: path to a tif file
+    # path: path to a tif file
     def get_band_number(self, path):
 
         # check whether the path leads to a tif file
@@ -394,11 +399,10 @@ class StandardEoDataset(ImageDataset):
 # SparcsDataset class: inherits from the generic ImageDataset class
 class SparcsDataset(StandardEoDataset):
 
-    def __init__(self, root_dir, use_bands=['red', 'green', 'blue'],
-                 tile_size=None, **kwargs):
+    def __init__(self, root_dir, **kwargs):
 
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+        super().__init__(root_dir, **kwargs)
 
     # image size of the Sparcs dataset: (height, width)
     def get_size(self):
@@ -426,10 +430,10 @@ class SparcsDataset(StandardEoDataset):
 
 class ProSnowDataset(StandardEoDataset):
 
-    def __init__(self, root_dir, use_bands, tile_size, **kwargs):
+    def __init__(self, root_dir, **kwargs):
 
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+        super().__init__(root_dir, **kwargs)
 
     # Sentinel 2 bands
     def get_sensor(self):
@@ -452,8 +456,8 @@ class ProSnowDataset(StandardEoDataset):
 
 class ProSnowGarmisch(ProSnowDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None, **kwargs):
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+    def __init__(self, root_dir, **kwargs):
+        super().__init__(root_dir, **kwargs)
 
     def get_size(self):
         return (615, 543)
@@ -461,8 +465,8 @@ class ProSnowGarmisch(ProSnowDataset):
 
 class ProSnowObergurgl(ProSnowDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None, **kwargs):
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+    def __init__(self, root_dir, **kwargs):
+        super().__init__(root_dir, **kwargs)
 
     def get_size(self):
         return (310, 270)
@@ -470,16 +474,15 @@ class ProSnowObergurgl(ProSnowDataset):
 
 class Cloud95Dataset(ImageDataset):
 
-    def __init__(self, root_dir, use_bands=[], tile_size=None,
-                 exclude='training_patches_95-cloud_nonempty.csv', **kwargs):
+    def __init__(self, root_dir, **kwargs):
 
         # the csv file containing the names of the informative patches
         # patches with more than 80% black pixels, i.e. patches resulting from
         # the black margins around a Landsat 8 scene are excluded
-        self.exclude = exclude
+        self.exclude = 'training_patches_95-cloud_nonempty.csv'
 
         # initialize super class ImageDataset
-        super().__init__(root_dir, use_bands, tile_size, **kwargs)
+        super().__init__(root_dir, **kwargs)
 
     # image size of the Cloud-95 dataset: (height, width)
     def get_size(self):
@@ -619,14 +622,14 @@ if __name__ == '__main__':
                                    tile_size=None,
                                    use_bands=['nir', 'red', 'green'],
                                    sort=False,
-                                   transforms=[None])
+                                   transforms=[])
 
     # instanciate the ProSnow datasets
     garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),
                                tile_size=None,
                                use_bands=['nir', 'red', 'green'],
                                sort=True,
-                               transforms=[None])
+                               transforms=[])
     # obergurgl = ProSnowObergurgl(os.path.join(prosnow_path, 'Obergurgl'),
     #                              tile_size=None,
     #                              use_bands=['nir', 'red', 'green'],

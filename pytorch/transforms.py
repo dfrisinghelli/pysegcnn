@@ -23,7 +23,7 @@ class VariantTransform(Transform):
 
     def __init__(self):
 
-        # requires transformation on the ground thruth
+        # requires transformation on the ground truth
         self.invariant = False
 
 
@@ -37,53 +37,87 @@ class InvariantTransform(Transform):
 
 class FlipLr(VariantTransform):
 
-    def __init__(self):
+    def __init__(self, p=0.5):
         super().__init__()
+        # the probability to apply the transformation
+        self.p = p
 
     def __call__(self, image):
-        return np.asarray(image)[..., ::-1]
+        if np.random.random(1) < self.p:
+            # transformation applied
+            self.applied = True
+            return np.asarray(image)[..., ::-1]
+
+        # transformation not applied
+        self.applied = False
+        return np.asarray(image)
 
     def __repr__(self):
-        return self.__class__.__name__
+        return self.__class__.__name__ + '(p = {})'.format(self.p)
 
 
 class FlipUd(VariantTransform):
 
-    def __init__(self):
+    def __init__(self, p=0.5):
         super().__init__()
+        # the probability to apply the transformation
+        self.p = p
 
     def __call__(self, image):
-        return np.asarray(image)[..., ::-1, :]
+        if np.random.random(1) < self.p:
+            # transformation applied
+            self.applied = True
+            return np.asarray(image)[..., ::-1, :]
+
+        # transformation not applied
+        self.applied = False
+        return np.asarray(image)
 
     def __repr__(self):
-        return self.__class__.__name__
+        return self.__class__.__name__ + '(p = {})'.format(self.p)
 
 
 class Rotate(VariantTransform):
 
-    def __init__(self, angle):
-        self.angle = angle
+    def __init__(self, angle, p=0.5):
         super().__init__()
+
+        # the rotation angle
+        self.angle = angle
+
+        # the probability to apply the transformation
+        self.p = p
 
     def __call__(self, image):
 
-        # check dimension of input image
-        ndim = np.asarray(image).ndim
+        if np.random.random(1) < self.p:
 
-        # axes defining the rotational plane
-        rot_axes = (0, 1)
-        if ndim > 2:
-            rot_axes = (ndim - 2, ndim - 1)
+            # transformation applied
+            self.applied = True
 
-        return ndimage.rotate(image, self.angle, axes=rot_axes, reshape=False)
+            # check dimension of input image
+            ndim = np.asarray(image).ndim
+
+            # axes defining the rotational plane
+            rot_axes = (0, 1)
+            if ndim > 2:
+                rot_axes = (ndim - 2, ndim - 1)
+
+            return ndimage.rotate(image, self.angle, axes=rot_axes,
+                                  reshape=False)
+
+        # transformation not applied
+        self.applied = False
+        return np.asarray(image)
 
     def __repr__(self):
-        return self.__class__.__name__ + '(angle = {})'.format(self.angle)
+        return self.__class__.__name__ + '(angle = {}, p = {})'.format(
+            self.angle, self.p)
 
 
 class Noise(InvariantTransform):
 
-    def __init__(self, mode, mean=0, var=0.05):
+    def __init__(self, mode, mean=0, var=0.05, p=0.5):
         super().__init__()
 
         # check which kind of noise to apply
@@ -97,26 +131,41 @@ class Noise(InvariantTransform):
         self.mean = mean
         self.var = var
 
+        # the probability to apply the transformation
+        self.p = p
+
     def __call__(self, image):
 
-        # generate gaussian noise
-        noise = np.random.normal(self.mean, self.var, image.shape)
+        if np.random.random(1) < self.p:
 
-        if self.mode == 'gaussian':
-            return (np.asarray(image) + noise).clip(0, 1)
+            # transformation applied
+            self.applied = True
 
-        if self.mode == 'speckle':
-            return (np.asarray(image) + np.asarray(image) * noise).clip(0, 1)
+            # generate gaussian noise
+            noise = np.random.normal(self.mean, self.var, image.shape)
+
+            if self.mode == 'gaussian':
+                return (np.asarray(image) + noise).clip(0, 1)
+
+            if self.mode == 'speckle':
+                return (np.asarray(image) +
+                        np.asarray(image) * noise).clip(0, 1)
+
+        # transformation not applied
+        self.applied = False
+        return np.asarray(image)
 
     def __repr__(self):
-        return self.__class__.__name__ + ('(mode = {}, mean = {}, var = {})'
+        return self.__class__.__name__ + ('(mode = {}, mean = {}, var = {}, '
+                                          'p = {})'
                                           .format(self.mode, self.mean,
-                                                  self.var))
+                                                  self.var, self.p))
 
 
 class Augment(object):
 
     def __init__(self, transforms):
+        assert isinstance(transforms, (list, tuple))
         self.transforms = transforms
 
     def __call__(self, image, gt):
@@ -127,8 +176,19 @@ class Augment(object):
 
             # check whether the transformations are invariant and if not, apply
             # the transformation also to the ground truth
-            if not t.invariant:
+            if not t.invariant and t.applied:
+                # get the probability with which the transformation is applied
+                p = t.p
+
+                # overwrite the probability to 1, to ensure the same
+                # transformation is applied on the ground truth
+                t.p = 1
+
+                # transform ground truth
                 gt = t(gt)
+
+                # reset probability to original value
+                t.p = p
 
         return image, gt
 

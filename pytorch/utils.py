@@ -28,8 +28,11 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
     # check whether to read the image in tiles
     if tile_size is None:
 
+        # number of tiles
+        ntiles = 1
+
         # create empty numpy array to store whole image
-        image = np.empty(shape=(img.RasterCount, img.RasterYSize,
+        image = np.empty(shape=(ntiles, img.RasterCount, img.RasterYSize,
                                 img.RasterXSize))
 
         # iterate over the bands of the image
@@ -40,7 +43,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
             data = band.ReadAsArray()
 
             # append band b to numpy image array
-            image[b, :, :] = data
+            image[0, b, :, :] = data
 
     else:
 
@@ -131,7 +134,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
 # this function checks whether an image is evenly divisible
 # in square tiles of defined size tile_size
 # if pad=True, a padding is returned to increase the image to the nearest size
-# evenly fiting ntiles of size (tile_size, tile_size)
+# evenly fitting ntiles of size (tile_size, tile_size)
 def is_divisible(img_size, tile_size, pad=False):
     # calculate number of pixels per tile
     pixels_per_tile = tile_size ** 2

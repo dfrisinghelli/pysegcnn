@@ -1,10 +1,11 @@
+"""The configuration file to train and evaluate a model.
+
+Modify the variable values to your needs, but DO NOT modify the variable names.
+"""
+
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jun 30 11:40:35 2020
 
-@author: Daniel
-"""
 # builtins
 from __future__ import absolute_import
 import os
@@ -42,6 +43,14 @@ bands = ['red', 'green', 'blue', 'nir']
 # if None, the size will default to the size of a scene
 tile_size = 125
 
+# whether to central pad the scenes with a constant value
+# if True, padding is used if the scenes are not evenly divisible into tiles
+# of size (tile_size, tile_size)
+pad = False
+
+# the constant value to pad
+cval = 0
+
 # whether to sort the dataset in chronological order, useful for time series
 # data
 sort = False
@@ -54,19 +63,50 @@ sort = False
 
 # whether to artificially increase the training data size using data
 # augmentation methods
-transforms = [None]
+
+# Supported data augmentation methods are:
+#   - FlipLr: horizontally flip an image
+#   - FlipUd: vertically flip an image
+#   - Noise:  add gaussian noise to an image
+# More detail can be found in pytorch.transforms.py.
+
+# transforms is a list of transformations to apply to the original data
+# if transforms=[], no transformation is applied and only the original
+# dataset is used
+transforms = []
+
+# list of image augmentations to apply to each sample in the original dataset
+#   - each entry in should be an instance of pytorch.transforms.Augment
+#   - each Augment instance in this list transforms each sample in the
+#     original dataset
+#   - the resulting dataset size is:
+#     len(augmentations) * original_dataset_size
 augmentations = [
+
+    # an example transformation
+
+    # the transformations are applied to the original image in the order
+    # specified within the Augment class
     Augment([
-        FlipLr(),
-        FlipUd(),
-        Noise(mode='speckle', mean=0.1, var=0.05)
+
+        # horizontally flip image with probability p
+        FlipLr(p=0.5),
+
+        # vertically flip image with probability p
+        FlipUd(p=0.5),
+
+        # add gaussian noise to the image with probability p
+        Noise(mode='speckle', mean=0.1, var=0.05, p=0.5)
+
         ])
+
+    # set p=1 in each transformation in case you want to apply them without
+    # randomness
+
     ]
 
-# each transformation in this list is treated as a new sample in case
+# if no augmentation is required, comment the next line!
 transforms.extend(augmentations)
-
-# if no augmentation is required, comment line 67!
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -97,17 +137,16 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 # ------------------------- Training configuration ----------------------------
 # -----------------------------------------------------------------------------
 
-# Pretrained models -----------------------------------------------------------
-
 # path to save trained models
 state_path = os.path.join(wd, 'git/deep-learning/main/_models/')
+
+# Pretrained models -----------------------------------------------------------
 
 # whether to use a pretrained model
 pretrained = False
 
 # name of the pretrained model
 pretrained_model = 'UNet_SparcsDataset_t125_b128_rgbn.pt'
-
 
 # Dataset split ---------------------------------------------------------------
 
@@ -124,7 +163,7 @@ tvratio = 0.05
 
 # define the batch size
 # determines how many samples of the dataset are processed until the weights
-# of the network are updated
+# of the network are updated (via mini-batch gradient descent)
 batch_size = 64
 
 # Training configuration ------------------------------------------------------
@@ -132,8 +171,8 @@ batch_size = 64
 # whether to resume training from an existing model checkpoint
 checkpoint = False
 
-# whether to early stop training if the accuracy (loss) on the validation set
-# does not increase (decrease) more than delta over patience epochs
+# whether to early stop training if the accuracy on the validation set
+# does not increase more than delta over patience epochs
 early_stop = False
 mode = 'max'
 delta = 0
@@ -163,6 +202,13 @@ lr = 0.001
 # ------------------------- Plotting configuration ----------------------------
 # -----------------------------------------------------------------------------
 
+# these options are only used for evaluating a trained model using main.eval.py
+
+# whether to evaluate the model on the test set or validation set
+# test=False means evaluating on the validation set
+# test=True means evaluationg on the test set
+test = False
+
 # whether to compute and plot confusion matrix for the entire validation set
 plot_cm = False
 
@@ -182,6 +228,8 @@ plot_bands = ['nir', 'red', 'green']
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
 
-# compile configuration dictionary
+# DO NOT MODIFY THE FOLLOWING LINES!
+
+# compile configuration dictionary:
 config = {var: eval(var) for var in dir() if not var.startswith('_') and
           not inspect.ismodule(eval(var))}

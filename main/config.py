@@ -23,16 +23,22 @@ from pytorch.transforms import Augment, FlipLr, FlipUd, Noise
 
 # define path to working directory
 # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-wd = 'C:/Eurac/2020/'
-# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
+# wd = 'C:/Eurac/2020/'
+wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
 
 # define which dataset to train on
-dataset_name = 'Sparcs'
+# dataset_name = 'Sparcs'
 # dataset_name = 'Cloud95'
+dataset_name = 'Garmisch'
 
 # path to the dataset
-dataset_path = os.path.join(wd, '_Datasets/Sparcs')
+# dataset_path = os.path.join(wd, '_Datasets/Sparcs')
+dataset_path = os.path.join(wd, '_Datasets/ProSnow/', dataset_name)
 # dataset_path = os.path.join(wd, '_Datasets/Cloud95/Training')
+
+# a pattern to match the ground truth file naming convention
+# gt_pattern = '*mask.png'
+gt_pattern = '*class.img'
 
 # define the bands to use to train the segmentation network:
 # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -46,14 +52,14 @@ tile_size = 125
 # whether to central pad the scenes with a constant value
 # if True, padding is used if the scenes are not evenly divisible into tiles
 # of size (tile_size, tile_size)
-pad = False
+pad = True
 
-# the constant value to pad
-cval = 0
+# the constant value to pad around the ground truth mask if pad=True
+cval = 3
 
 # whether to sort the dataset in chronological order, useful for time series
 # data
-sort = False
+sort = True
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -96,7 +102,8 @@ augmentations = [
         FlipUd(p=0.5),
 
         # add gaussian noise to the image with probability p
-        Noise(mode='speckle', mean=0.1, var=0.05, p=0.5)
+        # do not add noise to pixels of values=exclude, i.e. the padded pixels
+        Noise(mode='speckle', mean=0.1, var=0.05, p=0.5, exclude=cval)
 
         ])
 
@@ -106,7 +113,7 @@ augmentations = [
     ]
 
 # if no augmentation is required, comment the next line!
-transforms.extend(augmentations)
+# transforms.extend(augmentations)
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -140,12 +147,19 @@ kwargs = {'kernel_size': 3,  # the size of the convolving kernel
 # path to save trained models
 state_path = os.path.join(wd, 'git/deep-learning/main/_models/')
 
-# Pretrained models -----------------------------------------------------------
+# Pretrained models: Transfer learning-----------------------------------------
 
-# whether to use a pretrained model
-pretrained = False
+# Use pretrained=True only if you wish to fine-tune a pre-trained model on a
+# different dataset than the one it was trained on
 
-# name of the pretrained model
+# If you wish to continue training an existing model on the SAME dataset,
+# set option checkpoint=True and pretrained=False and make sure the selected
+# dataset is the same as the one the existing model was trained on
+
+# whether to use a pretrained model for transfer learning
+pretrained = True
+
+# name of the pretrained model to apply to a different dataset
 pretrained_model = 'UNet_SparcsDataset_t125_b128_rgbn.pt'
 
 # Dataset split ---------------------------------------------------------------
@@ -159,7 +173,7 @@ ttratio = 1
 
 # (ttratio * tvratio) * 100 % will be used as the training dataset
 # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-tvratio = 0.05
+tvratio = 0.2
 
 # define the batch size
 # determines how many samples of the dataset are processed until the weights

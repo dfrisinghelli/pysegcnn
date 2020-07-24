@@ -173,7 +173,8 @@ class NetworkTrainer(object):
 
                 # print progress
                 print('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, Loss: {:.2f}, '
-                      'Accuracy: {:.2f}'.format(epoch, self.epochs, batch + 1,
+                      'Accuracy: {:.2f}'.format(epoch + 1, self.epochs,
+                                                batch + 1,
                                                 len(self.train_dl),
                                                 observed_loss,
                                                 observed_accuracy))

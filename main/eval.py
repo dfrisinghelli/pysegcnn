@@ -55,8 +55,8 @@ if __name__ == '__main__':
         samples = np.arange(0, len(dataset))
         if trainer.nsamples > 0:
             samples = np.random.randint(len(dataset),
-                                        size=np.min(trainer.nsamples,
-                                                    len(dataset)))
+                                        size=min(trainer.nsamples,
+                                                 len(dataset)))
 
         # iterate over the samples and plot inputs, ground truth and
         # model predictions

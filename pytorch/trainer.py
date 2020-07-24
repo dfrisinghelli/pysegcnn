@@ -67,6 +67,10 @@ class NetworkTrainer(object):
         # load pretrained model weights
         model.load(self.pretrained_model, inpath=self.state_path)
 
+        # reset model epoch to 0, since the model is trained on a different
+        # dataset
+        model.epoch = 0
+
         # adjust the classification layer to the number of classes of the
         # current dataset
         model.classifier = Conv2dSame(in_channels=filters[0],
@@ -97,10 +101,12 @@ class NetworkTrainer(object):
 
         # create dictionary of the observed losses and accuracies on the
         # training and validation dataset
-        training_state = {'tl': np.zeros(shape=(self.nbatches, self.epochs)),
-                          'ta': np.zeros(shape=(self.nbatches, self.epochs)),
-                          'vl': np.zeros(shape=(self.nvbatches, self.epochs)),
-                          'va': np.zeros(shape=(self.nvbatches, self.epochs))
+        tshape = (len(self.train_dl), self.epochs)
+        vshape = (len(self.valid_dl), self.epochs)
+        training_state = {'tl': np.zeros(shape=tshape),
+                          'ta': np.zeros(shape=tshape),
+                          'vl': np.zeros(shape=vshape),
+                          'va': np.zeros(shape=vshape)
                           }
 
         # whether to resume training from an existing model
@@ -168,7 +174,8 @@ class NetworkTrainer(object):
                 # print progress
                 print('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, Loss: {:.2f}, '
                       'Accuracy: {:.2f}'.format(epoch, self.epochs, batch + 1,
-                                                self.nbatches, observed_loss,
+                                                len(self.train_dl),
+                                                observed_loss,
                                                 observed_accuracy))
 
             # update the number of epochs trained
@@ -241,10 +248,6 @@ class NetworkTrainer(object):
         # initialize confusion matrix
         cm = torch.zeros(self.model.nclasses, self.model.nclasses)
 
-        # create arrays of the observed losses and accuracies
-        accuracies = np.zeros(shape=(self.nvbatches, 1))
-        losses = np.zeros(shape=(self.nvbatches, 1))
-
         # check which dataset to test the model on, either the validation or
         # the test set
         if self.valid_dl is None and self.test_dl is None:
@@ -261,6 +264,10 @@ class NetworkTrainer(object):
                 print('You requested to evaluate the model on the test set, '
                       'but no test set is available. Falling back to evaluate '
                       'the model on the validation set ...')
+
+        # create arrays of the observed losses and accuracies
+        accuracies = np.zeros(shape=(len(dataloader), 1))
+        losses = np.zeros(shape=(len(dataloader), 1))
 
         # iterate over the validation/test set
         print('Calculating accuracy on the {} set ...'.format(set_name))
@@ -287,7 +294,7 @@ class NetworkTrainer(object):
 
             # print progress
             print('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
-                  .format(batch + 1, self.nvbatches, acc))
+                  .format(batch + 1, len(dataloader), acc))
 
             # update confusion matrix
             if confusion:
@@ -320,7 +327,8 @@ class NetworkTrainer(object):
                     sort=self.sort,
                     transforms=self.transforms,
                     pad=self.pad,
-                    cval=self.cval)
+                    cval=self.cval,
+                    gt_pattern=self.gt_pattern)
 
         if self.dataset is None:
             raise ValueError('{} is not a valid dataset. '
@@ -333,15 +341,6 @@ class NetworkTrainer(object):
         self.train_ds, self.valid_ds, self.test_ds = random_tvt_split(
             self.dataset, self.tvratio, self.ttratio, self.seed)
 
-        # number of batches in the validation set
-        self.nvbatches = int(len(self.valid_ds) / self.batch_size)
-
-        # number of batches in the training set
-        self.nbatches = int(len(self.train_ds) / self.batch_size)
-
-        # number of batches in the test set
-        self.ntbatches = int(len(self.test_ds) / self.batch_size)
-
         # the shape of a single batch
         self.batch_shape = (len(self.bands), self.tile_size, self.tile_size)
 
@@ -351,14 +350,14 @@ class NetworkTrainer(object):
             self.train_dl = DataLoader(self.train_ds,
                                        self.batch_size,
                                        shuffle=True,
-                                       drop_last=True)
+                                       drop_last=False)
         # the validation dataloader
         self.valid_dl = None
         if len(self.valid_ds) > 0:
             self.valid_dl = DataLoader(self.valid_ds,
                                        self.batch_size,
                                        shuffle=True,
-                                       drop_last=True)
+                                       drop_last=False)
 
         # the test dataloader
         self.test_dl = None
@@ -366,7 +365,7 @@ class NetworkTrainer(object):
             self.test_dl = DataLoader(self.test_ds,
                                       self.batch_size,
                                       shuffle=True,
-                                      drop_last=True)
+                                      drop_last=False)
 
     def _init_model(self):
 
@@ -446,10 +445,11 @@ class NetworkTrainer(object):
         fs += '\n    (dataset):\n        '
         fs += '\n        '.join(
             '- {}: {:d} batches ({:.2f}%)'
-            .format(k, v[0] * self.batch_size, v[1] * 100) for k, v in
-            {'Training': (self.nbatches, self.ttratio * self.tvratio),
-             'Validation': (self.nvbatches, self.ttratio * (1 - self.tvratio)),
-             'Test': (self.ntbatches, 1 - self.ttratio)}.items())
+            .format(k, v[0], v[1] * 100) for k, v in
+            {'Training': (len(self.train_ds), self.ttratio * self.tvratio),
+             'Validation': (len(self.valid_ds),
+                            self.ttratio * (1 - self.tvratio)),
+             'Test': (len(self.test_ds), 1 - self.ttratio)}.items())
 
         # model
         fs += '\n    (model):\n        '

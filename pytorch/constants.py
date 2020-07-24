@@ -43,11 +43,11 @@ class Sentinel2(enum.Enum):
 
 # labels of the Sparcs dataset
 class SparcsLabels(enum.Enum):
-    Shadow = 0, 'black'
+    Shadow = 0, 'grey'
     Shadow_over_water = 1, 'darkblue'
     Water = 2, 'blue'
     Snow = 3, 'lightblue'
-    Land = 4, 'grey'
+    Land = 4, 'sienna'
     Cloud = 5, 'white'
     Flooded = 6, 'yellow'
 
@@ -60,6 +60,6 @@ class Cloud95Labels(enum.Enum):
 
 # labels of the ProSnow dataset
 class ProSnowLabels(enum.Enum):
-    Land = 0, 'grey'
-    Cloud = 1, 'white'
-    Snow = 2, 'lightblue'
+    Cloud = 0, 'white'
+    Snow = 1, 'lightblue'
+    Snow_free = 2, 'sienna'

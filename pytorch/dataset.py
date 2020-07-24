@@ -31,7 +31,7 @@ from torch.utils.data import Dataset
 from pytorch.constants import (Landsat8, Sentinel2, SparcsLabels,
                                Cloud95Labels, ProSnowLabels)
 from pytorch.utils import (img2np, is_divisible, tile_topleft_corner,
-                           parse_landsat8_date, parse_sentinel2_date)
+                           parse_landsat_scene, parse_sentinel2_scene)
 
 
 # generic image dataset class
@@ -74,6 +74,9 @@ class ImageDataset(Dataset):
             # each scene is divided into (tile_size x tile_size) blocks
             # each of these blocks is treated as a single sample
             'tile_size': None,
+
+            # a pattern to match the ground truth file naming convention
+            'gt_pattern': '*gt.tif',
 
             # whether to chronologically sort the samples
             'sort': False,
@@ -120,6 +123,26 @@ class ImageDataset(Dataset):
 
         # always use the original dataset together with the augmentations
         self.transforms = [None] + self.transforms
+
+        # check if the padding value is equal to any of the class
+        # identifiers in the ground truth mask
+        if self.pad:
+            if self.cval in self.labels.keys():
+                raise ValueError('Constant padding value cval={} is not '
+                                 'allowed: class "{}" is represented as {} in '
+                                 'the ground truth.'
+                                 .format(self.cval,
+                                         self.labels[self.cval]['label'],
+                                         self.cval)
+                                 )
+            # add the "no data" label to the class labels of the ground truth
+            else:
+                if not 0 <= self.cval <= 255:
+                    raise ValueError('Expecting 0 <= cval <= 255, got cval={}.'
+                                     .format(self.cval))
+                print('Adding label "No data" with value={} to ground truth.'
+                      .format(self.cval))
+                self.labels[self.cval] = {'label': 'No data', 'color': 'black'}
 
     def _build_labels(self):
         return {band.value[0]: {'label': band.name.replace('_', ' '),
@@ -211,6 +234,7 @@ class ImageDataset(Dataset):
     #   - (band_n, path_to_band_n.tif)
     #   - (gt, path_to_ground_truth.tif)
     #   - (tile, None or int)
+    #   - ...
     def compose_scenes(self, *args, **kwargs):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
@@ -258,12 +282,12 @@ class ImageDataset(Dataset):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the date_parser() method has to be implemented by the class inheriting
+    # the parse_scene_id() method has to be implemented by the class inheriting
     # the ImageDataset class
-    # the input to the date_parser() method is a string describing a scene id,
-    # e.g. an id of a Landsat or a Sentinel scene
-    # date_parser() should return an instance of datetime.datetime
-    def date_parser(self, scene):
+    # the input to the parse_scene_id() method is a string describing a scene
+    # id, e.g. an id of a Landsat or a Sentinel scene
+    # parse_scene_id() should return a dictionary containing the scene metadata
+    def parse_scene_id(self, scene):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
@@ -276,10 +300,17 @@ class ImageDataset(Dataset):
         scene = self.scenes[idx]
 
         # read each band of the scene into a numpy array
-        scene_data = {key: img2np(value, self.tile_size, scene['tile'],
-                                  self.pad, self.cval)
-                      if isinstance(value, str) else value for key, value
-                      in scene.items()}
+        scene_data = {}
+        for key, value in scene.items():
+
+            # pad zeros to each band if self.pad=True, but pad self.cval to
+            # the ground truth
+            npad = 1 if key == 'gt' else 0
+            if isinstance(value, str):
+                scene_data[key] = img2np(value, self.tile_size, scene['tile'],
+                                         self.pad, self.cval * npad)
+            else:
+                scene_data[key] = value
 
         return scene_data
 
@@ -295,14 +326,12 @@ class ImageDataset(Dataset):
 
     def to_tensor(self, x, y):
         return (torch.tensor(x.copy(), dtype=torch.float32),
-                torch.tensor(y.copy(), dtype=torch.uint8) if y is not None
-                else y)
+                torch.tensor(y.copy(), dtype=torch.uint8))
 
 
 class StandardEoDataset(ImageDataset):
 
     def __init__(self, root_dir, **kwargs):
-
         # initialize super class ImageDataset
         super().__init__(root_dir, **kwargs)
 
@@ -351,47 +380,60 @@ class StandardEoDataset(ImageDataset):
     # with corresponding tile id
     def compose_scenes(self):
 
-        # list of all samples in the dataset
+        # search the root directory
         scenes = []
-        for scene in os.listdir(self.root):
+        self.gt = []
+        for dirpath, dirname, files in os.walk(self.root):
 
-            # get the date of the current scene
-            date = self.date_parser(scene)
+            # search for a ground truth in the current directory
+            self.gt.extend(glob.glob(os.path.join(dirpath, self.gt_pattern)))
 
-            # list the spectral bands of the scene
-            bands = glob.glob(os.path.join(self.root, scene, '*B*.tif'))
+            # check if the current directory name matches a scene identifier
+            scene = self.parse_scene_id(dirpath)
 
-            # get the ground truth mask
-            try:
-                gt = glob.glob(
-                    os.path.join(self.root, scene, '*mask.png')).pop()
-            except IndexError:
-                gt = None
+            if scene is not None:
 
-            # iterate over the tiles
-            for tile in range(self.tiles):
+                # get the date of the current scene
+                date = scene['date']
 
-                # iterate over the transformations to apply
-                for transf in self.transforms:
+                # list the spectral bands of the scene
+                bands = glob.glob(os.path.join(dirpath, '*B*.tif'))
 
-                    # store the bands and the ground truth mask of the tile
-                    data = self.store_bands(bands, gt)
+                # get the ground truth mask
+                try:
+                    gt = [truth for truth in self.gt if scene['id'] in truth]
+                    gt = gt.pop()
+                except IndexError:
+                    print('Skipping scene {}: ground truth not available '
+                          '(pattern = {}).'
+                          .format(scene['id'], self.gt_pattern))
+                    continue
 
-                    # store tile number
-                    data['tile'] = tile
+                # iterate over the tiles
+                for tile in range(self.tiles):
 
-                    # store date
-                    data['date'] = date
+                    # iterate over the transformations to apply
+                    for transf in self.transforms:
 
-                    # store optional transformation
-                    data['transform'] = transf
+                        # store the bands and the ground truth mask of the tile
+                        data = self.store_bands(bands, gt)
 
-                    # append to list
-                    scenes.append(data)
+                        # store tile number
+                        data['tile'] = tile
 
-        # sort list of scenes in chronological order
+                        # store date
+                        data['date'] = date
+
+                        # store optional transformation
+                        data['transform'] = transf
+
+                        # append to list
+                        scenes.append(data)
+
+        # sort list of scenes and ground truths in chronological order
         if self.sort:
             scenes.sort(key=lambda k: k['date'])
+            self.gt.sort(key=lambda k: self.parse_scene_id(k)['date'])
 
         return scenes
 
@@ -400,7 +442,6 @@ class StandardEoDataset(ImageDataset):
 class SparcsDataset(StandardEoDataset):
 
     def __init__(self, root_dir, **kwargs):
-
         # initialize super class StandardEoDataset
         super().__init__(root_dir, **kwargs)
 
@@ -423,15 +464,13 @@ class SparcsDataset(StandardEoDataset):
         return data, gt
 
     # function that parses the date from a Landsat 8 scene id
-    def date_parser(self, scene):
-        return parse_landsat8_date(scene)
-
+    def parse_scene_id(self, scene):
+        return parse_landsat_scene(scene)
 
 
 class ProSnowDataset(StandardEoDataset):
 
     def __init__(self, root_dir, **kwargs):
-
         # initialize super class StandardEoDataset
         super().__init__(root_dir, **kwargs)
 
@@ -450,13 +489,14 @@ class ProSnowDataset(StandardEoDataset):
         return data, gt
 
     # function that parses the date from a Sentinel 2 scene id
-    def date_parser(self, scene):
-        return parse_sentinel2_date(scene)
+    def parse_scene_id(self, scene):
+        return parse_sentinel2_scene(scene)
 
 
 class ProSnowGarmisch(ProSnowDataset):
 
     def __init__(self, root_dir, **kwargs):
+        # initialize super class StandardEoDatasets
         super().__init__(root_dir, **kwargs)
 
     def get_size(self):
@@ -466,6 +506,7 @@ class ProSnowGarmisch(ProSnowDataset):
 class ProSnowObergurgl(ProSnowDataset):
 
     def __init__(self, root_dir, **kwargs):
+        # initialize super class StandardEoDataset
         super().__init__(root_dir, **kwargs)
 
     def get_size(self):
@@ -503,13 +544,13 @@ class Cloud95Dataset(ImageDataset):
         # here, we use the normalization of the authors of Cloud-95, i.e.
         # Mohajerani and Saeedi (2019, 2020)
         data /= 65535
-        gt /= 255
+        gt[gt != self.cval] /= 255
 
         return data, gt
 
     # function that parses the date from a Landsat 8 scene id
-    def date_parser(self, scene):
-        return parse_landsat8_date(scene)
+    def parse_scene_id(self, scene):
+        return parse_landsat_scene(scene)
 
     def compose_scenes(self):
 
@@ -545,7 +586,7 @@ class Cloud95Dataset(ImageDataset):
             patchname = file.split('.')[0].replace(biter + '_', '')
 
             # get the date of the current scene
-            date = self.date_parser(patchname)
+            date = self.parse_scene_id(patchname)['date']
 
             # check whether the current file is an informative patch
             if ipatches and patchname not in ipatches:
@@ -595,21 +636,18 @@ class SupportedDatasets(enum.Enum):
 if __name__ == '__main__':
 
     # define path to working directory
-    # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
+    wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
     # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
-    wd = 'C:/Eurac/2020/'
+    # wd = 'C:/Eurac/2020/'
 
     # path to the preprocessed sparcs dataset
     sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
 
     # path to the Cloud-95 dataset
-    cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
+    # cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
 
     # path to the ProSnow dataset
     prosnow_path = os.path.join(wd, '_Datasets/ProSnow/')
-
-    # the csv file containing the names of the informative patches
-    # patches = 'training_patches_95-cloud_nonempty.csv'
 
     # instanciate the Cloud-95 dataset
     # cloud_dataset = Cloud95Dataset(cloud_path,
@@ -618,19 +656,17 @@ if __name__ == '__main__':
     #                                sort=False)
 
     # instanciate the SparcsDataset class
-    sparcs_dataset = SparcsDataset(sparcs_path,
-                                   tile_size=None,
-                                   use_bands=['nir', 'red', 'green'],
-                                   sort=False,
-                                   transforms=[])
+    # sparcs_dataset = SparcsDataset(sparcs_path,
+    #                                tile_size=None,
+    #                                use_bands=['nir', 'red', 'green'],
+    #                                sort=False,
+    #                                transforms=[],
+    #                                gt_pattern='*mask.png')
 
     # instanciate the ProSnow datasets
     garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),
                                tile_size=None,
-                               use_bands=['nir', 'red', 'green'],
+                               use_bands=['nir', 'red', 'green', 'blue'],
                                sort=True,
-                               transforms=[])
-    # obergurgl = ProSnowObergurgl(os.path.join(prosnow_path, 'Obergurgl'),
-    #                              tile_size=None,
-    #                              use_bands=['nir', 'red', 'green'],
-    #                              sort=True)
+                               transforms=[],
+                               gt_pattern='*class.img')

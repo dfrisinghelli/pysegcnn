@@ -117,7 +117,7 @@ class Rotate(VariantTransform):
 
 class Noise(InvariantTransform):
 
-    def __init__(self, mode, mean=0, var=0.05, p=0.5):
+    def __init__(self, mode, mean=0, var=0.05, p=0.5, exclude=0):
         super().__init__()
 
         # check which kind of noise to apply
@@ -134,6 +134,9 @@ class Noise(InvariantTransform):
         # the probability to apply the transformation
         self.p = p
 
+        # the value in the image that should not be modified by the noise
+        self.exclude = exclude
+
     def __call__(self, image):
 
         if np.random.random(1) < self.p:
@@ -143,6 +146,9 @@ class Noise(InvariantTransform):
 
             # generate gaussian noise
             noise = np.random.normal(self.mean, self.var, image.shape)
+
+            # check which values should not be modified by adding noise
+            noise[image == self.exclude] = 0
 
             if self.mode == 'gaussian':
                 return (np.asarray(image) + noise).clip(0, 1)

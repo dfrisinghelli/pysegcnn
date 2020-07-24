@@ -49,7 +49,7 @@ def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
                 outpath=os.path.join(os.getcwd(), '_samples/'),  **kwargs):
 
     # check whether to apply constrast stretching
-    stretch = True if kwargs else False
+    stretch = True if kwargs else stretch
     func = contrast_stretching if stretch else lambda x: x
 
     # create an rgb stack

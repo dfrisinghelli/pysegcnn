@@ -246,7 +246,7 @@ def tile_topleft_corner(img_size, tile_size):
     return indices
 
 
-def parse_landsat8_date(scene):
+def parse_landsat_scene(scene_id):
 
     # Landsat Collection 1 naming convention in regular expression
     sensor = 'L[COTEM]0[1-8]_'
@@ -266,18 +266,64 @@ def parse_landsat8_date(scene):
           doy + '[A-Z]{3}' + '[0-9]{2}')
     Landsat_C0 = re.compile(C0)
 
+    # mapping from sensor id to sensors
+    lsensors = {'E': 'Enhanced Thematic Mapper Plus',
+                'T': 'Thematic Mapper',
+                'M': 'Multispectral Scanner'}
+    l8sensors = {'C': 'Operational Land Imager (OLI) & Thermal Infrared Sensor'
+                      ' (TIRS)',
+                 'O': 'Operational Land Imager (OLI)',
+                 'T': 'Thermal Infrared Sensor (TIRS)',
+                 }
+
     # whether a scene identifier matches the Landsat naming convention
-    # if True, get the date of
-    date = None
-    if Landsat_C0.match(scene):
-        date = doy2date(scene[9:13], scene[13:16])
-    if Landsat_C1.match(scene):
-        date = datetime.datetime.strptime(scene.split('_')[3], '%Y%m%d')
+    scene = {}
+    if Landsat_C0.search(scene_id):
 
-    return date
+        # the match of the regular expression
+        match = Landsat_C0.search(scene_id)[0]
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = 'Landsat {}'.format(match[2])
+        if int(match[2]) > 7:
+            scene['sensor'] = l8sensors[match[1]]
+        else:
+            scene['sensor'] = lsensors[match[1]]
+        scene['path'] = match[3:6]
+        scene['row'] = match[6:9]
+        scene['date'] = doy2date(match[9:13], match[13:16])
+        scene['gsi'] = match[16:19]
+        scene['version'] = match[19:]
+
+    elif Landsat_C1.search(scene_id):
+
+        # the match of the regular expression
+        match = Landsat_C1.search(scene_id)[0]
+
+        # split scene into respective parts
+        parts = match.split('_')
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = 'Landsat {}'.format(parts[0][2:])
+        if int(parts[0][3]) > 7:
+            scene['sensor'] = l8sensors[parts[0][1]]
+        else:
+            scene['sensor'] = lsensors[parts[0][1]]
+        scene['path'] = parts[2][0:3]
+        scene['row'] = parts[2][3:]
+        scene['date'] = datetime.datetime.strptime(parts[3], '%Y%m%d')
+        scene['collection'] = int(parts[5])
+        scene['version'] = parts[6]
+
+    else:
+        scene = None
+
+    return scene
 
 
-def parse_sentinel2_date(scene):
+def parse_sentinel2_scene(scene_id):
 
     # Sentinel 2 Level-1C products naming convention after 6th December 2016
     mission = 'S2[A-B]_'
@@ -304,20 +350,64 @@ def parse_sentinel2_date(scene):
     # ProSnow project naming convention
     ProSnow = re.compile(tile + date + time.replace('_', ''))
 
-    # whether a scene identifier matches the Landsat naming convention
-    # if True, get the date of
-    date = None
-    if S2_L1C_Old.match(scene):
-        date = datetime.datetime.strptime(
-            scene.split('_')[7].split('T')[0].replace('V', ''), '%Y%m%d')
-    if S2_L1C_New.match(scene):
-        date = datetime.datetime.strptime(scene.split('_')[2].split('T')[0],
-                                          '%Y%m%d')
-    if ProSnow.match(scene):
-        date = datetime.datetime.strptime(scene.split('_')[1].split('T')[0],
-                                          '%Y%m%d')
+    # whether a scene identifier matches the Sentinel naming convention
+    scene = {}
+    if S2_L1C_Old.search(scene_id):
 
-    return date
+        # the match of the regular expression
+        match = S2_L1C_Old.search(scene_id)[0]
+
+        # split scene into respective parts
+        parts = match.split('_')
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = 'Sentinel {}'.format(parts[1:])
+        scene['file class'] = parts[1]
+        scene['file category'] = parts[2]
+        scene['file semantic'] = parts[3]
+        scene['site'] = parts[4]
+        scene['orbit'] = parts[6]
+        scene['date'] = datetime.datetime.strptime(
+           parts[7].split('T')[0].replace('V', ''), '%Y%m%d')
+
+    elif S2_L1C_New.search(scene_id):
+
+        # the match of the regular expression
+        match = S2_L1C_New.search(scene_id)[0]
+
+        # split scene into respective parts
+        parts = match.split('_')
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = 'Sentinel {}'.format(parts[1:])
+        scene['product'] = parts[1]
+        scene['date'] = datetime.datetime.strptime(parts[2].split('T')[0],
+                                                   '%Y%m%d')
+        scene['baseline'] = parts[3]
+        scene['orbit'] = parts[4]
+        scene['tile'] = parts[5]
+
+    elif ProSnow.search(scene_id):
+
+        # the match of the regular expression
+        match = ProSnow.search(scene_id)[0]
+
+        # split scene into respective parts
+        parts = match.split('_')
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = 'Sentinel 2'
+        scene['tile'] = parts[0]
+        scene['date'] = datetime.datetime.strptime(parts[1].split('T')[0],
+                                                   '%Y%m%d')
+
+    else:
+        scene = None
+
+    return scene
 
 
 def doy2date(year, doy):

@@ -18,6 +18,7 @@ from torch.utils.data import random_split, DataLoader
 # locals
 from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.layers import Conv2dSame
+from pysegcnn.core.utils import img2np
 
 
 class NetworkTrainer(object):
@@ -342,6 +343,17 @@ class NetworkTrainer(object):
         self.train_ds, self.valid_ds, self.test_ds = random_tvt_split(
             self.dataset, self.tvratio, self.ttratio, self.seed)
 
+        # whether to drop training samples with a fraction of pixels equal to
+        # the constant padding value self.cval >= self.drop
+        if self.pad:
+            self._drop(self.train_ds)
+
+        # the scenes in the training, validation and test dataset
+        for ds in [self.train_ds, self.valid_ds, self.test_ds]:
+            ds.scenes = []
+            for i in ds.indices:
+                ds.scenes.append(ds.dataset.dataset.scenes[i])
+
         # the shape of a single batch
         self.batch_shape = (len(self.bands), self.tile_size, self.tile_size)
 
@@ -405,6 +417,41 @@ class NetworkTrainer(object):
 
         # path to model loss/accuracy
         self.loss_state = self.state.replace('.pt', '_loss.pt')
+
+    # function to drop samples with a fraction of pixels equal to the constant
+    # padding value self.cval >= self.drop
+    def _drop(self, ds):
+
+        # iterate over the scenes returned by self.compose_scenes()
+        self.dropped = []
+        for pos, i in enumerate(ds.indices):
+
+            # the current scene
+            s = self.dataset.scenes[i]
+
+            # the current tile in the ground truth
+            tile_gt = img2np(s['gt'], self.tile_size, s['tile'],
+                             self.pad, self.cval)
+
+            # percent of pixels equal to the constant padding value
+            npixels = (tile_gt[tile_gt == self.cval].size / tile_gt.size)
+
+            # drop samples where npixels >= self.drop
+            if npixels >= self.drop:
+                print('Skipping scene {}, tile {}: {:.2f}% padded pixels ...'
+                      .format(s['id'], s['tile'], npixels * 100))
+                self.dropped.append(s)
+                _ = ds.indices.pop(pos)
+
+    def _get_scene_tiles(ds, scene_id):
+
+        # iterate over the scenes of the dataset
+        tiles = {}
+        for scene in ds.scenes:
+            if scene['id'] == scene_id:
+                tiles.append(scene)
+
+        return tiles
 
     def _save_loss(self, training_state, checkpoint=False,
                    checkpoint_state=None):

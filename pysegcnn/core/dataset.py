@@ -29,8 +29,8 @@ from torch.utils.data import Dataset
 # locals
 from pysegcnn.core.constants import (Landsat8, Sentinel2, SparcsLabels,
                                      Cloud95Labels, ProSnowLabels)
-from pysegcnn.core.utils import (img2np, is_divisible, parse_landsat_scene,
-                                 parse_sentinel2_scene)
+from pysegcnn.core.utils import (img2np, is_divisible, tile_topleft_corner,
+                                 parse_landsat_scene, parse_sentinel2_scene)
 
 
 # generic image dataset class
@@ -89,13 +89,13 @@ class ImageDataset(Dataset):
             'pad': False,
 
             # the value to pad the samples
-            'cval': 0
+            'cval': 0,
 
             }
 
         # set default kwargs
         for k, v in self.default_kwargs.items():
-            # store default keyword arguments as class attribute
+            # store default keyword arguments as instance attributes
             setattr(self, k, v)
 
         # check whether the keyword arguments are correctly specified
@@ -106,7 +106,7 @@ class ImageDataset(Dataset):
                                 '\n'.join('- {}'.format(k) for k in
                                           self.default_kwargs.keys()))
 
-            # store keyword argument as class attribute
+            # store keyword argument as instance attribute
             setattr(self, k, v)
 
         # check which bands to use
@@ -151,7 +151,7 @@ class ImageDataset(Dataset):
     def _assert_compose_scenes(self):
 
         # list of required keys
-        self.keys = self.use_bands + ['gt', 'date', 'tile', 'transform']
+        self.keys = self.use_bands + ['gt', 'date', 'tile', 'transform', 'id']
 
         # check if each scene is correctly composed
         for scene in self.scenes:
@@ -328,6 +328,7 @@ class ImageDataset(Dataset):
                 torch.tensor(y.copy(), dtype=torch.uint8))
 
 
+
 class StandardEoDataset(ImageDataset):
 
     def __init__(self, root_dir, **kwargs):
@@ -402,6 +403,7 @@ class StandardEoDataset(ImageDataset):
                 try:
                     gt = [truth for truth in self.gt if scene['id'] in truth]
                     gt = gt.pop()
+
                 except IndexError:
                     print('Skipping scene {}: ground truth not available '
                           '(pattern = {}).'
@@ -416,6 +418,9 @@ class StandardEoDataset(ImageDataset):
 
                         # store the bands and the ground truth mask of the tile
                         data = self.store_bands(bands, gt)
+
+                        # the name of the scene
+                        data['id'] = scene['id']
 
                         # store tile number
                         data['tile'] = tile
@@ -635,9 +640,9 @@ class SupportedDatasets(enum.Enum):
 if __name__ == '__main__':
 
     # define path to working directory
-    wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
+    # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
     # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
-    # wd = 'C:/Eurac/2020/'
+    wd = 'C:/Eurac/2020/'
 
     # path to the preprocessed sparcs dataset
     sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
@@ -646,7 +651,7 @@ if __name__ == '__main__':
     # cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
 
     # path to the ProSnow dataset
-    prosnow_path = os.path.join(wd, '_Datasets/ProSnow/')
+    # prosnow_path = os.path.join(wd, '_Datasets/ProSnow/')
 
     # instanciate the Cloud-95 dataset
     # cloud_dataset = Cloud95Dataset(cloud_path,
@@ -655,17 +660,19 @@ if __name__ == '__main__':
     #                                sort=False)
 
     # instanciate the SparcsDataset class
-    # sparcs_dataset = SparcsDataset(sparcs_path,
-    #                                tile_size=None,
-    #                                use_bands=['nir', 'red', 'green'],
-    #                                sort=False,
-    #                                transforms=[],
-    #                                gt_pattern='*mask.png')
+    sparcs_dataset = SparcsDataset(sparcs_path,
+                                   tile_size=192,
+                                   use_bands=['nir', 'red', 'green'],
+                                   sort=False,
+                                   transforms=[],
+                                   gt_pattern='*mask.png',
+                                   pad=True,
+                                   cval=99)
 
     # instanciate the ProSnow datasets
-    garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),
-                               tile_size=None,
-                               use_bands=['nir', 'red', 'green', 'blue'],
-                               sort=True,
-                               transforms=[],
-                               gt_pattern='*class.img')
+    # garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),
+    #                            tile_size=None,
+    #                            use_bands=['nir', 'red', 'green', 'blue'],
+    #                            sort=True,
+    #                            transforms=[],
+    #                            gt_pattern='*class.img')

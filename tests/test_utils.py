@@ -14,8 +14,8 @@ import pytest
 import numpy as np
 
 # locals
-from pytorch.utils import img2np, is_divisible, tile_topleft_corner
-from main.config import dataset_path
+from pysegcnn.core.utils import img2np, is_divisible
+from pysegcnn.main.config import dataset_path
 
 
 def test_img2np():

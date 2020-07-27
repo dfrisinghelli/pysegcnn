@@ -22,16 +22,15 @@ import itertools
 
 
 # externals
-import gdal
 import numpy as np
 import torch
 from torch.utils.data import Dataset
 
 # locals
-from pytorch.constants import (Landsat8, Sentinel2, SparcsLabels,
-                               Cloud95Labels, ProSnowLabels)
-from pytorch.utils import (img2np, is_divisible, tile_topleft_corner,
-                           parse_landsat_scene, parse_sentinel2_scene)
+from pysegcnn.core.constants import (Landsat8, Sentinel2, SparcsLabels,
+                                     Cloud95Labels, ProSnowLabels)
+from pysegcnn.core.utils import (img2np, is_divisible, parse_landsat_scene,
+                                 parse_sentinel2_scene)
 
 
 # generic image dataset class

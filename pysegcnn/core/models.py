@@ -15,8 +15,8 @@ import torch
 import torch.nn as nn
 
 # locals
-from pytorch.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
-                            Conv2dUpsample, Conv2dSame)
+from pysegcnn.core.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
+                                  Conv2dUpsample, Conv2dSame)
 
 
 class Network(nn.Module):

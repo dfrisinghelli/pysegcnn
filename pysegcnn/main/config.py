@@ -15,8 +15,9 @@ import inspect
 import torch.nn as nn
 import torch.optim as optim
 
-from pytorch.models import UNet
-from pytorch.transforms import Augment, FlipLr, FlipUd, Noise
+# locals
+from pysegcnn.core.models import UNet
+from pysegcnn.core.transforms import Augment, FlipLr, FlipUd, Noise
 
 # ------------------------- Dataset configuration -----------------------------
 # -----------------------------------------------------------------------------

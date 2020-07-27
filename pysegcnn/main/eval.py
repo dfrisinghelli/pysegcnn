@@ -1,17 +1,16 @@
 # builtins
 from __future__ import absolute_import
-import os
 
 # externals
 import numpy as np
 import torch
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
-# local modules
-from pytorch.trainer import NetworkTrainer
-from pytorch.graphics import plot_confusion_matrix, plot_loss, plot_sample
-from main.config import config
+# locals
+from pysegcnn.core.trainer import NetworkTrainer
+from pysegcnn.core.graphics import (plot_confusion_matrix, plot_loss,
+                                    plot_sample)
+from pysegcnn.main.config import config
 
 
 if __name__ == '__main__':

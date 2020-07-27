@@ -7,14 +7,10 @@ Created on Tue Jun 30 09:33:38 2020
 """
 # builtins
 from __future__ import absolute_import
-import os
 
-# externals
-import torch
-
-# local modules
-from pytorch.trainer import NetworkTrainer
-from main.config import config
+# locals
+from pysegcnn.core.trainer import NetworkTrainer
+from pysegcnn.main.config import config
 
 
 if __name__ == '__main__':

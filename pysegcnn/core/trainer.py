@@ -15,9 +15,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import random_split, DataLoader
 
-# local modules
-from pytorch.dataset import SparcsDataset, Cloud95Dataset, SupportedDatasets
-from pytorch.layers import Conv2dSame
+# locals
+from pysegcnn.core.dataset import SupportedDatasets
+from pysegcnn.core.layers import Conv2dSame
 
 
 class NetworkTrainer(object):

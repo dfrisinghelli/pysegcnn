@@ -20,9 +20,9 @@ if __name__ == '__main__':
     print(trainer)
 
     if trainer.plot_cm:
-        # predict each batch in the validation set
+        # predict each batch in the validation/test set
         cm, accuracy, loss = trainer.predict(pretrained=True, confusion=True,
-                                             test=config['test'])
+                                             test=trainer.test)
 
         # plot confusion matrix: labels of the dataset
         labels = [label['label'] for label in trainer.dataset.labels.values()]

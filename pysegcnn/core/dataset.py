@@ -120,12 +120,21 @@ class ImageDataset(Dataset):
             self.tiles, self.padding = is_divisible(self.size, self.tile_size,
                                                     self.pad)
 
+        # the size of the padded scenes
+        self.height = self.size[0] + self.padding[0] + self.padding[2]
+        self.width = self.size[1] + self.padding[1] + self.padding[3]
+
+        # the topleft corners of the tiles
+        if self.tile_size is not None:
+            self.topleft = tile_topleft_corner((self.height, self.width),
+                                               self.tile_size)
+
         # always use the original dataset together with the augmentations
         self.transforms = [None] + self.transforms
 
         # check if the padding value is equal to any of the class
         # identifiers in the ground truth mask
-        if self.pad:
+        if self.pad and sum(self.padding) > 0:
             if self.cval in self.labels.keys():
                 raise ValueError('Constant padding value cval={} is not '
                                  'allowed: class "{}" is represented as {} in '
@@ -305,7 +314,7 @@ class ImageDataset(Dataset):
             # pad zeros to each band if self.pad=True, but pad self.cval to
             # the ground truth
             npad = 1 if key == 'gt' else 0
-            if isinstance(value, str):
+            if isinstance(value, str) and key != 'id':
                 scene_data[key] = img2np(value, self.tile_size, scene['tile'],
                                          self.pad, self.cval * npad)
             else:
@@ -661,8 +670,8 @@ if __name__ == '__main__':
 
     # instanciate the SparcsDataset class
     sparcs_dataset = SparcsDataset(sparcs_path,
-                                   tile_size=192,
-                                   use_bands=['nir', 'red', 'green'],
+                                   tile_size=None,
+                                   use_bands=['red', 'green', 'blue', 'nir'],
                                    sort=False,
                                    transforms=[],
                                    gt_pattern='*mask.png',

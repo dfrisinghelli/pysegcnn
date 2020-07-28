@@ -17,6 +17,9 @@ import matplotlib.lines as mlines
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib import cm as colormap
 
+# locals
+from pysegcnn.core.trainer import accuracy_function
+
 
 # this function applies percentile stretching at the alpha level
 # can be used to increase constrast for visualization
@@ -69,7 +72,7 @@ def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
     if y_pred is not None:
 
         # compute accuracy
-        acc = (y_pred == y).float().mean()
+        acc = accuracy_function(y_pred, y)
 
         # plot model prediction
         fig, ax = plt.subplots(1, 3, figsize=figsize)

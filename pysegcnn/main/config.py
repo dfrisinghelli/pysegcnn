@@ -54,7 +54,7 @@ config = {
 
     # define the size of the network input
     # if None, the size will default to the size of a scene
-    'tile_size': 192,
+    'tile_size': 125,
 
     # whether to central pad the scenes with a constant value
     # if True, padding is used if the scenes are not evenly divisible into
@@ -164,7 +164,7 @@ config = {
     # -------------------------------------------------------------------------
 
     # path to save trained models
-    'state_path': os.path.join(wd, 'git/deep-learning/main/_models/'),
+    'state_path': os.path.join(wd, 'git/deep-learning/pysegcnn/main/_models/'),
 
     # Transfer learning -------------------------------------------------------
 
@@ -227,9 +227,14 @@ config = {
     'plot_cm': False,
 
     # whether to save plots of (input, ground truth, prediction) of the
-    # validation/test dataset to disk
+    # samples from the validation/test dataset to disk
     # output path is: pysegcnn/main/_samples/
     'plot_samples': False,
+
+    # whether to save plots of (input, ground truth, prediction) for each scene
+    # to disk
+    # output path is: pysegcnn/main/_samples/
+    'plot_scenes': True,
 
     # number of samples to plot
     # if nsamples': -1, all samples are plotted

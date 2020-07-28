@@ -5,6 +5,7 @@ Created on Tue Jul 14 15:02:23 2020
 @author: Daniel
 """
 # builtins
+import os
 import re
 import datetime
 
@@ -19,11 +20,33 @@ import numpy as np
 # this function reads an image to a numpy array
 def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
 
-    # open the tif file
-    if path is None:
+    # check the type of path
+    if isinstance(path, str):
+        if not os.path.exists(path):
+            raise FileNotFoundError('{} does not exist.'.format(path))
+        # the image dataset as returned by gdal
+        img = gdal.Open(path)
+
+        # number of bands
+        bands = img.RasterCount
+
+        # spatial size
+        height = img.RasterYSize
+        width = img.RasterXSize
+
+    elif path is None:
         print('Path is of NoneType, returning.')
         return
-    img = gdal.Open(path)
+
+    # accept numpy arrays as input
+    elif isinstance(path, np.ndarray):
+        img = path
+        bands = img.shape[0]
+        height = img.shape[1]
+        width = img.shape[2]
+
+    else:
+        raise ValueError('Input of type {} not supported'.format(type(img)))
 
     # check whether to read the image in tiles
     if tile_size is None:
@@ -32,15 +55,17 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
         ntiles = 1
 
         # create empty numpy array to store whole image
-        image = np.empty(shape=(ntiles, img.RasterCount, img.RasterYSize,
-                                img.RasterXSize))
+        image = np.empty(shape=(ntiles, bands, height, width))
 
         # iterate over the bands of the image
-        for b in range(img.RasterCount):
+        for b in range(bands):
 
             # read the data of band b
-            band = img.GetRasterBand(b+1)
-            data = band.ReadAsArray()
+            if isinstance(img, np.ndarray):
+                data = img[b, ...]
+            else:
+                band = img.GetRasterBand(b+1)
+                data = band.ReadAsArray()
 
             # append band b to numpy image array
             image[0, b, :, :] = data
@@ -49,15 +74,14 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
 
         # check whether the image is evenly divisible in square tiles
         # of size (tile_size x tile_size)
-        ntiles, padding = is_divisible((img.RasterYSize, img.RasterXSize),
-                                       tile_size, pad)
+        ntiles, padding = is_divisible((height, width), tile_size, pad)
 
         # image size after padding
-        y_size = img.RasterYSize + padding[0] + padding[2]
-        x_size = img.RasterXSize + padding[1] + padding[3]
+        y_size = height + padding[0] + padding[2]
+        x_size = width + padding[1] + padding[3]
 
         if verbose:
-            print('Image size: {}'.format((img.RasterYSize, img.RasterXSize)))
+            print('Image size: {}'.format((height, width)))
             print('Dividing image into {} tiles of size {} ...'
                   .format(ntiles, (tile_size, tile_size)))
             print('Padding image: bottom = {}, left = {}, top = {}, right = {}'
@@ -72,7 +96,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
             ntiles = 1
 
         # create empty numpy array to store the tiles
-        image = np.ones((ntiles, img.RasterCount, tile_size, tile_size)) * cval
+        image = np.ones((ntiles, bands, tile_size, tile_size)) * cval
 
         # iterate over the topleft corners of the tiles
         for k, corner in topleft.items():
@@ -100,24 +124,25 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
             x_tl = col + padding[1] if col == 0 else 0
 
             # iterate over the bands of the image
-            for b in range(img.RasterCount):
-
-                # read the data of band b
-                band = img.GetRasterBand(b+1)
+            for b in range(bands):
 
                 # check if the current tile extend exists in the image
                 nrows, ncols = check_tile_extend(
-                    (img.RasterYSize, img.RasterXSize), (row, col), tile_size)
+                    (height, width), (row, col), tile_size)
 
-                # read the current tile from the image
-                data = band.ReadAsArray(col, row, ncols, nrows)
+                # read the current tile from band b
+                if isinstance(img, np.ndarray):
+                    data = img[b, row:row+nrows, col:col+ncols]
+                else:
+                    band = img.GetRasterBand(b+1)
+                    data = band.ReadAsArray(col, row, ncols, nrows)
 
                 # append band b to numpy image array
                 image[k, b, y_tl:nrows, x_tl:ncols] = data[0:(nrows - y_tl),
                                                            0:(ncols - x_tl)]
 
     # check if there are more than 1 band
-    if not img.RasterCount > 1:
+    if not bands > 1:
         image = image.squeeze(axis=1)
 
     # check if there are more than 1 tile
@@ -244,6 +269,31 @@ def tile_topleft_corner(img_size, tile_size):
             k += 1
 
     return indices
+
+
+def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
+
+    # convert to numpy array
+    tiles = np.asarray(tiles)
+
+    # check the size
+    if tile_size is None:
+        if tiles.ndim > 3:
+            tile_size = tiles.shape[2]
+        else:
+            tile_size = tiles.shape[1]
+
+    # calculate the topleft corners of the tiles
+    topleft = tile_topleft_corner(img_size, tile_size)
+
+    # iterate over the tiles
+    scene = np.zeros(shape=(nbands,) + img_size)
+    for t in range(tiles.shape[0]):
+        scene[...,
+              topleft[t][0]: topleft[t][0] + tile_size,
+              topleft[t][1]: topleft[t][1] + tile_size] = tiles[t, ...]
+
+    return scene.squeeze()
 
 
 def parse_landsat_scene(scene_id):

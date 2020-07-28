@@ -25,7 +25,7 @@ class NetworkTrainer(object):
 
     def __init__(self, config):
 
-        # the configuration file as defined in main.config.py
+        # the configuration file as defined in pysegcnn.main.config.py
         for k, v in config.items():
             setattr(self, k, v)
 
@@ -38,6 +38,10 @@ class NetworkTrainer(object):
 
         # initialize the model
         self._init_model()
+
+        # initialize the model state files
+        self._init_state()
+
 
     def from_pretrained(self):
 
@@ -83,6 +87,31 @@ class NetworkTrainer(object):
 
         return model
 
+    def from_checkpoint(self):
+
+        # whether to resume training from an existing model
+        checkpoint_state = None
+        max_accuracy = 0
+        if os.path.exists(self.state) and self.checkpoint:
+            # load the model state
+            state = self.model.load(self.state_file, self.optimizer,
+                                    self.state_path)
+            print('Resuming training from {} ...'.format(state))
+            print('Model epoch: {:d}'.format(self.model.epoch))
+
+            # load the model loss and accuracy
+            checkpoint_state = torch.load(self.loss_state)
+
+            # get all non-zero elements, i.e. get number of epochs trained
+            # before the early stop
+            checkpoint_state = {k: v[np.nonzero(v)].reshape(v.shape[0], -1) for
+                                k, v in checkpoint_state.items()}
+
+            # maximum accuracy on the validation set
+            max_accuracy = checkpoint_state['va'][:, -1].mean().item()
+
+        return checkpoint_state, max_accuracy
+
     def train(self):
 
         print('------------------------- Training ---------------------------')
@@ -111,24 +140,7 @@ class NetworkTrainer(object):
                           }
 
         # whether to resume training from an existing model
-        checkpoint_state = None
-        if os.path.exists(self.state) and self.checkpoint:
-            # load the model state
-            state = self.model.load(self.state_file, self.optimizer,
-                                    self.state_path)
-            print('Resuming training from {} ...'.format(state))
-            print('Model epoch: {:d}'.format(self.model.epoch))
-
-            # load the model loss and accuracy
-            checkpoint_state = torch.load(self.loss_state)
-
-            # get all non-zero elements, i.e. get number of epochs trained
-            # before the early stop
-            checkpoint_state = {k: v[np.nonzero(v)].reshape(v.shape[0], -1) for
-                                k, v in checkpoint_state.items()}
-
-            # maximum accuracy on the validation set
-            max_accuracy = checkpoint_state['va'][:, -1].mean().item()
+        checkpoint_state, max_accuracy = self.from_checkpoint()
 
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
@@ -231,7 +243,7 @@ class NetworkTrainer(object):
 
         return training_state
 
-    def predict(self, pretrained=False, confusion=False, test=False):
+    def predict(self, pretrained=False, confusion=False):
 
         print('------------------------ Predicting --------------------------')
 
@@ -257,7 +269,7 @@ class NetworkTrainer(object):
                              'and test set not specified.')
         dataloader = self.valid_dl
         set_name = 'validation'
-        if test:
+        if self.test:
             # if the test set is empty, default to validation set
             if self.test_dl is not None:
                 dataloader = self.test_dl
@@ -315,6 +327,31 @@ class NetworkTrainer(object):
                                                  '_cm_{}.pt'.format(set_name)))
 
         return cm, accuracies, losses
+
+    def _init_state(self):
+
+        # file to save model state to
+        # format: networkname_datasetname_t(tilesize)_b(batchsize)_bands.pt
+        bformat = ''.join([b[0] for b in self.bands]) if self.bands else 'all'
+        self.state_file = ('{}_{}_t{}_b{}_{}.pt'
+                           .format(self.model.__class__.__name__,
+                                   self.dataset.__class__.__name__,
+                                   self.tile_size,
+                                   self.batch_size,
+                                   bformat))
+
+        # check whether a pretrained model was used and change state filename
+        # accordingly
+        if self.pretrained:
+            # add the configuration of the pretrained model to the state name
+            self.state_file = (self.state_file.replace('.pt', '_') +
+                               'pretrained_' + self.pretrained_model)
+
+        # path to model state
+        self.state = os.path.join(self.state_path, self.state_file)
+
+        # path to model loss/accuracy
+        self.loss_state = self.state.replace('.pt', '_loss.pt')
 
     def _init_dataset(self):
 
@@ -395,29 +432,6 @@ class NetworkTrainer(object):
         # the optimizer used to update the model weights
         self.optimizer = self.optimizer(self.model.parameters(), self.lr)
 
-        # file to save model state to
-        # format: networkname_datasetname_t(tilesize)_b(batchsize)_bands.pt
-        bformat = ''.join([b[0] for b in self.bands]) if self.bands else 'all'
-        self.state_file = ('{}_{}_t{}_b{}_{}.pt'
-                           .format(self.model.__class__.__name__,
-                                   self.dataset.__class__.__name__,
-                                   self.tile_size,
-                                   self.batch_size,
-                                   bformat))
-
-        # check whether a pretrained model was used and change state filename
-        # accordingly
-        if self.pretrained:
-            # add the configuration of the pretrained model to the state name
-            self.state_file = (self.state_file.replace('.pt', '_') +
-                               'pretrained_' + self.pretrained_model)
-
-        # path to model state
-        self.state = os.path.join(self.state_path, self.state_file)
-
-        # path to model loss/accuracy
-        self.loss_state = self.state.replace('.pt', '_loss.pt')
-
     # function to drop samples with a fraction of pixels equal to the constant
     # padding value self.cval >= self.drop
     def _drop(self, ds):
@@ -443,12 +457,13 @@ class NetworkTrainer(object):
                 self.dropped.append(s)
                 _ = ds.indices.pop(pos)
 
-    def _get_scene_tiles(ds, scene_id):
+    def _get_scene_tiles(self, scene_id):
 
         # iterate over the scenes of the dataset
-        tiles = {}
-        for scene in ds.scenes:
+        tiles = []
+        for i, scene in enumerate(self.dataset.scenes):
             if scene['id'] == scene_id:
+                scene['idx'] = i
                 tiles.append(scene)
 
         return tiles
@@ -569,7 +584,7 @@ class EarlyStopping(object):
 
 # function calculating prediction accuracy
 def accuracy_function(outputs, labels):
-    return (outputs == labels).float().mean()
+    return (np.asarray(outputs) == np.asarray(labels)).mean()
 
 
 # function calculating number of samples in a dataset given a ratio

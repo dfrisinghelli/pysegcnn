@@ -29,11 +29,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
-
-# To use a consistent encoding
+# builtins
+import os
 import codecs
-from os import path
-# Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 
 # SETUP: PACKAGE PROPERTIES
@@ -76,9 +74,9 @@ deep convolutional neural networks."""
 #
 # Often, this is the same as your README, so you can just read it in from
 # that file directly:
-HERE = path.abspath(path.dirname(__file__))
+HERE = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
-with codecs.open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
+with codecs.open(os.path.join(HERE, 'README.md'), encoding='utf-8') as f:
     LONG_DESCRIPTION = f.read()
 # This field corresponds to the "Description" metadata field:
 # https://packaging.python.org/specifications/core-metadata/#description-optional

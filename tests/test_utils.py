@@ -4,9 +4,6 @@ Created on Wed Jul 22 09:06:45 2020
 
 @author: Daniel
 """
-# builtins
-from __future__ import absolute_import
-
 # externals
 import pytest
 import numpy as np

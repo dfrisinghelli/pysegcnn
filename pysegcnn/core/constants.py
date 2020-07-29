@@ -5,7 +5,6 @@ Created on Tue Jul 14 10:58:20 2020
 @author: Daniel
 """
 # builtins
-from __future__ import absolute_import
 import enum
 
 

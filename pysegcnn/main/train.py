@@ -5,9 +5,6 @@ Created on Tue Jun 30 09:33:38 2020
 
 @author: Daniel
 """
-# builtins
-from __future__ import absolute_import
-
 # locals
 from pysegcnn.core.trainer import NetworkTrainer
 from pysegcnn.main.config import config

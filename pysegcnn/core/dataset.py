@@ -12,7 +12,6 @@ your custom dataset.
 # -*- coding: utf-8 -*-
 
 # builtins
-from __future__ import absolute_import
 import os
 import re
 import csv

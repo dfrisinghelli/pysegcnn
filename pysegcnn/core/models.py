@@ -6,7 +6,6 @@ Created on Fri Jun 26 16:31:36 2020
 @author: Daniel
 """
 # builtins
-from __future__ import absolute_import
 import os
 
 # externals

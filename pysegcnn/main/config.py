@@ -10,7 +10,6 @@ Modify the variable values to your needs, but DO NOT modify the variable names.
 # -*- coding: utf-8 -*-
 
 # builtins
-from __future__ import absolute_import
 import os
 
 # externals
@@ -21,10 +20,13 @@ import torch.optim as optim
 from pysegcnn.core.models import UNet
 from pysegcnn.core.transforms import Augment, FlipLr, FlipUd, Noise
 
-# define path to working directory
-wd = 'C:/Eurac/2020/'
-# wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/'
+# path to this file
+HERE = os.path.abspath(os.path.dirname(__file__))
+
+# path to the datasets
+wd = 'C:/Eurac/2020/_Datasets/'
+# wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/_Datasets/'
+# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # the configuration dictionary
 config = {
@@ -39,9 +41,9 @@ config = {
     # 'dataset_name': 'Garmisch'
 
     # path to the dataset
-    'dataset_path': os.path.join(wd, '_Datasets/Sparcs'),
-    # 'dataset_path': os.path.join(wd, '_Datasets/ProSnow/'),
-    # 'dataset_path': os.path.join(wd, '_Datasets/Cloud95/Training'),
+    'dataset_path': os.path.join(wd, 'Sparcs/'),
+    # 'dataset_path': os.path.join(wd, 'ProSnow/Garmisch/),
+    # 'dataset_path': os.path.join(wd, 'Cloud95/Training/'),
 
     # a pattern to match the ground truth file naming convention
     'gt_pattern': '*mask.png',
@@ -68,17 +70,42 @@ config = {
     # series data
     'sort': False,
 
+    # the mode to split the dataset:
+    #
+    #    - 'random': for each scene, the tiles can be distributed among the
+    #                training, validation and test set
+    #
+    #    - 'scene':  for each scene, all the tiles of the scene are included in
+    #                either the training set, the validation set or the test
+    #                set, respectively
+    #
+    #    - 'date':   split the scenes of a dataset based on a date, useful for
+    #                time series data
+    #                scenes before date build the training set, scenes after
+    #                the date build the validation set, the test set is empty
+    'split_mode': 'scene',
+
     # set random seed for reproducibility of the training, validation
     # and test data split
+    # used if split_mode='random' and split_mode='scene'
     'seed': 0,
 
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
+    # used if split_mode='random' and split_mode='scene'
     'ttratio': 1,
 
     # (ttratio * tvratio) * 100 % will be used as for training
     # (1 - ttratio * tvratio) * 100 % will be used for validation
-    'tvratio': 0.2,
+    # used if split_mode='random' and split_mode='scene'
+    'tvratio': 0.95,
+
+    # the date to split the scenes
+    # format: 'yyyymmdd'
+    # scenes before date build the training set, scenes after the date build
+    # the validation set, the test set is empty
+    # used if split_mode='date'
+    'date': 'yyyymmdd',
 
     # define the batch size
     # determines how many samples of the dataset are processed until the
@@ -164,7 +191,7 @@ config = {
     # -------------------------------------------------------------------------
 
     # path to save trained models
-    'state_path': os.path.join(wd, 'git/deep-learning/pysegcnn/main/_models/'),
+    'state_path': os.path.join(HERE, '_models/'),
 
     # Transfer learning -------------------------------------------------------
 
@@ -217,14 +244,28 @@ config = {
     # these options are only used for evaluating a trained model using
     # main.eval.py
 
-    # whether to evaluate the model on the test set or validation set
+    # whether to evaluate the model on the validation set or test set
     # test=False means evaluating on the validation set
     # test=True means evaluationg on the test set
     'test': False,
 
-    # whether to compute and plot confusion matrix for the entire
-    # validation/test dataset
-    'plot_cm': False,
+    # whether to compute and plot the confusion matrix
+    'cm': True,
+
+    # whether to predict each sample or each scene individually
+    # False: each sample is predicted individually and the scenes are not
+    #        reconstructed
+    # True: each scene is first reconstructed and then the whole scene is
+    #       predicted at once
+    # NOTE: this option works only for datasets split by split_mode="scene" or
+    #       split_mode="date"
+    'predict_scene': True,
+
+    # number of samples to validate model performance on
+    # if nsamples': -1, the model is evaluated on all samples of the validation
+    # set or test set
+    # only takes effect if predict_scene=False
+    'nsamples': -1,
 
     # whether to save plots of (input, ground truth, prediction) of the
     # samples from the validation/test dataset to disk
@@ -235,10 +276,6 @@ config = {
     # to disk
     # output path is: pysegcnn/main/_samples/
     'plot_scenes': True,
-
-    # number of samples to plot
-    # if nsamples': -1, all samples are plotted
-    'nsamples': 50,
 
     # plot_bands defines the bands used to plot a false color composite of
     # the input scene: red': bands[0], green': bands[1], blue': bands[2]

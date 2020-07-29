@@ -6,19 +6,20 @@ Created on Fri Jun 26 16:31:36 2020
 @author: Daniel
 """
 # builtins
-from __future__ import absolute_import
 import os
 
 # externals
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import DataLoader
 
 # locals
 from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.utils import img2np
+from pysegcnn.core.split import (random_tile_split, random_scene_split,
+                                 date_scene_split)
 
 
 class NetworkTrainer(object):
@@ -200,7 +201,7 @@ class NetworkTrainer(object):
             if self.early_stop:
 
                 # model predictions on the validation set
-                _, vacc, vloss = self.predict()
+                vacc, vloss = self.predict()
 
                 # append observed accuracy and loss to arrays
                 training_state['va'][:, epoch] = vacc.squeeze()
@@ -247,11 +248,6 @@ class NetworkTrainer(object):
 
         print('------------------------ Predicting --------------------------')
 
-        # load the model state if evaluating a pretrained model is required
-        if pretrained:
-            state = self.model.load(self.state_file, self.optimizer,
-                                    self.state_path)
-
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
 
@@ -259,33 +255,13 @@ class NetworkTrainer(object):
         print('Setting model to evaluation mode ...')
         self.model.eval()
 
-        # initialize confusion matrix
-        cm = torch.zeros(self.model.nclasses, self.model.nclasses)
-
-        # check which dataset to test the model on, either the validation or
-        # the test set
-        if self.valid_dl is None and self.test_dl is None:
-            raise ValueError('Can not evaluate model performance: validation '
-                             'and test set not specified.')
-        dataloader = self.valid_dl
-        set_name = 'validation'
-        if self.test:
-            # if the test set is empty, default to validation set
-            if self.test_dl is not None:
-                dataloader = self.test_dl
-                set_name = 'test'
-            else:
-                print('You requested to evaluate the model on the test set, '
-                      'but no test set is available. Falling back to evaluate '
-                      'the model on the validation set ...')
-
         # create arrays of the observed losses and accuracies
-        accuracies = np.zeros(shape=(len(dataloader), 1))
-        losses = np.zeros(shape=(len(dataloader), 1))
+        accuracies = np.zeros(shape=(len(self.valid_dl), 1))
+        losses = np.zeros(shape=(len(self.valid_dl), 1))
 
         # iterate over the validation/test set
-        print('Calculating accuracy on the {} set ...'.format(set_name))
-        for batch, (inputs, labels) in enumerate(dataloader):
+        print('Calculating accuracy on the validation set ...')
+        for batch, (inputs, labels) in enumerate(self.valid_dl):
 
             # send the data to the gpu if available
             inputs = inputs.to(self.device)
@@ -308,25 +284,14 @@ class NetworkTrainer(object):
 
             # print progress
             print('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
-                  .format(batch + 1, len(dataloader), acc))
-
-            # update confusion matrix
-            if confusion:
-                for ytrue, ypred in zip(labels.view(-1), pred.view(-1)):
-                    cm[ytrue.long(), ypred.long()] += 1
+                  .format(batch + 1, len(self.valid_dl), acc))
 
         # calculate overall accuracy on the validation/test set
-        acc = (cm.diag().sum() / cm.sum()).numpy().item()
         print('After training for {:d} epochs, we achieved an overall '
-              'accuracy of {:.2f}%  on the {} set!'
-              .format(self.model.epoch, accuracies.mean() * 100, set_name))
+              'accuracy of {:.2f}%  on the validation set!'
+              .format(self.model.epoch, accuracies.mean() * 100))
 
-        # save confusion matrix and accuracies to file
-        if pretrained and confusion:
-            torch.save({'cm': cm}, state.replace('.pt',
-                                                 '_cm_{}.pt'.format(set_name)))
-
-        return cm, accuracies, losses
+        return accuracies, losses
 
     def _init_state(self):
 
@@ -377,19 +342,22 @@ class NetworkTrainer(object):
                                        SupportedDatasets.__members__.items()))
 
         # the training, validation and dataset
-        self.train_ds, self.valid_ds, self.test_ds = random_tvt_split(
-            self.dataset, self.tvratio, self.ttratio, self.seed)
+        if self.split_mode == 'random':
+            self.train_ds, self.valid_ds, self.test_ds = random_tile_split(
+                self.dataset, self.tvratio, self.ttratio, self.seed)
+
+        if self.split_mode == 'scene':
+            self.train_ds, self.valid_ds, self.test_ds = random_scene_split(
+                self.dataset, self.tvratio, self.ttratio, self.seed)
+
+        if self.split_mode == 'date':
+            self.train_ds, self.valid_ds, self.test_ds = date_scene_split(
+                self.dataset, self.date)
 
         # whether to drop training samples with a fraction of pixels equal to
         # the constant padding value self.cval >= self.drop
         if self.pad:
             self._drop(self.train_ds)
-
-        # the scenes in the training, validation and test dataset
-        for ds in [self.train_ds, self.valid_ds, self.test_ds]:
-            ds.scenes = []
-            for i in ds.indices:
-                ds.scenes.append(ds.dataset.dataset.scenes[i])
 
         # the shape of a single batch
         self.batch_shape = (len(self.bands), self.tile_size, self.tile_size)
@@ -456,17 +424,6 @@ class NetworkTrainer(object):
                       .format(s['id'], s['tile'], npixels * 100))
                 self.dropped.append(s)
                 _ = ds.indices.pop(pos)
-
-    def _get_scene_tiles(self, scene_id):
-
-        # iterate over the scenes of the dataset
-        tiles = []
-        for i, scene in enumerate(self.dataset.scenes):
-            if scene['id'] == scene_id:
-                scene['idx'] = i
-                tiles.append(scene)
-
-        return tiles
 
     def _save_loss(self, training_state, checkpoint=False,
                    checkpoint_state=None):
@@ -585,38 +542,3 @@ class EarlyStopping(object):
 # function calculating prediction accuracy
 def accuracy_function(outputs, labels):
     return (np.asarray(outputs) == np.asarray(labels)).mean()
-
-
-# function calculating number of samples in a dataset given a ratio
-def _ds_len(ds, ratio):
-    return int(np.round(len(ds) * ratio))
-
-
-# function randomly splitting a dataset into training, validation and test set
-def random_tvt_split(ds, tvratio, ttratio=1, seed=0):
-
-    # set the random seed for reproducibility
-    torch.manual_seed(seed)
-
-    # length of the training and validation dataset
-    trav_len = _ds_len(ds, ttratio)
-
-    # length of the test dataset
-    test_len = _ds_len(ds, 1 - ttratio)
-
-    # split dataset into training and test set
-    # (ttratio * 100) % will be used for training and validation
-    train_val_ds, test_ds = random_split(ds, (trav_len, test_len))
-
-    # length of the training set
-    train_len = _ds_len(train_val_ds, tvratio)
-
-    # length of the validation dataset
-    valid_len = _ds_len(train_val_ds, 1 - tvratio)
-
-    # split the training set into training and validation set
-    # (ttratio * tvratio) * 100 % will be used as the training dataset
-    # (1 - ttratio * tvratio) * 100 % will be used as the validation dataset
-    train_ds, valid_ds = random_split(train_val_ds, (train_len, valid_len))
-
-    return train_ds, valid_ds, test_ds

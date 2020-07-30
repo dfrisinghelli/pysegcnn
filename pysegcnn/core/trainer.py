@@ -17,9 +17,8 @@ from torch.utils.data import DataLoader
 # locals
 from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.layers import Conv2dSame
-from pysegcnn.core.utils import img2np
-from pysegcnn.core.split import (random_tile_split, random_scene_split,
-                                 date_scene_split)
+from pysegcnn.core.utils import img2np, accuracy_function
+from pysegcnn.core.split import Split
 
 
 class NetworkTrainer(object):
@@ -244,7 +243,7 @@ class NetworkTrainer(object):
 
         return training_state
 
-    def predict(self, pretrained=False, confusion=False):
+    def predict(self):
 
         print('------------------------ Predicting --------------------------')
 
@@ -341,18 +340,16 @@ class NetworkTrainer(object):
                              '\n'.join(name for name, _ in
                                        SupportedDatasets.__members__.items()))
 
+        # instanciate the Split class handling the dataset split
+        self.subset = Split(self.dataset, self.split_mode,
+                            tvratio=self.tvratio,
+                            ttratio=self.ttratio,
+                            seed=self.seed,
+                            date=self.date,
+                            dateformat=self.dateformat)
+
         # the training, validation and dataset
-        if self.split_mode == 'random':
-            self.train_ds, self.valid_ds, self.test_ds = random_tile_split(
-                self.dataset, self.tvratio, self.ttratio, self.seed)
-
-        if self.split_mode == 'scene':
-            self.train_ds, self.valid_ds, self.test_ds = random_scene_split(
-                self.dataset, self.tvratio, self.ttratio, self.seed)
-
-        if self.split_mode == 'date':
-            self.train_ds, self.valid_ds, self.test_ds = date_scene_split(
-                self.dataset, self.date)
+        self.train_ds, self.valid_ds, self.test_ds = self.subset.split()
 
         # whether to drop training samples with a fraction of pixels equal to
         # the constant padding value self.cval >= self.drop
@@ -409,7 +406,7 @@ class NetworkTrainer(object):
         for pos, i in enumerate(ds.indices):
 
             # the current scene
-            s = self.dataset.scenes[i]
+            s = ds.dataset.scenes[i]
 
             # the current tile in the ground truth
             tile_gt = img2np(s['gt'], self.tile_size, s['tile'],
@@ -537,8 +534,3 @@ class EarlyStopping(object):
 
     def increased(self, metric, best, min_delta):
         return metric > best + min_delta
-
-
-# function calculating prediction accuracy
-def accuracy_function(outputs, labels):
-    return (np.asarray(outputs) == np.asarray(labels)).mean()

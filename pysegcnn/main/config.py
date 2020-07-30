@@ -261,12 +261,6 @@ config = {
     #       split_mode="date"
     'predict_scene': True,
 
-    # number of samples to validate model performance on
-    # if nsamples': -1, the model is evaluated on all samples of the validation
-    # set or test set
-    # only takes effect if predict_scene=False
-    'nsamples': -1,
-
     # whether to save plots of (input, ground truth, prediction) of the
     # samples from the validation/test dataset to disk
     # output path is: pysegcnn/main/_samples/

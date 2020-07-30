@@ -11,6 +11,7 @@ import datetime
 
 # externals
 import gdal
+import torch
 import numpy as np
 
 # the following functions are utility functions for common image
@@ -294,6 +295,14 @@ def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
               topleft[t][1]: topleft[t][1] + tile_size] = tiles[t, ...]
 
     return scene.squeeze()
+
+
+# function calculating prediction accuracy
+def accuracy_function(outputs, labels):
+    if isinstance(outputs, torch.Tensor):
+        return (outputs == labels).float().mean().item()
+    else:
+        return (np.asarray(outputs) == np.asarray(labels)).mean().item()
 
 
 def parse_landsat_scene(scene_id):

@@ -16,7 +16,6 @@ import torch.nn as nn
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
                                   Conv2dUpsample, Conv2dSame)
-from pysegcnn.main.config import HERE
 
 
 class Network(nn.Module):
@@ -33,7 +32,7 @@ class Network(nn.Module):
             param.requires_grad = True
 
     def save(self, state_file, optimizer, bands=None,
-             outpath=os.path.join(HERE, '_models/')):
+             outpath=os.path.join(os.getcwd(), '_models/')):
 
         # check if the output path exists and if not, create it
         if not os.path.isdir(outpath):
@@ -71,7 +70,7 @@ class Network(nn.Module):
         return state
 
     def load(self, state_file, optimizer=None,
-             inpath=os.path.join(HERE, '_models/')):
+             inpath=os.path.join(os.getcwd(), '_models/')):
 
         # load the model state file
         state = os.path.join(inpath, state_file)

@@ -98,7 +98,7 @@ config = {
     # (ttratio * tvratio) * 100 % will be used as for training
     # (1 - ttratio * tvratio) * 100 % will be used for validation
     # used if split_mode='random' and split_mode='scene'
-    'tvratio': 0.95,
+    'tvratio': 0.8,
 
     # the date to split the scenes
     # format: 'yyyymmdd'
@@ -106,6 +106,7 @@ config = {
     # the validation set, the test set is empty
     # used if split_mode='date'
     'date': 'yyyymmdd',
+    'dateformat': '%Y%m%d',
 
     # define the batch size
     # determines how many samples of the dataset are processed until the
@@ -216,14 +217,14 @@ config = {
 
     # whether to early stop training if the accuracy on the validation set
     # does not increase more than delta over patience epochs
-    'early_stop': False,
+    'early_stop': True,
     'mode': 'max',
     'delta': 0,
     'patience': 10,
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
-    'epochs': 10,
+    'epochs': 200,
 
     # define the number of threads
     'nthreads': os.cpu_count(),
@@ -244,9 +245,10 @@ config = {
     # these options are only used for evaluating a trained model using
     # main.eval.py
 
-    # whether to evaluate the model on the validation set or test set
+    # the dataset to evaluate the model on
     # test=False means evaluating on the validation set
-    # test=True means evaluationg on the test set
+    # test=True means evaluating on the test set
+    # test=None means evaluating on the training set
     'test': False,
 
     # whether to compute and plot the confusion matrix
@@ -261,13 +263,13 @@ config = {
     #       split_mode="date"
     'predict_scene': True,
 
-    # whether to save plots of (input, ground truth, prediction) of the
-    # samples from the validation/test dataset to disk
+    # whether to save plots of (input, ground truth, prediction) of the samples
+    # from the validation/test dataset to disk, applies if predict_scene=False
     # output path is: pysegcnn/main/_samples/
     'plot_samples': False,
 
     # whether to save plots of (input, ground truth, prediction) for each scene
-    # to disk
+    # in the validation/test dataset to disk, applies if predict_scene=True
     # output path is: pysegcnn/main/_samples/
     'plot_scenes': True,
 

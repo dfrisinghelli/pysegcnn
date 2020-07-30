@@ -10,7 +10,7 @@ import os
 # locals
 from pysegcnn.core.trainer import NetworkTrainer
 from pysegcnn.core.predict import predict_samples, predict_scenes
-from pysegcnn.core.config import config, HERE
+from pysegcnn.main.config import config, HERE
 from pysegcnn.core.graphics import plot_confusion_matrix, plot_loss
 
 
@@ -23,8 +23,12 @@ if __name__ == '__main__':
     # plot loss and accuracy
     plot_loss(trainer.loss_state, outpath=os.path.join(HERE, '_graphics/'))
 
-    # check whether to evaluate the model on the validation set or the test set
-    ds = trainer.test_ds if trainer.test else trainer.valid_ds
+    # check whether to evaluate the model on the training set, validation set
+    # or the test set
+    if trainer.test is None:
+        ds = trainer.train_ds
+    else:
+        ds = trainer.test_ds if trainer.test else trainer.valid_ds
 
     # whether to predict each sample or each scene individually
     if trainer.predict_scene:

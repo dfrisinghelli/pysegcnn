@@ -38,7 +38,7 @@ if __name__ == '__main__':
                                     trainer.cm,
                                     trainer.plot_scenes,
                                     bands=trainer.plot_bands,
-                                    outpath=os.path.join(HERE, '_samples/'),
+                                    outpath=os.path.join(HERE, '_scenes/'),
                                     stretch=True,
                                     alpha=5)
 

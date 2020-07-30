@@ -19,6 +19,7 @@ from matplotlib import cm as colormap
 
 # locals
 from pysegcnn.core.trainer import accuracy_function
+from pysegcnn.core.config import HERE
 
 
 # this function applies percentile stretching at the alpha level
@@ -49,7 +50,7 @@ def running_mean(x, w):
 # with the model prediction and the corresponding ground truth
 def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
                 bands=['nir', 'red', 'green'], stretch=False, state=None,
-                outpath=os.path.join(os.getcwd(), '_samples/'),  **kwargs):
+                outpath=os.path.join(HERE, '_samples/'),  **kwargs):
 
     # check whether to apply constrast stretching
     stretch = True if kwargs else stretch
@@ -111,7 +112,7 @@ def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
 # set returned by the pytorch.predict function
 def plot_confusion_matrix(cm, labels, normalize=True,
                           figsize=(10, 10), cmap='Blues', state=None,
-                          outpath=os.path.join(os.getcwd(), '_graphics/')):
+                          outpath=os.path.join(HERE, '_graphics/')):
 
     # number of classes
     labels = [label['label'] for label in labels.values()]
@@ -180,7 +181,7 @@ def plot_confusion_matrix(cm, labels, normalize=True,
 
 def plot_loss(loss_file, figsize=(10, 10), step=5,
               colors=['lightgreen', 'green', 'skyblue', 'steelblue'],
-              outpath=os.path.join(os.getcwd(), '_graphics/')):
+              outpath=os.path.join(HERE, '_graphics/')):
 
     # load the model loss
     state = torch.load(loss_file)

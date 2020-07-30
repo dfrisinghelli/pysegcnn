@@ -19,7 +19,7 @@ from matplotlib import cm as colormap
 
 # locals
 from pysegcnn.core.trainer import accuracy_function
-from pysegcnn.core.config import HERE
+from pysegcnn.main.config import HERE
 
 
 # this function applies percentile stretching at the alpha level
@@ -204,7 +204,7 @@ def plot_loss(loss_file, figsize=(10, 10), step=5,
     # create axes for each parameter to plot
     ax2 = ax1.twinx()
     ax3 = ax1.twiny()
-    ax4 = ax3.twinx()
+    ax4 = ax2.twiny()
 
     # list of axes
     axes = [ax2, ax1, ax4, ax3]
@@ -216,7 +216,7 @@ def plot_loss(loss_file, figsize=(10, 10), step=5,
     # axes properties and labels
     nbatches = loss['tl'].shape[0]
     ax3.set(xticks=[], xticklabels=[])
-    ax4.set(xticks=[], xticklabels=[], yticks=[], yticklabels=[])
+    ax4.set(xticks=[], xticklabels=[])
     ax1.set(xticks=np.arange(0, nbatches * epochs[-1] + 1, nbatches * step),
             xticklabels=epochs[::step],
             xlabel='Epoch',

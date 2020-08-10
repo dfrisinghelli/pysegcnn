@@ -40,8 +40,20 @@ class Sentinel2(enum.Enum):
     swir2 = 12
 
 
+# generic class label enumeration class
+class Label(enum.Enum):
+
+    @property
+    def id(self):
+        return self.value[0]
+
+    @property
+    def color(self):
+        return self.value[1]
+
+
 # labels of the Sparcs dataset
-class SparcsLabels(enum.Enum):
+class SparcsLabels(Label):
     Shadow = 0, 'grey'
     Shadow_over_water = 1, 'darkblue'
     Water = 2, 'blue'
@@ -52,13 +64,13 @@ class SparcsLabels(enum.Enum):
 
 
 # labels of the Cloud95 dataset
-class Cloud95Labels(enum.Enum):
+class Cloud95Labels(Label):
     Clear = 0, 'skyblue'
     Cloud = 1, 'white'
 
 
 # labels of the ProSnow dataset
-class ProSnowLabels(enum.Enum):
+class ProSnowLabels(Label):
     Cloud = 0, 'white'
     Snow = 1, 'lightblue'
     Snow_free = 2, 'sienna'

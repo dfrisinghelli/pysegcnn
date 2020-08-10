@@ -72,10 +72,12 @@ config = {
 
     # the mode to split the dataset:
     #
-    #    - 'random': for each scene, the tiles can be distributed among the
+    #    - 'random': randomly split the scenes
+    #                for each scene, the tiles can be distributed among the
     #                training, validation and test set
     #
-    #    - 'scene':  for each scene, all the tiles of the scene are included in
+    #    - 'scene':  randomly split the scenes
+    #                for each scene, all the tiles of the scene are included in
     #                either the training set, the validation set or the test
     #                set, respectively
     #
@@ -243,7 +245,7 @@ config = {
     # -------------------------------------------------------------------------
 
     # these options are only used for evaluating a trained model using
-    # main.eval.py
+    # pysegcnn.main.eval.py
 
     # the dataset to evaluate the model on
     # test=False means evaluating on the validation set
@@ -270,7 +272,7 @@ config = {
 
     # whether to save plots of (input, ground truth, prediction) for each scene
     # in the validation/test dataset to disk, applies if predict_scene=True
-    # output path is: pysegcnn/main/_samples/
+    # output path is: pysegcnn/main/_scenes/
     'plot_scenes': True,
 
     # plot_bands defines the bands used to plot a false color composite of

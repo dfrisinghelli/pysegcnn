@@ -1,7 +1,6 @@
 """The configuration file to train and evaluate a model.
 
-The configuration is handled by the class Config. You can either modify the
-config.py file directly, or you can simply modify the config.yaml file.
+The configuration is handled by the config dictionary.
 
 Modify the variable values to your needs, but DO NOT modify the variable names.
 """

@@ -668,10 +668,10 @@ class Cloud95Dataset(ImageDataset):
 
 
 class SupportedDatasets(enum.Enum):
-    Sparcs = {'name': 'Sparcs', 'class': SparcsDataset}
-    Cloud95 = {'name': 'Cloud95', 'class': Cloud95Dataset}
-    Garmisch = {'name': 'Garmisch', 'class': ProSnowGarmisch}
-    Obergurgl = {'name': 'Obergurgl', 'class': ProSnowObergurgl}
+    Sparcs = SparcsDataset
+    Cloud95 = Cloud95Dataset
+    Garmisch = ProSnowGarmisch
+    Obergurgl = ProSnowObergurgl
 
 
 if __name__ == '__main__':

@@ -292,11 +292,18 @@ class NetworkTrainer(object):
     def _init_state(self):
 
         # file to save model state to
-        # format: networkname_datasetname_t(tilesize)_b(batchsize)_bands.pt
-        bformat = ''.join([b[0] for b in self.bands]) if self.bands else 'all'
-        self.state_file = ('{}_{}_t{}_b{}_{}.pt'
+        # format: network_dataset_seed_tilesize_batchsize_bands.pt
+
+        # get the band numbers
+        bformat = ''.join(band[0] +
+                          str(self.dataset.sensor.__members__[band].value) for
+                          band in self.bands)
+
+        # model state filename
+        self.state_file = ('{}_{}_s{}_t{}_b{}_{}.pt'
                            .format(self.model.__name__,
                                    self.dataset.__class__.__name__,
+                                   self.seed,
                                    self.tile_size,
                                    self.batch_size,
                                    bformat))

@@ -178,7 +178,7 @@ INSTALL_REQUIRES = ['numpy',
 # 'Programming Language' classifiers above, 'pip install' will check this
 # and refuse to install the project if the version does not match. See
 # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-PYTHON_REQUIRES = '>=3.6'
+PYTHON_REQUIRES = '>=3.7'
 
 
 # List additional groups of dependencies here (e.g. development

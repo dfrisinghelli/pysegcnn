@@ -24,26 +24,23 @@ from pysegcnn.core.transforms import Augment, FlipLr, FlipUd, Noise
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets
-wd = 'C:/Eurac/2020/_Datasets/'
-# wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/_Datasets/'
-# wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DATASET_PATH = 'C:/Eurac/2020/_Datasets/'
+# DATASET_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
-# the configuration dictionary
-config = {
+# name of the datasets
+DATASET_NAME = 'Sparcs'
+# DATASET_NAME = 'Cloud95/Training/'
+# DATASET_NAME =' ProSnow/Garmisch/
+
+# the dataset configuration dictionary
+dataset_config = {
 
     # ------------------------------- Dataset ---------------------------------
 
     # -------------------------------------------------------------------------
 
-    # define which dataset to train on
-    'dataset_name': 'Sparcs',
-    # 'dataset_name': 'Cloud95'
-    # 'dataset_name': 'Garmisch'
-
     # path to the dataset
-    'dataset_path': os.path.join(wd, 'Sparcs/'),
-    # 'dataset_path': os.path.join(wd, 'ProSnow/Garmisch/),
-    # 'dataset_path': os.path.join(wd, 'Cloud95/Training/'),
+    'root_dir': os.path.join(DATASET_PATH, DATASET_NAME),
 
     # a pattern to match the ground truth file naming convention
     'gt_pattern': '*mask.png',
@@ -69,59 +66,6 @@ config = {
     # whether to sort the dataset in chronological order, useful for time
     # series data
     'sort': False,
-
-    # the mode to split the dataset:
-    #
-    #    - 'random': randomly split the scenes
-    #                for each scene, the tiles can be distributed among the
-    #                training, validation and test set
-    #
-    #    - 'scene':  randomly split the scenes
-    #                for each scene, all the tiles of the scene are included in
-    #                either the training set, the validation set or the test
-    #                set, respectively
-    #
-    #    - 'date':   split the scenes of a dataset based on a date, useful for
-    #                time series data
-    #                scenes before date build the training set, scenes after
-    #                the date build the validation set, the test set is empty
-    'split_mode': 'scene',
-
-    # set random seed for reproducibility of the training, validation
-    # and test data split
-    # used if split_mode='random' and split_mode='scene'
-    'seed': 0,
-
-    # (ttratio * 100) % of the dataset will be used for training and
-    # validation
-    # used if split_mode='random' and split_mode='scene'
-    'ttratio': 1,
-
-    # (ttratio * tvratio) * 100 % will be used as for training
-    # (1 - ttratio * tvratio) * 100 % will be used for validation
-    # used if split_mode='random' and split_mode='scene'
-    'tvratio': 0.8,
-
-    # the date to split the scenes
-    # format: 'yyyymmdd'
-    # scenes before date build the training set, scenes after the date build
-    # the validation set, the test set is empty
-    # used if split_mode='date'
-    'date': 'yyyymmdd',
-    'dateformat': '%Y%m%d',
-
-    # define the batch size
-    # determines how many samples of the dataset are processed until the
-    # weights of the network are updated (via mini-batch gradient descent)
-    'batch_size': 64,
-
-    # whether to drop samples (during training only) with a fraction of
-    # pixels equal to the constant padding value cval >= drop
-    # drop=1 means, do not use a sample if all pixels = cval
-    # drop=0.8 means, do not use a sample if 80% or more of the pixels are
-    #                 equal to cval
-    # drop=0.2 means, ...
-    'drop': 1,
 
     # whether to artificially increase the training data size using data
     # augmentation methods
@@ -167,13 +111,62 @@ config = {
     #         FlipUd(p=0.5)
     #         ]),
     #     ],
+}
+
+# the dataset split configuration dictionary
+split_config = {
+
+    # the mode to split the dataset:
+    #
+    #    - 'random': randomly split the scenes
+    #                for each scene, the tiles can be distributed among the
+    #                training, validation and test set
+    #
+    #    - 'scene':  randomly split the scenes
+    #                for each scene, all the tiles of the scene are included in
+    #                either the training set, the validation set or the test
+    #                set, respectively
+    #
+    #    - 'date':   split the scenes of a dataset based on a date, useful for
+    #                time series data
+    #                scenes before date build the training set, scenes after
+    #                the date build the validation set, the test set is empty
+    'split_mode': 'scene',
+
+    # set random seed for reproducibility of the training, validation
+    # and test data split
+    # used if split_mode='random' and split_mode='scene'
+    'seed': 0,
+
+    # (ttratio * 100) % of the dataset will be used for training and
+    # validation
+    # used if split_mode='random' and split_mode='scene'
+    'ttratio': 1,
+
+    # (ttratio * tvratio) * 100 % will be used as for training
+    # (1 - ttratio * tvratio) * 100 % will be used for validation
+    # used if split_mode='random' and split_mode='scene'
+    'tvratio': 0.8,
+
+    # the date to split the scenes
+    # format: 'yyyymmdd'
+    # scenes before date build the training set, scenes after the date build
+    # the validation set, the test set is empty
+    # used if split_mode='date'
+    'date': 'yyyymmdd',
+    'dateformat': '%Y%m%d',
+
+    }
+
+# the model configuration dictionary
+model_config = {
 
     # ------------------------------ Network ----------------------------------
 
     # -------------------------------------------------------------------------
 
     # define the model
-    'net': UNet,
+    'model': UNet,
 
     # define the number of filters for each convolutional layer
     # the number of filters should increase with depth
@@ -188,6 +181,12 @@ config = {
                'stride': 1,  # the step size of the kernel
                'dilation': 1  # the field of view of the kernel
                },
+
+}
+
+
+# the training configuration dictionary
+training_config = {
 
     # ----------------------------- Training  ---------------------------------
 
@@ -215,7 +214,7 @@ config = {
     # Training ----------------------------------------------------------------
 
     # whether to resume training from an existing model checkpoint
-    'checkpoint': False,
+    'checkpoint': True,
 
     # whether to early stop training if the accuracy on the validation set
     # does not increase more than delta over patience epochs
@@ -223,6 +222,19 @@ config = {
     'mode': 'max',
     'delta': 0,
     'patience': 10,
+
+    # whether to drop samples (during training only) with a fraction of
+    # pixels equal to the constant padding value cval >= drop
+    # drop=1 means, do not use a sample if all pixels = cval
+    # drop=0.8 means, do not use a sample if 80% or more of the pixels are
+    #                 equal to cval
+    # drop=0.2 means, ...
+    'drop': 1,
+
+    # define the batch size
+    # determines how many samples of the dataset are processed until the
+    # weights of the network are updated (via mini-batch gradient descent)
+    'batch_size': 64,
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
@@ -239,6 +251,11 @@ config = {
 
     # define the learning rate
     'lr': 0.001,
+
+}
+
+# the evaluation configuration file
+evaluation_config = {
 
     # ----------------------------- Evaluation --------------------------------
 
@@ -280,3 +297,10 @@ config = {
     'plot_bands': ['nir', 'red', 'green'],
 
 }
+
+# the complete configuration
+config = {**dataset_config,
+          **split_config,
+          **model_config,
+          **training_config,
+          **evaluation_config}

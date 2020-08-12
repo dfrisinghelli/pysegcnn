@@ -7,11 +7,13 @@ Created on Fri Jun 26 16:31:36 2020
 """
 # builtins
 import os
+import enum
 
 # externals
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
@@ -139,3 +141,14 @@ class UNet(Network):
 
         # classification
         return self.classifier(x)
+
+
+class SupportedModels(enum.Enum):
+    Unet = UNet
+
+
+class SupportedOptimizers(enum.Enum):
+    Adam = optim.Adam
+
+class SupportedLossFunctions(enum.Enum):
+    CrossEntropy = nn.CrossEntropyLoss

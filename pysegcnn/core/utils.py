@@ -490,3 +490,14 @@ def doy2date(year, doy):
             datetime.timedelta(days=(int(doy) - 1)))
 
     return date
+
+def item_in_enum(name, enum):
+
+    # check whether the input name exists in the enumeration
+    if name not in enum.__members__:
+        raise ValueError('{} is not in {} enumeration. Valid names are: \n {}'
+                         .format(name, enum.__name__,
+                                 '\n'.join('- {}'.format(n) for n in
+                                           enum.__members__)))
+    else:
+        return enum.__members__[name].value

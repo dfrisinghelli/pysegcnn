@@ -20,7 +20,7 @@ class Landsat8(enum.Enum):
     pan = 8
     cirrus = 9
     tir1 = 10
-    tir2 = 11
+    # tir2 = 11
 
 
 # Sentinel 2 bands

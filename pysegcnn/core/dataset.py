@@ -50,6 +50,10 @@ class ImageDataset(Dataset):
         # whether to chronologically sort the samples
         'sort': False,
 
+        # the random seed used to split dataset into training, validation and
+        # test data
+        'seed': 0,
+
         # the transformations to apply to the original image
         # artificially increases the training data size
         'transforms': [],
@@ -93,7 +97,7 @@ class ImageDataset(Dataset):
     def _init_kwargs(self, **kwargs):
 
         # check if the keyword arguments are correctly specified
-        if not set(self.default_kwargs.keys()).issubset(kwargs.keys()):
+        if not set(kwargs.keys()).issubset(self.default_kwargs.keys()):
             raise TypeError('Valid keyword arguments are: \n' +
                             '\n'.join('- {}'.format(k) for k in
                                       self.default_kwargs.keys()))
@@ -704,7 +708,8 @@ if __name__ == '__main__':
                                    transforms=[],
                                    gt_pattern='*mask.png',
                                    pad=True,
-                                   cval=99)
+                                   cval=99,
+                                   )
 
     # instanciate the ProSnow datasets
     # garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),

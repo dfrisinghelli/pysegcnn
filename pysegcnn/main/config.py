@@ -16,14 +16,19 @@ import os
 # path to this file
 HERE = os.path.abspath(os.path.dirname(__file__))
 
-# path to the datasets
-DATASET_PATH = 'C:/Eurac/2020/_Datasets/'
-# DATASET_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# path to the datasets on the current machine
+DRIVE_PATH ='C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
 DATASET_NAME = 'Sparcs'
-# DATASET_NAME = 'Cloud95/Training/'
-# DATASET_NAME =' ProSnow/Garmisch/
+# DATASET_NAME = 'Cloud95'
+# DATASET_NAME = 'Garmisch'
+
+# path to the dataset
+DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
+# DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME, 'Training')
+# DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
 
 # the dataset configuration dictionary
 dataset_config = {
@@ -32,8 +37,11 @@ dataset_config = {
 
     # -------------------------------------------------------------------------
 
+    # name of the dataset
+    'dataset_name': DATASET_NAME,
+
     # path to the dataset
-    'root_dir': os.path.join(DATASET_PATH, DATASET_NAME),
+    'root_dir': DATASET_PATH,
 
     # a pattern to match the ground truth file naming convention
     'gt_pattern': '*mask.png',
@@ -53,8 +61,8 @@ dataset_config = {
     # tiles of size (tile_size, tile_size)
     'pad': True,
 
-    # set random seed for reproducibility of the training, validation
-    # and test data split
+    # the random seed for the numpy random number generator
+    # ensures reproducibility of the training, validation and test data split
     # used if split_mode='random' and split_mode='scene'
     'seed': 0,
 
@@ -134,12 +142,12 @@ split_config = {
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
     # used if split_mode='random' and split_mode='scene'
-    'ttratio': 1,
+    'ttratio': 0.05,
 
     # (ttratio * tvratio) * 100 % will be used as for training
     # (1 - ttratio * tvratio) * 100 % will be used for validation
     # used if split_mode='random' and split_mode='scene'
-    'tvratio': 0.8,
+    'tvratio': 0.5,
 
     # the date to split the scenes
     # format: 'yyyymmdd'
@@ -211,7 +219,10 @@ model_config = {
     # define the batch size
     # determines how many samples of the dataset are processed until the
     # weights of the network are updated (via mini-batch gradient descent)
-    'batch_size': 64
+    'batch_size': 64,
+
+    # the seed for the random number generator intializing the network weights
+    'torch_seed': 0
 
 }
 
@@ -222,6 +233,9 @@ train_config = {
     # ----------------------------- Training  ---------------------------------
 
     # -------------------------------------------------------------------------
+
+    # whether to save the model state to disk
+    'save': True,
 
     # whether to early stop training if the accuracy on the validation set
     # does not increase more than delta over patience epochs
@@ -246,7 +260,7 @@ train_config = {
 }
 
 # the evaluation configuration file
-evaluation_config = {
+eval_config = {
 
     # ----------------------------- Evaluation --------------------------------
 
@@ -256,8 +270,8 @@ evaluation_config = {
     # pysegcnn.main.eval.py
 
     # the dataset to evaluate the model on
-    # test=False means evaluating on the validation set
-    # test=True means evaluating on the test set
+    # test=False, 0 means evaluating on the validation set
+    # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
     'test': False,
 
@@ -294,4 +308,4 @@ config = {**dataset_config,
           **split_config,
           **model_config,
           **train_config,
-          **evaluation_config}
+          **eval_config}

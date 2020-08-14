@@ -66,9 +66,6 @@ dataset_config = {
     # used if split_mode='random' and split_mode='scene'
     'seed': 0,
 
-    # the constant value to pad around the ground truth mask if pad=True
-    'cval': 99,
-
     # whether to sort the dataset in chronological order, useful for time
     # series data
     'sort': False,
@@ -206,15 +203,15 @@ model_config = {
     # was trained on
 
     # whether to use a pretrained model for transfer learning
-    'pretrained': False,
+    'transfer': True,
 
     # name of the pretrained model to apply to a different dataset
-    'pretrained_model': 'UNet_SparcsDataset_t125_b128_rgbn.pt',
+    'pretrained_model': 'UNet_SparcsDataset_t125_b64_rgbn.pt',
 
     # Training ----------------------------------------------------------------
 
     # whether to resume training from an existing model checkpoint
-    'checkpoint': False,
+    'checkpoint': True,
 
     # define the batch size
     # determines how many samples of the dataset are processed until the
@@ -222,13 +219,7 @@ model_config = {
     'batch_size': 64,
 
     # the seed for the random number generator intializing the network weights
-    'torch_seed': 0
-
-}
-
-
-# the training configuration dictionary
-train_config = {
+    'torch_seed': 0,
 
     # ----------------------------- Training  ---------------------------------
 
@@ -307,5 +298,4 @@ eval_config = {
 config = {**dataset_config,
           **split_config,
           **model_config,
-          **train_config,
           **eval_config}

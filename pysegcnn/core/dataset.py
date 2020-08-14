@@ -18,6 +18,7 @@ import csv
 import glob
 import enum
 import itertools
+import logging
 
 # externals
 import numpy as np
@@ -29,6 +30,9 @@ from pysegcnn.core.constants import (Landsat8, Sentinel2, Label, SparcsLabels,
                                      Cloud95Labels, ProSnowLabels)
 from pysegcnn.core.utils import (img2np, is_divisible, tile_topleft_corner,
                                  parse_landsat_scene, parse_sentinel2_scene)
+
+# module level logger
+LOGGER = logging.getLogger(__name__)
 
 
 # generic image dataset class
@@ -60,10 +64,7 @@ class ImageDataset(Dataset):
 
         # whether to pad the image to be evenly divisible in square tiles
         # of size (tile_size x tile_size)
-        'pad': False,
-
-        # the value to pad the samples
-        'cval': 0,
+        'pad': False
 
         }
 
@@ -130,25 +131,12 @@ class ImageDataset(Dataset):
         # always use the original dataset together with the augmentations
         self.transforms = [None] + self.transforms
 
-        # check if the padding value is equal to any of the class
-        # identifiers in the ground truth mask
+        # when padding, add a new "no data" label to the ground truth
         if self.pad and sum(self.padding) > 0:
-            if self.cval in self.labels.keys():
-                raise ValueError('Constant padding value cval={} is not '
-                                 'allowed: class "{}" is represented as {} in '
-                                 'the ground truth.'
-                                 .format(self.cval,
-                                         self.labels[self.cval]['label'],
-                                         self.cval)
-                                 )
-            # add the "no data" label to the class labels of the ground truth
-            else:
-                if not 0 <= self.cval <= 255:
-                    raise ValueError('Expecting 0 <= cval <= 255, got cval={}.'
-                                     .format(self.cval))
-                print('Adding label "No data" with value={} to ground truth.'
-                      .format(self.cval))
-                self.labels[self.cval] = {'label': 'No data', 'color': 'black'}
+            self.cval = max(self.labels) + 1
+            self.labels[self.cval] = {'label': 'No data', 'color': 'black'}
+            LOGGER.info('Adding label "No data" with value={} to ground truth.'
+                        .format(self.cval))
 
     def _build_labels(self):
         return {band.id: {'label': band.name.replace('_', ' '),
@@ -446,9 +434,9 @@ class StandardEoDataset(ImageDataset):
                     gt = gt.pop()
 
                 except IndexError:
-                    print('Skipping scene {}: ground truth not available '
-                          '(pattern = {}).'
-                          .format(scene['id'], self.gt_pattern))
+                    LOGGER.info('Skipping scene {}: ground truth not available'
+                                ' (pattern = {}).'.format(scene['id'],
+                                                          self.gt_pattern))
                     continue
 
                 # iterate over the tiles

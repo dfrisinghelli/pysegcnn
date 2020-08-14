@@ -7,6 +7,7 @@ Created on Tue Jul 14 15:02:23 2020
 # builtins
 import os
 import re
+import logging
 import datetime
 
 # externals
@@ -16,6 +17,9 @@ import numpy as np
 
 # the following functions are utility functions for common image
 # manipulation operations
+
+# module level logger
+LOGGER = logging.getLogger(__name__)
 
 
 # this function reads an image to a numpy array
@@ -36,7 +40,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
         width = img.RasterXSize
 
     elif path is None:
-        print('Path is of NoneType, returning.')
+        LOGGER.warning('Path is of NoneType, returning.')
         return
 
     # accept numpy arrays as input
@@ -81,13 +85,12 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
         y_size = height + padding[0] + padding[2]
         x_size = width + padding[1] + padding[3]
 
-        if verbose:
-            print('Image size: {}'.format((height, width)))
-            print('Dividing image into {} tiles of size {} ...'
-                  .format(ntiles, (tile_size, tile_size)))
-            print('Padding image: bottom = {}, left = {}, top = {}, right = {}'
-                  ' ...'.format(*list(padding)))
-            print('Padded image size: {}'.format((y_size, x_size)))
+        # print progress
+        LOGGER.debug('Image size: {}'.format((height, width)))
+        LOGGER.debug('Dividing image into {} tiles of size {} ...'
+                     .format(ntiles, (tile_size, tile_size)))
+        LOGGER.debug('Padding image (b, l, t, r): {}'.format(tuple(padding)))
+        LOGGER.debug('Padded image size: {}'.format((y_size, x_size)))
 
         # get the indices of the top left corner for each tile
         topleft = tile_topleft_corner((y_size, x_size), tile_size)
@@ -102,21 +105,18 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
         # iterate over the topleft corners of the tiles
         for k, corner in topleft.items():
 
-            if verbose:
-                print('Creating tile {} with top-left corner {} ...'
-                      .format(k, corner))
-
             # in case a single tile is required, skip the rest of the tiles
             if tile is not None:
                 if k != tile:
-                    if verbose:
-                        print('Skipping tile {} ...'.format(k))
                     continue
+
                 # set the key to 0 for correct array indexing when reading
                 # a single tile from the image
-                if verbose:
-                    print('Processing tile {} ...'.format(k))
+                LOGGER.debug('Processing tile {} ...'.format(k))
                 k = 0
+            else:
+                LOGGER.debug('Creating tile {} with top-left corner {} ...'
+                             .format(k, corner))
 
             # calculate shift between padded and original image
             row = corner[0] - padding[2] if corner[0] > 0 else corner[0]

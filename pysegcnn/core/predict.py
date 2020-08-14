@@ -1,6 +1,7 @@
 # builtins
 import os
 import pathlib
+import logging
 
 # externals
 import numpy as np
@@ -13,6 +14,9 @@ import torch.nn.functional as F
 from pysegcnn.core.utils import reconstruct_scene, accuracy_function
 from pysegcnn.core.graphics import plot_sample
 from pysegcnn.core.split import RandomSubset, SceneSubset
+
+# module level logger
+LOGGER = logging.getLogger(__name__)
 
 
 def get_scene_tiles(ds, scene_id):
@@ -33,7 +37,6 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
     # check whether the dataset is a valid subset, i.e.
     # an instance of pysegcnn.core.split.SceneSubset or
     # an instance of pysegcnn.core.split.RandomSubset
-    _name = type(ds).__name__
     if not isinstance(ds, RandomSubset) or not isinstance(ds, SceneSubset):
         raise TypeError('ds should be an instance of {} or of {}.'
                         .format(repr(RandomSubset), repr(SceneSubset)))
@@ -50,7 +53,7 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
     _ = model.load(state_file.name, optimizer, state_file.parent)
 
     # set the model to evaluation mode
-    print('Setting model to evaluation mode ...')
+    LOGGER.info('Setting model to evaluation mode ...')
     model.eval()
     model.to(device)
 
@@ -66,7 +69,7 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
     # iterate over the samples and plot inputs, ground truth and
     # model predictions
     output = {}
-    print('Predicting samples of the {} dataset ...'.format(ds.name))
+    LOGGER.info('Predicting samples of the {} dataset ...'.format(ds.name))
     for batch, (inputs, labels) in enumerate(dataloader):
 
         # send inputs and labels to device
@@ -80,9 +83,8 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
         # store output for current batch
         output[batch] = {'input': inputs, 'labels': labels, 'prediction': prd}
 
-        print('Sample: {:d}/{:d}, Accuracy: {:.2f}'
-              .format(batch + 1, len(dataloader),
-                      accuracy_function(prd, labels)))
+        LOGGER.info('Sample: {:d}/{:d}, Accuracy: {:.2f}'.format(
+            batch + 1, len(dataloader), accuracy_function(prd, labels)))
 
         # update confusion matrix
         if cm:
@@ -126,7 +128,7 @@ def predict_scenes(ds, model, optimizer, state_file,
     _ = model.load(state_file.name, optimizer, state_file.parent)
 
     # set the model to evaluation mode
-    print('Setting model to evaluation mode ...')
+    LOGGER.info('Setting model to evaluation mode ...')
     model.eval()
     model.to(device)
 
@@ -147,7 +149,7 @@ def predict_scenes(ds, model, optimizer, state_file,
     scene_size = (ds.dataset.height, ds.dataset.width)
 
     # iterate over the scenes
-    print('Predicting scenes of the {} dataset ...'.format(ds.name))
+    LOGGER.info('Predicting scenes of the {} dataset ...'.format(ds.name))
     scenes = {}
     for i, sid in enumerate(scene_ids):
 
@@ -187,7 +189,7 @@ def predict_scenes(ds, model, optimizer, state_file,
         prdtcn = reconstruct_scene(prd, scene_size, nbands=1)
 
         # print progress
-        print('Scene {:d}/{:d}, Id: {}, Accuracy: {:.2f}'.format(
+        LOGGER.info('Scene {:d}/{:d}, Id: {}, Accuracy: {:.2f}'.format(
             i + 1, len(scene_ids), sid, accuracy_function(prdtcn, labels)))
 
         # save outputs to dictionary

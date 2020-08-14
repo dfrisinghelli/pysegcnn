@@ -8,6 +8,7 @@ Created on Fri Jun 26 16:31:36 2020
 # builtins
 import os
 import enum
+import logging
 
 # externals
 import numpy as np
@@ -18,6 +19,9 @@ import torch.optim as optim
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
                                   Conv2dUpsample, Conv2dSame)
+
+# module level logger
+LOGGER = logging.getLogger(__name__)
 
 
 class Network(nn.Module):
@@ -43,7 +47,10 @@ class Network(nn.Module):
         # initialize dictionary to store network parameters
         model_state = {}
 
-        # store input bands
+        # store model name
+        model_state['cls'] = self.__class__
+
+        # store the bands the model was trained with
         model_state['bands'] = bands
 
         # store construction parameters to instanciate the network
@@ -67,7 +74,7 @@ class Network(nn.Module):
         # model state dictionary stores the values of all trainable parameters
         state = os.path.join(outpath, state_file)
         torch.save(model_state, state)
-        print('Network parameters saved in {}'.format(state))
+        LOGGER.info('Network parameters saved in {}'.format(state))
 
         return state
 
@@ -79,13 +86,13 @@ class Network(nn.Module):
         model_state = torch.load(state)
 
         # resume network parameters
-        print('Loading network parameters from {} ...'.format(state))
+        LOGGER.info('Loading model parameters ...'.format(state))
         self.load_state_dict(model_state['model_state_dict'])
         self.epoch = model_state['epoch']
 
         # resume optimizer parameters
         if optimizer is not None:
-            print('Loading optimizer parameters from {} ...'.format(state))
+            LOGGER.info('Loading optimizer parameters ...'.format(state))
             optimizer.load_state_dict(model_state['optim_state_dict'])
 
         return state

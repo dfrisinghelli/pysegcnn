@@ -2,7 +2,6 @@ name: torch
 channels:
   - pytorch
   - conda-forge
-  - oggm
   - defaults
 dependencies:
   - alabaster=0.7.12=py_0

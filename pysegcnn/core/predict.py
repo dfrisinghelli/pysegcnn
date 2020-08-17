@@ -31,8 +31,7 @@ def get_scene_tiles(ds, scene_id):
     return indices
 
 
-def predict_samples(ds, model, optimizer, state_file, cm=False,
-                    plot=False, **kwargs):
+def predict_samples(ds, model, cm=False, plot=False, **kwargs):
 
     # check whether the dataset is a valid subset, i.e.
     # an instance of pysegcnn.core.split.SceneSubset or
@@ -41,16 +40,8 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
         raise TypeError('ds should be an instance of {} or of {}.'
                         .format(repr(RandomSubset), repr(SceneSubset)))
 
-    # convert state file to pathlib.Path object
-    state_file = pathlib.Path(state_file)
-
     # the device to compute on, use gpu if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    # load the pretrained model state
-    if not state_file.exists():
-        raise FileNotFoundError('{} does not exist.'.format(state_file))
-    _ = model.load(state_file.name, optimizer, state_file.parent)
 
     # set the model to evaluation mode
     LOGGER.info('Setting model to evaluation mode ...')
@@ -58,7 +49,7 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
     model.to(device)
 
     # base filename for each sample
-    fname = state_file.name.split('.pt')[0]
+    fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
     cmm = np.zeros(shape=(model.nclasses, model.nclasses))
@@ -107,8 +98,7 @@ def predict_samples(ds, model, optimizer, state_file, cm=False,
     return output, cmm
 
 
-def predict_scenes(ds, model, optimizer, state_file,
-                   scene_id=None, cm=False, plot_scenes=False, **kwargs):
+def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
 
     # check whether the dataset is a valid subset, i.e. an instance of
     # pysegcnn.core.split.SceneSubset
@@ -116,16 +106,8 @@ def predict_scenes(ds, model, optimizer, state_file,
         raise TypeError('ds should be an instance of {}.'
                         .format(repr(SceneSubset)))
 
-    # convert state file to pathlib.Path object
-    state_file = pathlib.Path(state_file)
-
     # the device to compute on, use gpu if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    # load the pretrained model state
-    if not state_file.exists():
-        raise FileNotFoundError('{} does not exist.'.format(state_file))
-    _ = model.load(state_file.name, optimizer, state_file.parent)
 
     # set the model to evaluation mode
     LOGGER.info('Setting model to evaluation mode ...')
@@ -133,7 +115,7 @@ def predict_scenes(ds, model, optimizer, state_file,
     model.to(device)
 
     # base filename for each scene
-    fname = state_file.name.split('.pt')[0]
+    fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
     cmm = np.zeros(shape=(model.nclasses, model.nclasses))
@@ -196,7 +178,7 @@ def predict_scenes(ds, model, optimizer, state_file,
         scenes[sid] = {'input': inputs, 'labels': labels, 'prediction': prdtcn}
 
         # plot current scene
-        if plot_scenes:
+        if plot:
             fig, ax = plot_sample(inputs.clip(0, 1),
                                   labels,
                                   ds.dataset.use_bands,

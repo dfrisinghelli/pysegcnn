@@ -9,7 +9,7 @@ import os
 
 # locals
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
-                                   TrainConfig, EvalConfig)
+                                   StateConfig, EvalConfig)
 from pysegcnn.core.predict import predict_samples, predict_scenes
 from pysegcnn.main.config import (dataset_config, split_config, model_config,
                                   train_config, eval_config, HERE)
@@ -22,24 +22,21 @@ if __name__ == '__main__':
     dc = DatasetConfig(**dataset_config)
     sc = SplitConfig(**split_config)
     mc = ModelConfig(**model_config)
-    tc = TrainConfig(**train_config)
     ec = EvalConfig(**eval_config)
 
     # (ii) instanciate the dataset
     ds = dc.init_dataset()
-    ds
 
     # (iii) instanciate the training, validation and test datasets
     train_ds, valid_ds, test_ds = sc.train_val_test_split(ds)
 
-    # (iv) instanciate the model state files
-    state_file, loss_state = mc.init_state(ds, sc, tc)
+    # (iv) instanciate the model state
+    state = StateConfig(ds, sc, mc)
+    state_file, loss_state = state.init_state()
 
-    # (v) instanciate the model
-    model = mc.init_model(ds)
-
-    # (vi) instanciate the optimizer
-    optimizer = tc.init_optimizer(model)
+    # (vii) load pretrained model weights
+    model, _ = mc.load_pretrained(state_file)
+    model.state_file = state_file
 
     # plot loss and accuracy
     plot_loss(loss_state, outpath=os.path.join(HERE, '_graphics/'))
@@ -54,37 +51,23 @@ if __name__ == '__main__':
     # keyword arguments for plotting
     kwargs = {'bands': ec.plot_bands,
               'outpath': os.path.join(HERE, '_scenes/'),
-              'stretch': True,
-              'alpha': 5}
+              'alpha': ec.alpha,
+              'figsize': ec.figsize}
 
     # whether to predict each sample or each scene individually
     if ec.predict_scene:
         # reconstruct and predict the scenes in the validation/test set
-        scenes, cm = predict_scenes(ds,
-                                    model,
-                                    optimizer,
-                                    state_file,
-                                    scene_id=None,
-                                    cm=ec.cm,
-                                    plot_scenes=ec.plot_scenes,
-                                    **kwargs
-                                    )
+        scenes, cm = predict_scenes(ds, model, scene_id=None, cm=ec.cm,
+                                    plot=ec.plot_scenes, **kwargs)
 
     else:
         # predict the samples in the validation/test set
-        samples, cm = predict_samples(ds,
-                                      model,
-                                      optimizer,
-                                      state_file,
-                                      cm=ec.cm,
-                                      plot_scenes=ec.plot_scenes,
-                                      **kwargs)
+        samples, cm = predict_samples(ds, model, cm=ec.cm,
+                                      plot=ec.plot_samples, **kwargs)
 
     # whether to plot the confusion matrix
     if ec.cm:
-        plot_confusion_matrix(cm,
-                              ds.dataset.labels,
-                              normalize=True,
+        plot_confusion_matrix(cm, ds.dataset.labels,
                               state=state_file.name.replace('.pt', '.png'),
                               outpath=os.path.join(HERE, '_graphics/')
                               )

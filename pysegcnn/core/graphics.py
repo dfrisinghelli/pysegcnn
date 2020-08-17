@@ -24,7 +24,7 @@ from pysegcnn.main.config import HERE
 
 # this function applies percentile stretching at the alpha level
 # can be used to increase constrast for visualization
-def contrast_stretching(image, alpha=2):
+def contrast_stretching(image, alpha=5):
 
     # compute upper and lower percentiles defining the range of the stretch
     inf, sup = np.percentile(image, (alpha, 100 - alpha))
@@ -49,15 +49,11 @@ def running_mean(x, w):
 # plot_sample() plots a false color composite of the scene/tile together
 # with the model prediction and the corresponding ground truth
 def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
-                bands=['nir', 'red', 'green'], stretch=False, state=None,
-                outpath=os.path.join(HERE, '_samples/'),  **kwargs):
+                bands=['nir', 'red', 'green'], state=None,
+                outpath=os.path.join(HERE, '_samples/'), alpha=0):
 
     # check whether to apply constrast stretching
-    stretch = True if kwargs else stretch
-    func = contrast_stretching if stretch else lambda x: x
-
-    # create an rgb stack
-    rgb = np.dstack([func(x[use_bands.index(band)], **kwargs)
+    rgb = np.dstack([contrast_stretching(x[use_bands.index(band)], alpha)
                      for band in bands])
 
     # get labels and corresponding colors

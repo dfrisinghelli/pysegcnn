@@ -132,6 +132,7 @@ class ImageDataset(Dataset):
         self.transforms = [None] + self.transforms
 
         # when padding, add a new "no data" label to the ground truth
+        self.cval = 0
         if self.pad and sum(self.padding) > 0:
             self.cval = max(self.labels) + 1
             self.labels[self.cval] = {'label': 'No data', 'color': 'black'}

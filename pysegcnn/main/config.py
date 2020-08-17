@@ -292,6 +292,12 @@ eval_config = {
     # the input scene: red': bands[0], green': bands[1], blue': bands[2]
     'plot_bands': ['nir', 'red', 'green'],
 
+    # size of the figures
+    'figsize': (10, 10),
+
+    # degree of constrast stretching for false color composite
+    'alpha': 5
+
 }
 
 # the complete configuration

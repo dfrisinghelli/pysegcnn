@@ -435,6 +435,8 @@ class EvalConfig(BaseConfig):
     plot_bands: list = dataclasses.field(
         default_factory=lambda: ['nir', 'red', 'green'])
     cm: bool = True
+    figsize: tuple = (10, 10)
+    alpha: int = 5
 
     def __post_init__(self):
         super().__post_init__()
@@ -476,6 +478,7 @@ class NetworkTrainer(BaseConfig):
         if self.early_stop:
             self.es = EarlyStopping(self.mode, self.max_accuracy, self.delta,
                                     self.patience)
+
 
     def train(self):
 

@@ -30,6 +30,12 @@ DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
 # DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME, 'Training')
 # DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
 
+# path to store the model states
+MODEL_PATH = os.path.join(HERE, '_models/')
+
+# path to store model logs
+LOG_PATH = os.path.join(HERE, '_logs/')
+
 # the dataset configuration dictionary
 dataset_config = {
 
@@ -189,9 +195,6 @@ model_config = {
                'dilation': 1  # the field of view of the kernel
                },
 
-    # path to save trained models
-    'state_path': os.path.join(HERE, '_models/'),
-
     # Transfer learning -------------------------------------------------------
 
     # Use pretrained=True only if you wish to fine-tune a pre-trained model
@@ -203,7 +206,7 @@ model_config = {
     # was trained on
 
     # whether to use a pretrained model for transfer learning
-    'transfer': True,
+    'transfer': False,
 
     # name of the pretrained model to apply to a different dataset
     'pretrained_model': 'UNet_SparcsDataset_t125_b64_rgbn.pt',
@@ -226,6 +229,8 @@ model_config = {
     # -------------------------------------------------------------------------
 
     # whether to save the model state to disk
+    # model states are saved in:    pysegcnn/main/_models
+    # model log files are saved in: pysegcnn/main/_logs
     'save': True,
 
     # whether to early stop training if the accuracy on the validation set
@@ -260,6 +265,10 @@ eval_config = {
     # these options are only used for evaluating a trained model using
     # pysegcnn.main.eval.py
 
+    # the model to evaluate
+    'state_file': os.path.join(MODEL_PATH,
+                               'UNet_SparcsDataset_Adam_SceneSplit_s0_t005v05_t125_b64_r4g3b2n5.pt'),
+
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
@@ -267,6 +276,7 @@ eval_config = {
     'test': False,
 
     # whether to compute and plot the confusion matrix
+    # output path is: pysegcnn/main/_graphics/
     'cm': True,
 
     # whether to predict each sample or each scene individually
@@ -299,9 +309,3 @@ eval_config = {
     'alpha': 5
 
 }
-
-# the complete configuration
-config = {**dataset_config,
-          **split_config,
-          **model_config,
-          **eval_config}

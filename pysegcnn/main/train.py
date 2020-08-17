@@ -6,13 +6,14 @@ Created on Tue Jun 30 09:33:38 2020
 @author: Daniel
 """
 # builtins
-import logging
+from logging.config import dictConfig
 
 # locals
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
-                                   StateConfig, NetworkTrainer)
+                                   StateConfig, LogConfig, NetworkTrainer)
 from pysegcnn.core.logging import log_conf
-from pysegcnn.main.config import (dataset_config, split_config, model_config)
+from pysegcnn.main.config import (dataset_config, split_config, model_config,
+                                  LOG_PATH)
 
 
 if __name__ == '__main__':
@@ -26,49 +27,42 @@ if __name__ == '__main__':
 
     # (ii) instanciate the dataset
     ds = dc.init_dataset()
-    ds
 
     # (iii) instanciate the model state
     state = StateConfig(ds, sc, mc)
-    state_file, loss_state = state.init_state()
+    state_file = state.init_state()
 
-    # initialize logging
-    log_file = str(state_file).replace('.pt', '_train.log')
-    logging.config.dictConfig(log_conf(log_file))
+    # (iv) initialize logging
+    log = LogConfig(state_file)
+    dictConfig(log_conf(log.log_file))
 
-    # (iv) instanciate the training, validation and test datasets and
+    # (v) instanciate the training, validation and test datasets and
     # dataloaders
     train_ds, valid_ds, test_ds = sc.train_val_test_split(ds)
     train_dl, valid_dl, test_dl = sc.dataloaders(
         train_ds, valid_ds, test_ds, batch_size=mc.batch_size, shuffle=True,
         drop_last=False)
 
-    # (iv) instanciate the model
-    model = mc.init_model(ds)
+    # (vi) instanciate the model
+    model, optimizer, checkpoint_state = mc.init_model(ds, state_file)
 
-    # (vi) instanciate the optimizer and the loss function
-    optimizer = mc.init_optimizer(model)
+    # (vii) instanciate the loss function
     loss_function = mc.init_loss_function()
 
-    # (vii) resume training from an existing model checkpoint
-    (model, optimizer, checkpoint_state, max_accuracy) = mc.from_checkpoint(
-        model, optimizer, state_file, loss_state)
-
-    # (viii) initialize network trainer class for eays model training
+    # (viii) initialize network trainer class for easy model training
     trainer = NetworkTrainer(model=model,
                              optimizer=optimizer,
                              loss_function=loss_function,
                              train_dl=train_dl,
                              valid_dl=valid_dl,
+                             test_dl=test_dl,
                              state_file=state_file,
-                             loss_state=loss_state,
                              epochs=mc.epochs,
                              nthreads=mc.nthreads,
                              early_stop=mc.early_stop,
                              mode=mc.mode,
                              delta=mc.delta,
                              patience=mc.patience,
-                             max_accuracy=max_accuracy,
                              checkpoint_state=checkpoint_state,
                              save=mc.save
                              )

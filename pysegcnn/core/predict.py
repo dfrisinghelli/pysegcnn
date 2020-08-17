@@ -1,6 +1,4 @@
 # builtins
-import os
-import pathlib
 import logging
 
 # externals
@@ -19,7 +17,7 @@ from pysegcnn.core.split import RandomSubset, SceneSubset
 LOGGER = logging.getLogger(__name__)
 
 
-def get_scene_tiles(ds, scene_id):
+def _get_scene_tiles(ds, scene_id):
 
     # iterate over the scenes of the dataset
     indices = []
@@ -139,7 +137,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
         sname = fname + '_{}_{}.pt'.format(ds.name, sid)
 
         # get the indices of the tiles of the scene
-        indices = get_scene_tiles(ds, sid)
+        indices = _get_scene_tiles(ds, sid)
         indices.sort()
 
         # create a subset of the dataset

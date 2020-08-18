@@ -225,7 +225,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     # compute early stopping point
     if loss['va'].any():
-        esepoch = np.argmax(loss['va'].mean(axis=0)) * nbatches
+        esepoch = np.argmax(loss['va'].mean(axis=0)) * nbatches + 1
         esacc = np.max(loss['va'].mean(axis=0))
         ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
                    ls='--', color='grey')

@@ -10,7 +10,25 @@ import pathlib
 
 # the logging configuration dictionary
 def log_conf(logfile):
+    """Set basic logging configuration passed to `logging.config.dictConfig`.
 
+    See the logging `docs`_ for a detailed description of the configuration
+    dictionary.
+
+    .. _docs:
+        https://docs.python.org/3/library/logging.config.html#dictionary-schema-details
+
+    Parameters
+    ----------
+    logfile : `str` or `pathlib.Path`
+        The file to save the logs to.
+
+    Returns
+    -------
+    LOGGING_CONFIG : `dict`
+        The logging configuration.
+
+    """
     # check if the parent directory of the log file exists
     logfile = pathlib.Path(logfile)
     if not logfile.parent.is_dir():

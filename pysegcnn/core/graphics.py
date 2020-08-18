@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jul 14 11:04:27 2020
+"""Functions to plot multispectral image data and model output."""
 
-@author: Daniel
-"""
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import os
 import itertools
@@ -25,7 +24,21 @@ from pysegcnn.main.config import HERE
 # this function applies percentile stretching at the alpha level
 # can be used to increase constrast for visualization
 def contrast_stretching(image, alpha=5):
+    """Apply percentile stretching to an image to increase constrast.
 
+    Parameters
+    ----------
+    image : `numpy.ndarray`
+        the input image.
+    alpha : `int`, optional
+        The level of the percentiles. The default is 5.
+
+    Returns
+    -------
+    norm : `numpy.ndarray`
+        the stretched image.
+
+    """
     # compute upper and lower percentiles defining the range of the stretch
     inf, sup = np.percentile(image, (alpha, 100 - alpha))
 
@@ -34,7 +47,7 @@ def contrast_stretching(image, alpha=5):
     norm = ((image - inf) * (image.max() - image.min()) /
             (sup - inf)) + image.min()
 
-    # clip: values < inf = 0, values > sup = max
+    # clip: values < min = min, values > max = max
     norm[norm <= image.min()] = image.min()
     norm[norm >= image.max()] = image.max()
 
@@ -42,6 +55,21 @@ def contrast_stretching(image, alpha=5):
 
 
 def running_mean(x, w):
+    """Compute a running mean of the input sequence.
+
+    Parameters
+    ----------
+    x : array_like
+        The sequence to compute a running mean on.
+    w : `int`
+        The window length of the running mean.
+
+    Returns
+    -------
+    rm : `numpy.ndarray`
+        The running mean of the sequence ``x``.
+
+    """
     cumsum = np.cumsum(np.insert(x, 0, 0))
     return (cumsum[w:] - cumsum[:-w]) / w
 
@@ -51,7 +79,48 @@ def running_mean(x, w):
 def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
                 bands=['nir', 'red', 'green'], state=None,
                 outpath=os.path.join(HERE, '_samples/'), alpha=0):
+    """Plot false color composite (FCC), ground truth and model prediction.
 
+    Parameters
+    ----------
+    x : `numpy.ndarray` or `torch.tensor`, (b, h, w)
+        Array containing the raw data of the tile, shape=(bands, height, width)
+    y : `numpy.ndarray` or `torch.tensor`, (h, w)
+        Array containing the ground truth of tile ``x``, shape=(height, width)
+    use_bands : `list` of `str`
+        List describing the order of the bands in ``x``.
+    labels : `dict` [`int`, `dict`]
+        The keys are the values of the class labels in the ground truth ``y``.
+        Each nested `dict` should have keys:
+            ``'color'``
+                A named color (`str`).
+            ``'label'``
+                The name of the class label (`str`).
+    y_pred : `numpy.ndarray` or `None`, optional
+        Array containing the prediction for tile ``x``, shape=(height, width).
+        The default is None, i.e. only FCC and ground truth are plotted.
+    figsize : `tuple`, optional
+        The figure size in centimeters. The default is (10, 10).
+    bands : `list` [`str`], optional
+        The bands to build the FCC. The default is ['nir', 'red', 'green'].
+    state : `str` or `None`, optional
+        Filename to save the plot to. ``state`` should be an existing model
+        state file ending with '.pt'. The default is None, i.e. plot is not
+        saved to disk.
+    outpath : `str` or `pathlib.Path`, optional
+        Output path. The default is os.path.join(HERE, '_samples/').
+    alpha : `int`, optional
+        The level of the percentiles to increase constrast in the FCC.
+        The default is 0, i.e. no stretching.
+
+    Returns
+    -------
+    fig : `matplotlib.figure.Figure`
+        The figure handle.
+    ax : `matplotlib.axes._subplots.AxesSubplot`
+        The axes handle.
+
+    """
     # check whether to apply constrast stretching
     rgb = np.dstack([contrast_stretching(x[use_bands.index(band)], alpha)
                      for band in bands])
@@ -109,7 +178,40 @@ def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
 def plot_confusion_matrix(cm, labels, normalize=True,
                           figsize=(10, 10), cmap='Blues', state=None,
                           outpath=os.path.join(HERE, '_graphics/')):
+    """Plot the confusion matrix ``cm``.
 
+    Parameters
+    ----------
+    cm : `numpy.ndarray`
+        The confusion matrix.
+    labels : `dict` [`int`, `dict`]
+        The keys are the values of the class labels in the ground truth ``y``.
+        Each nested `dict` should have keys:
+            ``'color'``
+                A named color (`str`).
+            ``'label'``
+                The name of the class label (`str`).
+    normalize : `bool`, optional
+        Whether to normalize the confusion matrix. The default is True.
+    figsize : `tuple`, optional
+        The figure size in centimeters. The default is (10, 10).
+    cmap : `str`, optional
+        A colormap in `matplotlib.pyplot.colormaps()`. The default is 'Blues'.
+    state : `str` or `None`, optional
+        Filename to save the plot to. ``state`` should be an existing model
+        state file ending with '.pt'. The default is None, i.e. plot is not
+        saved to disk.
+    outpath : `str` or `pathlib.Path`, optional
+        Output path. The default is os.path.join(HERE, '_graphics/').
+
+    Returns
+    -------
+    fig : `matplotlib.figure.Figure`
+        The figure handle.
+    ax : `matplotlib.axes._subplots.AxesSubplot`
+        The axes handle.
+
+    """
     # number of classes
     labels = [label['label'] for label in labels.values()]
     nclasses = len(labels)
@@ -177,7 +279,30 @@ def plot_confusion_matrix(cm, labels, normalize=True,
 def plot_loss(state_file, figsize=(10, 10), step=5,
               colors=['lightgreen', 'green', 'skyblue', 'steelblue'],
               outpath=os.path.join(HERE, '_graphics/')):
+    """Plot the observed loss and accuracy of a model run.
 
+    Parameters
+    ----------
+    state_file : `str` or `pathlib.Path`
+        The model state file. Model state files are stored in
+        pysegcnn/main/_models.
+    figsize : `tuple`, optional
+        The figure size in centimeters. The default is (10, 10).
+    step : `int`, optional
+        The step of epochs for the x-axis labels. The default is 5, i.e. label
+        each fifth epoch.
+    colors : `list` [`str`], optional
+        A list of four named colors supported by `matplotlib`.
+        The default is ['lightgreen', 'green', 'skyblue', 'steelblue'].
+    outpath : `str` or `pathlib.Path`, optional
+        Output path. The default is os.path.join(HERE, '_graphics/').
+
+    Returns
+    -------
+    fig : `matplotlib.figure.Figure`
+        The figure handle.
+
+    """
     # load the model state
     model_state = torch.load(state_file)
 

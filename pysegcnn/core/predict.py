@@ -1,3 +1,8 @@
+"""A collection of functions for model inference."""
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import logging
 
@@ -18,7 +23,21 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _get_scene_tiles(ds, scene_id):
+    """Return the tiles of the scene with id = ``scene_id``.
 
+    Parameters
+    ----------
+    ds : `pysegcnn.core.dataset.ImageDataset`
+        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    scene_id : `str`
+        A valid scene identifier.
+
+    Returns
+    -------
+    indices : `list` [`int`]
+        List of indices of the tiles from scene with id ``scene_id`` in ``ds``.
+
+    """
     # iterate over the scenes of the dataset
     indices = []
     for i, scene in enumerate(ds.scenes):
@@ -30,7 +49,46 @@ def _get_scene_tiles(ds, scene_id):
 
 
 def predict_samples(ds, model, cm=False, plot=False, **kwargs):
+    """Classify each sample in ``ds`` with model ``model``.
 
+    Parameters
+    ----------
+    ds : `pysegcnn.core.split.RandomSubset` or
+    `pysegcnn.core.split.SceneSubset`
+        An instance of `~pysegcnn.core.split.RandomSubset` or
+        `~pysegcnn.core.split.SceneSubset`.
+    model : `pysegcnn.core.models.Network`
+        An instance of `~pysegcnn.core.models.Network`.
+    cm : `bool`, optional
+        Whether to compute the confusion matrix. The default is False.
+    plot : `bool`, optional
+        Whether to plot a false color composite, ground truth and model
+        prediction for each sample. The default is False.
+    **kwargs
+        Additional keyword arguments passed to
+        `pysegcnn.core.graphics.plot_sample`.
+
+    Raises
+    ------
+    TypeError
+        Raised if ``ds`` is not an instance of
+        `~pysegcnn.core.split.RandomSubset` or
+        `~pysegcnn.core.split.SceneSubset`.
+
+    Returns
+    -------
+    output : `dict`
+        Output dictionary with keys:
+            ``'input'``
+                Model input data
+            ``'labels'``
+                The ground truth
+            ``'prediction'``
+                Model prediction
+    conf_mat : `numpy.ndarray`
+        The confusion matrix. Note that the confusion matrix ``conf_mat`` is
+        only computed if ``cm`` = True.
+    """
     # check whether the dataset is a valid subset, i.e.
     # an instance of pysegcnn.core.split.SceneSubset or
     # an instance of pysegcnn.core.split.RandomSubset
@@ -50,7 +108,7 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
     fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
-    cmm = np.zeros(shape=(model.nclasses, model.nclasses))
+    conf_mat = np.zeros(shape=(model.nclasses, model.nclasses))
 
     # create the dataloader
     dataloader = DataLoader(ds, batch_size=1, shuffle=False, drop_last=False)
@@ -78,7 +136,7 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
         # update confusion matrix
         if cm:
             for ytrue, ypred in zip(labels.view(-1), prd.view(-1)):
-                cmm[ytrue.long(), ypred.long()] += 1
+                conf_mat[ytrue.long(), ypred.long()] += 1
 
         # save plot of current batch to disk
         if plot:
@@ -93,11 +151,49 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
                                   state=sname,
                                   **kwargs)
 
-    return output, cmm
+    return output, conf_mat
 
 
 def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
+    """Classify each scene in ``ds`` with model ``model``.
 
+    Parameters
+    ----------
+    ds : `pysegcnn.core.split.SceneSubset`
+        An instance of `~pysegcnn.core.split.SceneSubset`.
+    model : `pysegcnn.core.models.Network`
+        An instance of `~pysegcnn.core.models.Network`.
+    scene_id : `str` or `None`
+        A valid scene identifier.
+    cm : `bool`, optional
+        Whether to compute the confusion matrix. The default is False.
+    plot : `bool`, optional
+        Whether to plot a false color composite, ground truth and model
+        prediction for each scene. The default is False.
+    **kwargs
+        Additional keyword arguments passed to
+        `pysegcnn.core.graphics.plot_sample`.
+
+    Raises
+    ------
+    TypeError
+        Raised if ``ds`` is not an instance of
+        `~pysegcnn.core.split.SceneSubset`.
+
+    Returns
+    -------
+    output : `dict`
+        Output dictionary with keys:
+            ``'input'``
+                Model input data
+            ``'labels'``
+                The ground truth
+            ``'prediction'``
+                Model prediction
+    conf_mat : `numpy.ndarray`
+        The confusion matrix. Note that the confusion matrix ``conf_mat`` is
+        only computed if ``cm`` = True.
+    """
     # check whether the dataset is a valid subset, i.e. an instance of
     # pysegcnn.core.split.SceneSubset
     if not isinstance(ds, SceneSubset):
@@ -116,7 +212,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
     fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
-    cmm = np.zeros(shape=(model.nclasses, model.nclasses))
+    conf_mat = np.zeros(shape=(model.nclasses, model.nclasses))
 
     # check whether a scene id is provided
     if scene_id is None:
@@ -130,7 +226,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
 
     # iterate over the scenes
     LOGGER.info('Predicting scenes of the {} dataset ...'.format(ds.name))
-    scenes = {}
+    output = {}
     for i, sid in enumerate(scene_ids):
 
         # filename for the current scene
@@ -161,7 +257,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
             # update confusion matrix
             if cm:
                 for ytrue, ypred in zip(lab.view(-1), prd.view(-1)):
-                    cmm[ytrue.long(), ypred.long()] += 1
+                    conf_mat[ytrue.long(), ypred.long()] += 1
 
         # reconstruct the entire scene
         inputs = reconstruct_scene(inp, scene_size, nbands=inp.shape[1])
@@ -173,7 +269,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
             i + 1, len(scene_ids), sid, accuracy_function(prdtcn, labels)))
 
         # save outputs to dictionary
-        scenes[sid] = {'input': inputs, 'labels': labels, 'prediction': prdtcn}
+        output[sid] = {'input': inputs, 'labels': labels, 'prediction': prdtcn}
 
         # plot current scene
         if plot:
@@ -185,4 +281,4 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
                                   state=sname,
                                   **kwargs)
 
-    return scenes, cmm
+    return output, conf_mat

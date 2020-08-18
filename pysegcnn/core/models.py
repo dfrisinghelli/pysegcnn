@@ -1,12 +1,9 @@
+"""A collection of neural networks for semantic image segmentation."""
+
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Fri Jun 26 16:31:36 2020
 
-@author: Daniel
-"""
 # builtins
-import os
 import enum
 import logging
 import pathlib
@@ -19,13 +16,23 @@ import torch.optim as optim
 
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, Conv2dPool, Conv2dUnpool,
-                                  Conv2dUpsample, Conv2dSame)
+                                  Conv2dSame)
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
 
 
 class Network(nn.Module):
+    """Generic Network class.
+
+    The base class for each model. If you want to implement a new model,
+    inherit the ``~pysegcnn.core.models.Network`` class.
+
+    Returns
+    -------
+    None.
+
+    """
 
     def __init__(self):
         super().__init__()
@@ -34,19 +41,63 @@ class Network(nn.Module):
         self.state_file = None
 
     def freeze(self):
+        """Freeze the weights of a model.
+
+        Disables gradient computation: useful when using a pretrained model for
+        inference.
+
+        Returns
+        -------
+        None.
+
+        """
         for param in self.parameters():
             param.requires_grad = False
 
     def unfreeze(self):
+        """Unfreeze the weights of a model.
+
+        Enables gradient computation: useful when adjusting a pretrained model
+        to a new dataset.
+
+        Returns
+        -------
+        None.
+
+        """
         for param in self.parameters():
             param.requires_grad = True
 
     def save(self, state_file, optimizer, bands=None, **kwargs):
+        """Save the model state.
 
+        Saves the model and optimizer states together with the model
+        construction parameters, to easily re-instanciate the model.
+
+        Optional ``kwargs`` are also saved.
+
+        Parameters
+        ----------
+        state_file : `str` or `pathlib.Path`
+            Path to save the model state.
+        optimizer : `torch.optim.Optimizer`
+            The optimizer used to train the model.
+        bands : `list` [`str`] or `None`, optional
+            List of bands the model is trained with. The default is None.
+        **kwargs
+            Arbitrary keyword arguments. Each keyword argument will be saved
+            as (key, value) pair in ``state_file``.
+
+        Returns
+        -------
+        model_state : `dict`
+            A dictionary containing the model and optimizer state
+
+        """
         # check if the output path exists and if not, create it
         state_file = pathlib.Path(state_file)
         if not state_file.parent.is_dir():
-           state_file.parent.mkdir(parents=True, exist_ok=True)
+            state_file.parent.mkdir(parents=True, exist_ok=True)
 
         # initialize dictionary to store network parameters
         model_state = {**kwargs}
@@ -79,11 +130,41 @@ class Network(nn.Module):
         torch.save(model_state, state_file)
         LOGGER.info('Network parameters saved in {}'.format(state_file))
 
-        return state_file
+        return model_state
 
     @staticmethod
     def load(state_file, optimizer=None):
+        """Load a model state.
 
+        Returns the model in ``state_file`` with the pretrained model weights.
+        If ``optimizer`` is specified, the optimizer parameters are also loaded
+        from ``state_file``. This is useful when resuming training an existing
+        model.
+
+        Parameters
+        ----------
+        state_file : `str` or `pathlib.Path`
+           The model state file. Model state files are stored in
+           pysegcnn/main/_models.
+        optimizer : `torch.optim.Optimizer` or `None`, optional
+           The optimizer used to train the model.
+
+        Raises
+        ------
+        FileNotFoundError
+            Raised if ``state_file`` does not exist.
+
+        Returns
+        -------
+        model : `pysegcnn.core.models.Network`
+            The pretrained model.
+        optimizer : `torch.optim.Optimizer` or `None`
+           The optimizer used to train the model.
+        model_state : '`dict`
+            A dictionary containing the model and optimizer state, as
+            constructed by `~pysegcnn.core.Network.save`.
+
+        """
         # load the pretrained model
         state_file = pathlib.Path(state_file)
         if not state_file.exists():
@@ -117,10 +198,42 @@ class Network(nn.Module):
 
     @property
     def state(self):
+        """Return the model state file.
+
+        Returns
+        -------
+        state_file : `pathlib.Path` or `None`
+            The model state file.
+
+        """
         return self.state_file
 
 
 class UNet(Network):
+    """A PyTorch implementation of `U-Net`_.
+
+    .. _U-Net:
+        https://arxiv.org/abs/1505.04597
+
+    Parameters
+    ----------
+    in_channels : `int`
+        Number of channels of the input images.
+    nclasses : `int`
+        Number of classes.
+    filters : `list` [`int`]
+        List of input channels to each convolutional block.
+    skip : `bool`
+        Whether to apply skip connections from the encoder to the decoder.
+    **kwargs: 'dict' [`str`]
+        Additional keyword arguments passed to
+        `pysegcnn.core.layers.Conv2dSame`.
+
+    Returns
+    -------
+    None.
+
+    """
 
     def __init__(self, in_channels, nclasses, filters, skip, **kwargs):
         super().__init__()
@@ -158,7 +271,19 @@ class UNet(Network):
                                      kernel_size=1)
 
     def forward(self, x):
+        """Forward propagation of U-Net.
 
+        Parameters
+        ----------
+        x : `torch.tensor`
+            The input image, shape=(batch_size, channels, height, width).
+
+        Returns
+        -------
+        y : 'torch.tensor'
+            The classified image, shape=(batch_size, height, width).
+
+        """
         # forward pass: encoder
         x = self.encoder(x)
 
@@ -173,11 +298,18 @@ class UNet(Network):
 
 
 class SupportedModels(enum.Enum):
+    """Names and corresponding classes of the implemented models."""
+
     Unet = UNet
 
 
 class SupportedOptimizers(enum.Enum):
+    """Names and corresponding classes of the tested optimizers."""
+
     Adam = optim.Adam
 
+
 class SupportedLossFunctions(enum.Enum):
+    """Names and corresponding classes of the tested loss functions."""
+
     CrossEntropy = nn.CrossEntropyLoss

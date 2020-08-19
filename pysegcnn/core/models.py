@@ -1,4 +1,4 @@
-"""A collection of neural networks for semantic image segmentation."""
+"""Neural networks for semantic image segmentation."""
 
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-

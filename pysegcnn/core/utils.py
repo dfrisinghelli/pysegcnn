@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Jul 14 15:02:23 2020
+"""Utility functions mainly for image IO and reshaping."""
 
-@author: Daniel
-"""
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import os
 import re
@@ -15,16 +14,83 @@ import gdal
 import torch
 import numpy as np
 
-# the following functions are utility functions for common image
-# manipulation operations
-
 # module level logger
 LOGGER = logging.getLogger(__name__)
 
 
-# this function reads an image to a numpy array
-def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
+def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
+    """Read an image to a `numpy.ndarray`.
 
+    If ``tile_size`` is not `None`, the input image is divided into square
+    tiles of size (``tile_size``, ``tile_size``). If the image is not evenly
+    divisible and ``pad`` = False, a `ValueError` is raised. However, if
+    ``pad`` = True, center padding with constant value ``cval`` is applied.
+
+    The tiling works as follows:
+
+        (Padded) Input image:
+
+        ------------------------------------------------
+        |           |           |          |           |
+        |  tile_00  |  tile_01  |    ...   |  tile_0n  |
+        |           |           |          |           |
+        |----------------------------------------------|
+        |           |           |          |           |
+        |  tile_10  |  tile_11  |    ...   |  tile_1n  |
+        |           |           |          |           |
+        |----------------------------------------------|
+        |           |           |          |           |
+        |    ...    |    ...    |    ...   |    ...    |
+        |           |           |          |           |
+        |----------------------------------------------|
+        |           |           |          |           |
+        |  tile_m0  |  tile_m1  |    ...   |  tile_mn  |
+        |           |           |          |           |
+        ------------------------------------------------
+
+    where m = n. Each tile has its id, which starts at 0 in the topleft corner
+    of the input image, i.e. tile_00 has id=0, and increases along the width
+    axis, i.e. tile_0n has id=n, tile_10 has id=n+1, ..., tile_mn has
+    id=(m * n) - 1.
+
+    If ``tile`` is an integer, only the tile with id = ``tile`` is returned.
+
+    Parameters
+    ----------
+    path : `str` or `None` or `numpy.ndarray`
+        The image to read.
+    tile_size : `None` or `int`, optional
+        The size of a tile. The default is None.
+    tile : `int`, optional
+        The tile id. The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. The default is False.
+    cval : `float`, optional
+        The constant padding value. The default is 0.
+
+    Raises
+    ------
+    FileNotFoundError
+        Raised if ``path`` is a path that does not exist.
+    TypeError
+        Raised if ``path`` is not `str` or `None` or `numpy.ndarray`.
+
+    Returns
+    -------
+    image : `numpy.ndarray`
+        The image array. The output shape is:
+
+            if ``tile_size`` is not `None`:
+                shape=(tiles, bands, tile_size, tile_size)
+                if the image does only have one band:
+                    shape=(tiles, tile_size, tile_size)
+
+            else:
+                shape=(bands, height, width)
+                if the image does only have one band:
+                    shape=(height, width)
+
+    """
     # check the type of path
     if isinstance(path, str):
         if not os.path.exists(path):
@@ -51,7 +117,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
         width = img.shape[2]
 
     else:
-        raise ValueError('Input of type {} not supported'.format(type(img)))
+        raise TypeError('Input of type {} not supported'.format(type(img)))
 
     # check whether to read the image in tiles
     if tile_size is None:
@@ -157,11 +223,31 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0, verbose=False):
     return image
 
 
-# this function checks whether an image is evenly divisible
-# in square tiles of defined size tile_size
-# if pad=True, a padding is returned to increase the image to the nearest size
-# evenly fitting ntiles of size (tile_size, tile_size)
 def is_divisible(img_size, tile_size, pad=False):
+    """Check whether an image is evenly divisible into square tiles.
+
+    Parameters
+    ----------
+    img_size : `tuple`
+        The image size (height, width).
+    tile_size : `int`
+        The size of the tile.
+    pad : `bool`, optional
+        Whether to center pad the input image. The default is False.
+
+    Raises
+    ------
+    ValueError
+        Raised if the image is not evenly divisible and ``pad`` = False.
+
+    Returns
+    -------
+    ntiles : `int`
+        The number of tiles fitting ``img_size``.
+    padding : `tuple`
+        The amount of padding (bottom, left, top, right).
+
+    """
     # calculate number of pixels per tile
     pixels_per_tile = tile_size ** 2
 
@@ -171,7 +257,7 @@ def is_divisible(img_size, tile_size, pad=False):
 
     # if it is evenly divisible, no padding is required
     if ntiles.is_integer():
-        pad = 4 * (0,)
+        padding = 4 * (0,)
 
     if not ntiles.is_integer() and not pad:
         raise ValueError('Image of size {} not evenly divisible in ({}, {}) '
@@ -193,30 +279,46 @@ def is_divisible(img_size, tile_size, pad=False):
         # in case both offsets are even, the padding is symmetric on both the
         # bottom/top and left/right
         if not dh % 2 and not dw % 2:
-            pad = (dh // 2, dw // 2, dh // 2, dw // 2)
+            padding = (dh // 2, dw // 2, dh // 2, dw // 2)
 
         # in case only one offset is even, the padding is symmetric along the
         # even offset and asymmetric along the odd offset
         if not dh % 2 and dw % 2:
-            pad = (dh // 2, dw // 2, dh // 2, dw // 2 + 1)
+            padding = (dh // 2, dw // 2, dh // 2, dw // 2 + 1)
         if dh % 2 and not dw % 2:
-            pad = (dh // 2, dw // 2, dh // 2 + 1, dw // 2)
+            padding = (dh // 2, dw // 2, dh // 2 + 1, dw // 2)
 
         # in case of offsets are odd, the padding is asymmetric on both the
         # bottom/top and left/right
         if dh % 2 and dw % 2:
-            pad = (dh // 2, dw // 2, dh // 2 + 1, dw // 2 + 1)
+            padding = (dh // 2, dw // 2, dh // 2 + 1, dw // 2 + 1)
 
         # calculate number of tiles on padded image
         ntiles = (h_new * w_new) / (tile_size ** 2)
 
-    return int(ntiles), pad
+    return int(ntiles), padding
 
 
-# check whether a tile of size (tile_size, tile_size) with topleft corner at
-# topleft exists in an image of size img_size
 def check_tile_extend(img_size, topleft, tile_size):
+    """Check if a tile exceeds the image size.
 
+    Parameters
+    ----------
+    img_size : `tuple`
+        The image size (height, width).
+    topleft : `tuple`
+        The topleft corner of the tile (y, x).
+    tile_size : `int`
+        The size of the tile.
+
+    Returns
+    -------
+    nrows : `int`
+        Number of rows of the tile within the image.
+    ncols : TYPE
+        Number of columns of the tile within the image.
+
+    """
     # check if the tile is within both the rows and the columns of the image
     if (topleft[0] + tile_size < img_size[0] and
             topleft[1] + tile_size < img_size[1]):
@@ -246,11 +348,24 @@ def check_tile_extend(img_size, topleft, tile_size):
 
     return nrows, ncols
 
-# this function returns the top-left corners for each tile
-# if the image is evenly divisible in square tiles of
-# defined size tile_size
-def tile_topleft_corner(img_size, tile_size):
 
+def tile_topleft_corner(img_size, tile_size):
+    """Return the topleft corners of the tiles in the image.
+
+    Parameters
+    ----------
+    img_size : `tuple`
+        The image size (height, width).
+    tile_size : `int`
+        The size of the tile.
+
+    Returns
+    -------
+    indices : `dict`
+        The keys of ``indices`` are the tile ids (`int`) and the values are the
+        topleft corners (`tuple` = (y, x)) of the tiles.
+
+    """
     # check if the image is divisible into square tiles of size
     # (tile_size, tile_size)
     _, _ = is_divisible(img_size, tile_size, pad=False)
@@ -273,7 +388,25 @@ def tile_topleft_corner(img_size, tile_size):
 
 
 def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
+    """Reconstruct a tiled image.
 
+    Parameters
+    ----------
+    tiles : array_like
+        The tiled image, shape=(tiles, bands, tile_size, tile_size).
+    img_size : `tuple`
+        The size of the reconstructed image (height, width).
+    tile_size : `int` or `None`, optional
+        The size of the tile. The default is None.
+    nbands : `int`, optional
+        The number of bands of the reconstructed image. The default is 1.
+
+    Returns
+    -------
+    image : `numpy.ndarray`
+        The reconstructed image.
+
+    """
     # convert to numpy array
     tiles = np.asarray(tiles)
 
@@ -297,8 +430,22 @@ def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
     return scene.squeeze()
 
 
-# function calculating prediction accuracy
 def accuracy_function(outputs, labels):
+    """Calculate prediction accuracy.
+
+    Parameters
+    ----------
+    outputs : `torch.Tensor` or array_like
+        The model prediction.
+    labels : `torch.Tensor` or array_like
+        The ground truth.
+
+    Returns
+    -------
+    accuracy : `float`
+        Mean prediction accuracy.
+
+    """
     if isinstance(outputs, torch.Tensor):
         return (outputs == labels).float().mean().item()
     else:
@@ -306,7 +453,20 @@ def accuracy_function(outputs, labels):
 
 
 def parse_landsat_scene(scene_id):
+    """Parse a Landsat scene identifier.
 
+    Parameters
+    ----------
+    scene_id : `str`
+        A Landsat scene identifier.
+
+    Returns
+    -------
+    scene : `dict` or `None`
+        A dictionary containing scene metadata. If `None`, ``scene_id`` is not
+        a valid Landsat scene identifier.
+
+    """
     # Landsat Collection 1 naming convention in regular expression
     sensor = 'L[COTEM]0[1-8]_'
     level = 'L[0-9][A-Z][A-Z]_'
@@ -383,7 +543,20 @@ def parse_landsat_scene(scene_id):
 
 
 def parse_sentinel2_scene(scene_id):
+    """Parse a Sentinel-2 scene identifier.
 
+    Parameters
+    ----------
+    scene_id : `str`
+        A Sentinel-2 scene identifier.
+
+    Returns
+    -------
+    scene : `dict` or `None`
+        A dictionary containing scene metadata. If `None`, ``scene_id`` is not
+        a valid Sentinel-2 scene identifier.
+
+    """
     # Sentinel 2 Level-1C products naming convention after 6th December 2016
     mission = 'S2[A-B]_'
     level = 'MSIL1C_'
@@ -470,29 +643,48 @@ def parse_sentinel2_scene(scene_id):
 
 
 def doy2date(year, doy):
-    """Converts the (year, day of the year) date format to a datetime object.
+    """Convert the (year, day of the year) date format to a datetime object.
 
     Parameters
     ----------
-    year : int
-        the year
-    doy : int
-        the day of the year
+    year : `int`
+        The year
+    doy : `int`
+        The day of the year
 
     Returns
     -------
-    date : datetime.datetime
-        the converted date as datetime object
+    date : `datetime.datetime`
+        The converted date.
     """
-
     # convert year/day of year to a datetime object
     date = (datetime.datetime(int(year), 1, 1) +
             datetime.timedelta(days=(int(doy) - 1)))
 
     return date
 
-def item_in_enum(name, enum):
 
+def item_in_enum(name, enum):
+    """Check if an item exists in an enumeration.
+
+    Parameters
+    ----------
+    name : `str`
+        Name of the item.
+    enum : `enum.Enum`
+        An instance of `enum.Enum`.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``name`` is not in ``enum``.
+
+    Returns
+    -------
+    value
+        The value of ``name`` in ``enum``.
+
+    """
     # check whether the input name exists in the enumeration
     if name not in enum.__members__:
         raise ValueError('{} is not in {} enumeration. Valid names are: \n {}'

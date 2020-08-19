@@ -1,4 +1,4 @@
-"""A collection of functions for model inference."""
+"""Functions for model inference."""
 
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-

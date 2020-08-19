@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Aug 14 10:07:12 2020
+"""Logging configuration."""
 
-@author: Daniel
-"""
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import pathlib
 

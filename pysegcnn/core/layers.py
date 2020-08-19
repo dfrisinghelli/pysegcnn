@@ -47,7 +47,8 @@ class Conv2dSame(nn.Conv2d):
 
         self.padding = (y_pad, x_pad)
 
-    def same_padding(self, d, k):
+    @staticmethod
+    def same_padding(d, k):
         """Calculate the amount of padding.
 
         Parameters

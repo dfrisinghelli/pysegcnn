@@ -85,7 +85,7 @@ dataset_config = {
     #   - Noise:  add gaussian noise with defined mean and variance to an image
     #             two modes for adding noise are available
     #                 - speckle:  image = image + image * noise,
-    #                 - gaussian: image = image + noise
+    #                 - add: image = image + noise
     #             pixel values = exclude (default=0) are not modified by adding
     #             noise (i.e., the "no data" pixels added by the padding)
     # More detail can be found in pytorch.transforms.py

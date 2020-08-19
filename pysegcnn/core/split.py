@@ -214,9 +214,9 @@ def date_scene_split(ds, date, dateformat='%Y%m%d'):
     ----------
     ds : `pysegcnn.core.dataset.ImageDataset`
         An instance of `~pysegcnn.core.dataset.ImageDataset`.
-    date : 'str'
+    date : `str`
         A date.
-    dateformat : 'str', optional
+    dateformat : `str`, optional
         The format of ``date``. ``dateformat`` is used by
         `datetime.datetime.strptime' to parse ``date`` to a `datetime.datetime`
         object. The default is '%Y%m%d'.
@@ -283,7 +283,7 @@ def pairwise_disjoint(sets):
 
 
 class CustomSubset(Subset):
-    """Custom subset inheriting `torch.utils.data.dataset.Subset`."""
+    """Custom subset inheriting `torch.utils.data.Subset`."""
 
     def __repr__(self):
         """Representation of ``~pysegcnn.core.split.CustomSubset``."""

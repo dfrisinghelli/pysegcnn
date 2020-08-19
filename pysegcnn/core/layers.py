@@ -134,16 +134,16 @@ class Conv2dPool(nn.Module):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of previous layer.
 
         Returns
         -------
-        y : `torch.tensor`
+        y : `torch.Tensor`
             Output of this block.
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output before max pooling. Stored for skip connections.
-        i : `torch.tensor`
+        i : `torch.Tensor`
             Indices of the max pooling operation. Used in unpooling operation.
 
         """
@@ -190,18 +190,18 @@ class Conv2dUnpool(nn.Module):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of previous layer.
-        feature : `torch.tensor`
+        feature : `torch.Tensor`
             Encoder feature used for the skip connection.
-        indices : `torch.tensor`
+        indices : `torch.Tensor`
             Indices of the max pooling operation. Used in unpooling operation.
         skip : `bool`
             Whether to apply skip connetion.
 
         Returns
         -------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of this block.
 
         """
@@ -254,11 +254,11 @@ class Conv2dUpsample(nn.Module):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of previous layer.
-        feature : `torch.tensor`
+        feature : `torch.Tensor`
             Encoder feature used for the skip connection.
-        indices : `torch.tensor`
+        indices : `torch.Tensor`
             Indices of the max pooling operation. Used in unpooling operation.
             Not used here, but passed to preserve generic interface. Useful in
             `pysegcnn.core.layers.Decoder`.
@@ -267,7 +267,7 @@ class Conv2dUpsample(nn.Module):
 
         Returns
         -------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of this block.
 
         """
@@ -331,12 +331,12 @@ class Encoder(nn.Module):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Input image.
 
         Returns
         -------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of the encoder.
 
         """
@@ -411,7 +411,7 @@ class Decoder(nn.Module):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of the encoder.
         enc_cache : `dict`
             Cache dictionary with keys:
@@ -422,7 +422,7 @@ class Decoder(nn.Module):
 
         Returns
         -------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             Output of the decoder.
 
         """

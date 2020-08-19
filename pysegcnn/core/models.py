@@ -275,7 +275,7 @@ class UNet(Network):
 
         Parameters
         ----------
-        x : `torch.tensor`
+        x : `torch.Tensor`
             The input image, shape=(batch_size, channels, height, width).
 
         Returns

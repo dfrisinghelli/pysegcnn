@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Aug 12 10:24:34 2020
+"""Model configuration and training."""
 
-@author: Daniel
-"""
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import dataclasses
 import pathlib
@@ -34,8 +33,22 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclasses.dataclass
 class BaseConfig:
+    """Base `dataclasses.dataclass` for each configuration."""
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Raises
+        ------
+        TypeError
+            Raised if the conversion to the specified type of the argument
+            fails.
+
+        Returns
+        -------
+        None.
+
+        """
         # check input types
         for field in dataclasses.fields(self):
             # the value of the current field
@@ -55,6 +68,45 @@ class BaseConfig:
 
 @dataclasses.dataclass
 class DatasetConfig(BaseConfig):
+    """Dataset configuration class.
+
+    Parameters
+    ----------
+    dataset_name : `str`
+        The name of the dataset.
+    root_dir : `pathlib.Path`
+        The root directory, path to the dataset.
+    bands : `list` [`str`]
+        A list of the spectral bands to use.
+    tile_size : `int`
+        The size of the tiles. Each scene is divided into square tiles of shape
+        (tile_size, tile_size).
+    gt_pattern : `str`
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``.
+    seed : `int`
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+
+    """
+
     dataset_name: str
     root_dir: pathlib.Path
     bands: list
@@ -66,6 +118,21 @@ class DatasetConfig(BaseConfig):
     pad: bool = False
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Raises
+        ------
+        FileNotFoundError
+            Raised if ``root_dir`` does not exist.
+        TypeError
+            Raised if not each item in ``transforms`` is an instance of
+            `pysegcnn.core.split.Augment` in case ``transforms`` is not empty.
+
+        Returns
+        -------
+        None.
+
+        """
         # check input types
         super().__post_init__()
 
@@ -84,7 +151,14 @@ class DatasetConfig(BaseConfig):
                                                        Augment.__name__])))
 
     def init_dataset(self):
+        """Instanciate the dataset.
 
+        Returns
+        -------
+        dataset : `pysegcnn.core.dataset.ImageDataset`
+            An instance of `pysegcnn.core.dataset.ImageDataset`.
+
+        """
         # instanciate the dataset
         dataset = self.dataset_class(
                     root_dir=str(self.root_dir),
@@ -102,6 +176,32 @@ class DatasetConfig(BaseConfig):
 
 @dataclasses.dataclass
 class SplitConfig(BaseConfig):
+    """Dataset split configuration class.
+
+    Parameters
+    ----------
+    split_mode : `str`
+        The mode to split the dataset.
+    ttratio : `float`
+        The ratio of training and validation data to test data, e.g.
+        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
+        testing.
+    tvratio : `float`
+        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
+        means 80% training, 20% validation.
+    date : `str`, optional
+        A date. Used if ``split_mode`` = 'date'. The default is 'yyyymmdd'.
+    dateformat : `str`, optional
+        The format of ``date``. ``dateformat`` is used by
+        `datetime.datetime.strptime' to parse ``date`` to a `datetime.datetime`
+        object. The default is '%Y%m%d'.
+    drop : `float`, optional
+        Whether to drop samples (during training only) with a fraction of
+        pixels equal to the constant padding value >= ``drop``. ``drop`` = 0
+        means, do not drop any samples. The default is 0.
+
+    """
+
     split_mode: str
     ttratio: float
     tvratio: float
@@ -110,17 +210,46 @@ class SplitConfig(BaseConfig):
     drop: float = 0
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``split_mode`` is not supported.
+
+        Returns
+        -------
+        None.
+
+        """
         # check input types
         super().__post_init__()
 
         # check if the split mode is valid
         self.split_class = item_in_enum(self.split_mode, SupportedSplits)
 
-    # function to drop samples with a fraction of pixels equal to the constant
-    # padding value self.cval >= self.drop
     @staticmethod
     def _drop_samples(ds, drop_threshold=1):
+        """Drop samples with a fraction of pixels equal to the padding value.
 
+        Parameters
+        ----------
+        ds : `pysegcnn.core.split.RandomSubset` or
+        `pysegcnn.core.split.SceneSubset`.
+            An instance of `pysegcnn.core.split.RandomSubset` or
+            `pysegcnn.core.split.SceneSubset`.
+        drop_threshold : `float`, optional
+            The threshold above which samples are dropped. ``drop_threshold`` =
+            1 means a sample is dropped, if all pixels are equal to the padding
+            value. ``drop_threshold`` = 0.8 means, drop a sample if 80% of the
+            pixels are equal to the padding value, etc. The default is 1.
+
+        Returns
+        -------
+        dropped : `list` [`dict`]
+            List of the dropped samples.
+
+        """
         # iterate over the scenes returned by self.compose_scenes()
         dropped = []
         for pos, i in enumerate(ds.indices):
@@ -145,7 +274,32 @@ class SplitConfig(BaseConfig):
         return dropped
 
     def train_val_test_split(self, ds):
+        """Split ``ds`` into training, validation and test set.
 
+        Parameters
+        ----------
+        ds : `pysegcnn.core.dataset.ImageDataset`
+            An instance of `pysegcnn.core.dataset.ImageDataset`.
+
+        Raises
+        ------
+        TypeError
+            Raised if ``ds`` is not an instance of
+            `pysegcnn.core.dataset.ImageDataset`.
+
+        Returns
+        -------
+        train_ds : `pysegcnn.core.split.RandomSubset` or
+        `pysegcnn.core.split.SceneSubset`.
+            The training set.
+        valid_ds : `pysegcnn.core.split.RandomSubset` or
+        `pysegcnn.core.split.SceneSubset`.
+            The validation set.
+        test_ds : `pysegcnn.core.split.RandomSubset` or
+        `pysegcnn.core.split.SceneSubset`.
+            The test set.
+
+        """
         if not isinstance(ds, ImageDataset):
             raise TypeError('Expected "ds" to be {}.'
                             .format('.'.join([ImageDataset.__module__,
@@ -172,6 +326,31 @@ class SplitConfig(BaseConfig):
 
     @staticmethod
     def dataloaders(*args, **kwargs):
+        """Build `torch.utils.data.DataLoader` instances.
+
+        Parameters
+        ----------
+        *args : `list` [`torch.utils.data.Dataset`]
+            List of instances of `torch.utils.data.Dataset`.
+        **kwargs
+            Additional keyword arguments passed to
+            `torch.utils.data.DataLoader`.
+
+        Raises
+        ------
+        TypeError
+            Raised if not each item in ``args`` is an instance of
+            `torch.utils.data.Dataset`.
+
+        Returns
+        -------
+        loaders : `list` [`torch.utils.data.DataLoader`]
+            List of instances of `torch.utils.data.DataLoader`. If an instance
+            of `torch.utils.data.Dataset` in ``args`` is empty, `None` is
+            appended to ``loaders`` instead of an instance of
+            `torch.utils.data.DataLoader`.
+
+        """
         # check whether each dataset in args has the correct type
         loaders = []
         for ds in args:
@@ -192,6 +371,72 @@ class SplitConfig(BaseConfig):
 
 @dataclasses.dataclass
 class ModelConfig(BaseConfig):
+    """Model configuration class.
+
+    Parameters
+    ----------
+    model_name : `str`
+        The name of the model.
+    filters : `list` [`int`]
+        List of input channels to the convolutional layers.
+    torch_seed : `int`
+        The random seed to initialize the model weights.
+        Useful for reproducibility.
+    optim_name : `str`
+        The name of the optimizer to update the model weights.
+    loss_name : `str`
+        The name of the loss function measuring the model error.
+    skip_connection : `bool`, optional
+        Whether to apply skip connections. The defaul is True.
+    kwargs: `dict`, optional
+        The configuration for each convolution in the model. The default is
+        {'kernel_size': 3, 'stride': 1, 'dilation': 1}.
+    batch_size : `int`, optional
+        The model batch size. Determines the number of samples to process
+        before updating the model weights. The default is 64.
+    checkpoint : `bool`, optional
+        Whether to resume training from an existing model checkpoint. The
+        default is False.
+    transfer : `bool`, optional
+        Whether to use a model for transfer learning on a new dataset. If True,
+        the model architecture of ``pretrained_model`` is adjusted to a new
+        dataset. The default is False.
+    pretrained_model : `str`, optional
+        The name of the pretrained model to use for transfer learning.
+        The default is ''.
+    lr : `float`, optional
+        The learning rate used by the gradient descent algorithm.
+        The default is 0.001.
+    early_stop : `bool`, optional
+        Whether to apply `early stopping`_. The default is False.
+    mode : `str`, optional
+        The mode of the early stopping. Depends on the metric measuring
+        performance. When using model loss as metric, use ``mode`` = 'min',
+        however, when using accuracy as metric, use ``mode`` = 'max'. For now,
+        only ``mode`` = 'max' is supported. Only used if ``early_stop`` = True.
+        The default is 'max'.
+    delta : `float`, optional
+        Minimum change in early stopping metric to be considered as an
+        improvement. Only used if ``early_stop`` = True. The default is 0.
+    patience : `int`, optional
+        The number of epochs to wait for an improvement in the early stopping
+        metric. If the model does not improve over more than ``patience``
+        epochs, quit training. Only used if ``early_stop`` = True.
+        The default is 10.
+    epochs : `int`, optional
+        The maximum number of epochs to train. The default is 50.
+    nthreads : `int`, optional
+        The number of cpu threads to use during training. The default is
+        torch.get_num_threads().
+    save : `bool`, optional
+        Whether to save the model state to disk. Model states are saved in
+        pysegcnn/main/_models. The default is True.
+
+    .. _early stopping:
+        https://en.wikipedia.org/wiki/Early_stopping
+
+    """
+
     model_name: str
     filters: list
     torch_seed: int
@@ -214,6 +459,19 @@ class ModelConfig(BaseConfig):
     save: bool = True
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Raises
+        ------
+        ValueError
+            Raised if the model ``model_name``, the optimizer ``optim_name`` or
+            the loss function ``loss_name`` is not supported.
+
+        Returns
+        -------
+        None.
+
+        """
         # check input types
         super().__post_init__()
 
@@ -233,7 +491,19 @@ class ModelConfig(BaseConfig):
         self.pretrained_path = self.state_path.joinpath(self.pretrained_model)
 
     def init_optimizer(self, model):
+        """Instanciate the optimizer.
 
+        Parameters
+        ----------
+        model : `torch.nn.Module`
+            An instance of `torch.nn.Module`.
+
+        Returns
+        -------
+        optimizer : `torch.optim.Optimizer`
+            An instance of `torch.optim.Optimizer`.
+
+        """
         LOGGER.info('Optimizer: {}.'.format(repr(self.optim_class)))
 
         # initialize the optimizer for the specified model
@@ -242,7 +512,14 @@ class ModelConfig(BaseConfig):
         return optimizer
 
     def init_loss_function(self):
+        """Instanciate the loss function.
 
+        Returns
+        -------
+        loss_function : `torch.nn.Module`
+            An instance of `torch.nn.Module`.
+
+        """
         LOGGER.info('Loss function: {}.'.format(repr(self.loss_class)))
 
         # instanciate the loss function
@@ -251,7 +528,38 @@ class ModelConfig(BaseConfig):
         return loss_function
 
     def init_model(self, ds, state_file):
+        """Instanciate the model and the optimizer.
 
+        If the model checkpoint ``state_file`` exists, the pretrained model and
+        optimizer states are loaded, otherwise the model and the optimizer are
+        initialized from scratch.
+
+        Parameters
+        ----------
+        ds : `pysegcnn.core.dataset.ImageDataset`
+            An instance of `pysegcnn.core.dataset.ImageDataset`.
+        state_file : `pathlib.Path`
+            Path to a model checkpoint.
+
+        Returns
+        -------
+        model : `pysegcnn.core.models.Network`
+            An instance of `pysegcnn.core.models.Network`.
+        optimizer : `torch.optim.Optimizer`
+            An instance of `torch.optim.Optimizer`.
+        checkpoint_state : `dict`
+            If the model checkpoint ``state_file`` exists, ``checkpoint_state``
+            has keys:
+                ``'ta'``
+                    The accuracy on the training set (`numpy.ndarray`).
+                ``'tl'``
+                    The loss on the training set (`numpy.ndarray`).
+                ``'va'``
+                    The accuracy on the validation set (`numpy.ndarray`).
+                ``'vl'``
+                    The loss on the validation set (`numpy.ndarray`).
+
+        """
         # write an initialization string to the log file
         LogConfig.init_log('{}: Initializing model run. ')
 
@@ -290,7 +598,39 @@ class ModelConfig(BaseConfig):
 
     @staticmethod
     def load_checkpoint(model, optimizer, state_file):
+        """Load an existing model checkpoint.
 
+        If the model checkpoint ``state_file`` exists, the pretrained model and
+        optimizer states are loaded.
+
+        Parameters
+        ----------
+        model : `pysegcnn.core.models.Network`
+            An instance of `pysegcnn.core.models.Network`.
+        optimizer : `torch.optim.Optimizer`
+            An instance of `torch.optim.Optimizer`.
+        state_file : `pathlib.Path`
+            Path to the model checkpoint.
+
+        Returns
+        -------
+        model : `pysegcnn.core.models.Network`
+            An instance of `pysegcnn.core.models.Network`.
+        optimizer : `torch.optim.Optimizer`
+            An instance of `torch.optim.Optimizer`.
+        checkpoint_state : `dict`
+            If the model checkpoint ``state_file`` exists, ``checkpoint_state``
+            has keys:
+                ``'ta'``
+                    The accuracy on the training set (`numpy.ndarray`).
+                ``'tl'``
+                    The loss on the training set (`numpy.ndarray`).
+                ``'va'``
+                    The accuracy on the validation set (`numpy.ndarray`).
+                ``'vl'``
+                    The loss on the validation set (`numpy.ndarray`).
+
+        """
         # whether to resume training from an existing model checkpoint
         checkpoint_state = {}
 
@@ -315,7 +655,36 @@ class ModelConfig(BaseConfig):
 
     @staticmethod
     def transfer_model(state_file, ds):
+        """Adjust a pretrained model to a new dataset.
 
+        The classification layer of the pretrained model in ``state_file`` is
+        initilialized from scratch with the classes of the new dataset ``ds``.
+
+        The remaining model weights are preserved.
+
+        Parameters
+        ----------
+        state_file : `pathlib.Path`
+            Path to a pretrained model.
+        ds : `pysegcnn.core.dataset.ImageDataset`
+            An instance of `pysegcnn.core.dataset.ImageDataset`.
+
+        Raises
+        ------
+        TypeError
+            Raised if ``ds`` is not an instance of
+            `pysegcnn.core.dataset.ImageDataset`.
+        ValueError
+            Raised if the bands of ``ds`` do not match the bands of the dataset
+            the pretrained model was trained with.
+
+        Returns
+        -------
+        model : `pysegcnn.core.models.Network`
+            An instance of `pysegcnn.core.models.Network`. The pretrained model
+            adjusted to the new dataset.
+
+        """
         # check input type
         if not isinstance(ds, ImageDataset):
             raise TypeError('Expected "ds" to be {}.'
@@ -346,8 +715,7 @@ class ModelConfig(BaseConfig):
                     .format(', '.join('({}, {})'.format(k, v['label'])
                                       for k, v in ds.labels.items())))
 
-        # adjust the classification layer to the number of classes of the
-        # current dataset
+        # adjust the classification layer to the classes of the new dataset
         model.classifier = Conv2dSame(in_channels=filters[0],
                                       out_channels=model.nclasses,
                                       kernel_size=1)
@@ -757,7 +1125,7 @@ class EarlyStopping(object):
         # whether to check for an increase or a decrease in a given metric
         self.is_better = self.decreased if mode == 'min' else self.increased
 
-        # minimum change in metric to be classified as an improvement
+        # minimum change in metric to be considered as an improvement
         self.min_delta = min_delta
 
         # number of epochs to wait for improvement

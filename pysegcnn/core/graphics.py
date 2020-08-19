@@ -83,15 +83,15 @@ def plot_sample(x, y, use_bands, labels, y_pred=None, figsize=(10, 10),
 
     Parameters
     ----------
-    x : `numpy.ndarray` or `torch.tensor`, (b, h, w)
+    x : `numpy.ndarray` or `torch.Tensor`, (b, h, w)
         Array containing the raw data of the tile, shape=(bands, height, width)
-    y : `numpy.ndarray` or `torch.tensor`, (h, w)
+    y : `numpy.ndarray` or `torch.Tensor`, (h, w)
         Array containing the ground truth of tile ``x``, shape=(height, width)
     use_bands : `list` of `str`
         List describing the order of the bands in ``x``.
     labels : `dict` [`int`, `dict`]
-        The keys are the values of the class labels in the ground truth ``y``.
-        Each nested `dict` should have keys:
+        The label dictionary. The keys are the values of the class labels
+        in the ground truth ``y``. Each nested `dict` should have keys:
             ``'color'``
                 A named color (`str`).
             ``'label'``
@@ -185,8 +185,8 @@ def plot_confusion_matrix(cm, labels, normalize=True,
     cm : `numpy.ndarray`
         The confusion matrix.
     labels : `dict` [`int`, `dict`]
-        The keys are the values of the class labels in the ground truth ``y``.
-        Each nested `dict` should have keys:
+        The label dictionary. The keys are the values of the class labels
+        in the ground truth ``y``. Each nested `dict` should have keys:
             ``'color'``
                 A named color (`str`).
             ``'label'``

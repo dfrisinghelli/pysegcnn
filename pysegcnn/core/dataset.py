@@ -35,45 +35,76 @@ from pysegcnn.core.utils import (img2np, is_divisible, tile_topleft_corner,
 LOGGER = logging.getLogger(__name__)
 
 
-# generic image dataset class
 class ImageDataset(Dataset):
+    """Base class for multispectral image data.
 
-    # allowed keyword arguments and default values
-    default_kwargs = {
+    Inheriting from `torch.utils.data.Dataset` to be compliant to the PyTorch
+    standard. Furthermore, using instances of `torch.utils.data.Dataset`
+    enables the use of the handy `torch.utils.data.DataLoader` class during
+    model training.
 
-        # which bands to use, if use_bands=[], use all available bands
-        'use_bands': [],
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
 
-        # each scene is divided into (tile_size x tile_size) blocks
-        # each of these blocks is treated as a single sample
-        'tile_size': None,
+    Returns
+    -------
+    None.
 
-        # a pattern to match the ground truth file naming convention
-        'gt_pattern': '*gt.tif',
+    """
 
-        # whether to chronologically sort the samples
-        'sort': False,
-
-        # the random seed used to split dataset into training, validation and
-        # test data
-        'seed': 0,
-
-        # the transformations to apply to the original image
-        # artificially increases the training data size
-        'transforms': [],
-
-        # whether to pad the image to be evenly divisible in square tiles
-        # of size (tile_size x tile_size)
-        'pad': False
-
-        }
-
-    def __init__(self, root_dir, **kwargs):
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
         super().__init__()
 
-        # the root directory: path to the image dataset
+        # dataset configuration
         self.root = root_dir
+        self.use_bands = use_bands
+        self.tile_size = tile_size
+        self.pad = pad
+        self.gt_pattern = gt_pattern
+        self.sort = sort
+        self.seed = seed
+        self.transforms = transforms
 
+        # initialize instance attributes
+        self._init_attributes()
+
+        # the samples of the dataset
+        self.scenes = self.compose_scenes()
+        self._assert_compose_scenes()
+
+    def _init_attributes(self):
+        """Initialize the class instance attributes."""
         # the size of a scene/patch in the dataset
         self.size = self.get_size()
         self._assert_get_size()
@@ -87,26 +118,6 @@ class ImageDataset(Dataset):
         self._label_class = self.get_labels()
         self._assert_get_labels()
         self.labels = self._build_labels()
-
-        # initialize keyword arguments
-        self._init_kwargs(**kwargs)
-
-        # the samples of the dataset
-        self.scenes = self.compose_scenes()
-        self._assert_compose_scenes()
-
-    def _init_kwargs(self, **kwargs):
-
-        # check if the keyword arguments are correctly specified
-        if not set(kwargs.keys()).issubset(self.default_kwargs.keys()):
-            raise TypeError('Valid keyword arguments are: \n' +
-                            '\n'.join('- {}'.format(k) for k in
-                                      self.default_kwargs.keys()))
-
-        # update default arguments with specified keyword argument values
-        self.default_kwargs.update(kwargs)
-        for k, v in self.default_kwargs.items():
-            setattr(self, k, v)
 
         # check which bands to use
         self.use_bands = (self.use_bands if self.use_bands else
@@ -140,12 +151,25 @@ class ImageDataset(Dataset):
                         .format(self.cval))
 
     def _build_labels(self):
+        """Build the label dictionary.
+
+        Returns
+        -------
+        labels : `dict` [`int`, `dict`]
+            The label dictionary. The keys are the values of the class labels
+            in the ground truth ``y``. Each nested `dict` should have keys:
+                ``'color'``
+                    A named color (`str`).
+                ``'label'``
+                    The name of the class label (`str`).
+
+        """
         return {band.id: {'label': band.name.replace('_', ' '),
                           'color': band.color}
                 for band in self._label_class}
 
     def _assert_compose_scenes(self):
-
+        """Check whether compose_scenes() is correctly implemented."""
         # list of required keys
         self.keys = self.use_bands + ['gt', 'date', 'tile', 'transform', 'id']
 
@@ -163,12 +187,14 @@ class ImageDataset(Dataset):
                                .format(self.keys))
 
     def _assert_get_size(self):
+        """Check whether get_size() is correctly implemented."""
         if not isinstance(self.size, tuple) and len(self.size) == 2:
             raise TypeError('{}.get_size() should return the spatial size of '
                             'an image sample as tuple, i.e. (height, width).'
                             .format(self.__class__.__name__))
 
     def _assert_get_sensor(self):
+        """Check whether get_sensor() is correctly implemented."""
         if not isinstance(self.sensor, enum.EnumMeta):
             raise TypeError('{}.get_sensor() should return an instance of '
                             'enum.Enum, containing an enumeration of the '
@@ -178,6 +204,7 @@ class ImageDataset(Dataset):
                             .format(self.__class__.__name__))
 
     def _assert_get_labels(self):
+        """Check whether get_labels() is correctly implemented."""
         if not issubclass(self._label_class, Label):
             raise TypeError('{}.get_labels() should return an instance of '
                             'pysegcnn.core.constants.Label, '
@@ -188,16 +215,32 @@ class ImageDataset(Dataset):
                             'pysegcnn.core.constants.py.'
                             .format(self.__class__.__name__))
 
-    # the __len__() method returns the number of samples in the dataset
     def __len__(self):
-        # number of (tiles x channels x height x width) patches after each
-        # scene is decomposed to tiles blocks
+        """Return the number of samples in the dataset.
+
+        Returns
+        -------
+        nsamples : `int`
+            The number of samples in the dataset.
+        """
         return len(self.scenes)
 
-    # the __getitem__() method returns a single sample of the dataset given an
-    # index, i.e. an array/tensor of shape (channels x height x width)
     def __getitem__(self, idx):
+        """Return the data of a sample of the dataset given an index ``idx``.
 
+        Parameters
+        ----------
+        idx : `int`
+            The index of the sample.
+
+        Returns
+        -------
+        x : `torch.Tensor`
+            The sample input data.
+        y : `torch.Tensor`
+            The sample ground truth.
+
+        """
         # select a scene
         scene = self.read_scene(idx)
 
@@ -209,88 +252,191 @@ class ImageDataset(Dataset):
         # preprocess samples
         x, y = self.preprocess(data, gt)
 
-        # optional transformation
+        # apply transformation
         if scene['transform'] is not None:
             x, y = scene['transform'](x, y)
 
         # convert to torch tensors
-        x, y = self.to_tensor(x, y)
+        x = self.to_tensor(x, dtype=torch.float32)
+        y = self.to_tensor(y, dtype=torch.uint8)
 
         return x, y
 
-    # the compose_scenes() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # compose_scenes() should return a list of dictionaries, where each
-    # dictionary represent one sample of the dataset, a scene or a tile
-    # of a scene, etc.
-    # the dictionaries should have the following (key, value) pairs:
-    #   - (band_1, path_to_band_1.tif)
-    #   - (band_2, path_to_band_2.tif)
-    #   - ...
-    #   - (band_n, path_to_band_n.tif)
-    #   - (gt, path_to_ground_truth.tif)
-    #   - (tile, None or int)
-    #   - ...
-    def compose_scenes(self, *args, **kwargs):
+    def compose_scenes(self):
+        """Build the list of samples of the dataset.
+
+        Each sample is represented by a dictionary.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        samples : `list` [`dict`]
+            Each dictionary representing a sample should have keys:
+                ``'band_name_1'``
+                    Path to the file of band_1.
+                ``'band_name_2'``
+                    Path to the file of band_2.
+                ``'band_name_n'``
+                    Path to the file of band_n.
+                ``'gt'``
+                    Path to the ground truth file.
+                ``'date'``
+                    The date of the sample.
+                ``'tile'``
+                    The tile id of the sample.
+                ``'transform'``
+                    The transformation to apply.
+                ``'id'``
+                    The scene identifier.
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the get_size() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # get_size() method should return the image size as tuple, (height, width)
-    def get_size(self, *args, **kwargs):
+    def get_size(self):
+        """Return the size of the images in the dataset.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the get_sensor() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # get_sensor() should return an enum.Enum with the following
-    # (name: str, value: int) tuples:
-    #    - (red, 2)
-    #    - (green, 3)
-    #    - ...
-    def get_sensor(self, *args, **kwargs):
+    def get_sensor(self):
+        """Return an enumeration of the bands of the sensor of the dataset.
+
+        Examples can be found in `pysegcnn.core.constants`.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        sensor : `enum.Enum`
+            An enumeration of the bands of the sensor.
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the get_labels() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # get_labels() should return a dictionary with the following
-    # (key: int, value: str) pairs:
-    #    - (0, label_1_name)
-    #    - (1, label_2_name)
-    #    - ...
-    #    - (n, label_n_name)
-    # where the keys should be the values representing the values of the
-    # corresponding label in the ground truth mask
-    # the labels in the dictionary determine the classes to be segmented
-    def get_labels(self, *args, **kwargs):
+    def get_labels(self):
+        """Return an enumeration of the class labels of the dataset.
+
+        Examples can be found in `pysegcnn.core.constants`.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        labels : `enum.Enum`
+            The class labels.
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the preprocess() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # preprocess() should return two torch.tensors:
-    #    - input data: tensor of shape (bands, height, width)
-    #    - ground truth: tensor of shape (height, width)
     def preprocess(self, data, gt):
+        """Preprocess a sample before feeding it to a model.
+
+        Parameters
+        ----------
+        data : `numpy.ndarray`
+            The sample input data.
+        gt : `numpy.ndarray`
+            The sample ground truth.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        data : `numpy.ndarray`
+            The preprocessed input data.
+        gt : `numpy.ndarray`
+            The preprocessed ground truth data.
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # the parse_scene_id() method has to be implemented by the class inheriting
-    # the ImageDataset class
-    # the input to the parse_scene_id() method is a string describing a scene
-    # id, e.g. an id of a Landsat or a Sentinel scene
-    # parse_scene_id() should return a dictionary containing the scene metadata
-    def parse_scene_id(self, scene):
+    def parse_scene_id(self, scene_id):
+        """Parse the scene identifier.
+
+        Parameters
+        ----------
+        scene_id : `str`
+            A scene identifier.
+
+        Raises
+        ------
+        NotImplementedError
+            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
+            inherited.
+
+        Returns
+        -------
+        scene : `dict` or `None`
+            A dictionary containing scene metadata. If `None`, ``scene_id`` is
+            not a valid scene identifier.
+
+        """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    # _read_scene() reads all the bands and the ground truth mask in a
-    # scene/tile to a numpy array and returns a dictionary with
-    # (key, value) = ('band_name', np.ndarray(band_data))
     def read_scene(self, idx):
+        """Read the data of the sample with index ``idx``.
 
+        Parameters
+        ----------
+        idx : `int`
+            The index of the sample.
+
+        Returns
+        -------
+        scene_data : `dict`
+            The sample data dictionary with keys:
+                ``'band_name_1'``
+                    data of band_1 (`numpy.ndarray`).
+                ``'band_name_2'``
+                    data of band_2 (`numpy.ndarray`).
+                ``'band_name_n'``
+                    data of band_n (`numpy.ndarray`).
+                ``'gt'``
+                    data of the ground truth (`numpy.ndarray`).
+                ``'date'``
+                    The date of the sample.
+                ``'tile'``
+                    The tile id of the sample.
+                ``'transform'``
+                    The transformation to apply.
+                ``'id'``
+                    The scene identifier.
+
+        """
         # select a scene from the root directory
         scene = self.scenes[idx]
 
@@ -309,22 +455,71 @@ class ImageDataset(Dataset):
 
         return scene_data
 
-    # _build_samples() stacks all bands of a scene/tile into a
-    # numpy array of shape (bands x height x width)
     def build_samples(self, scene):
+        """Stack the bands of a sample in a single array.
 
+        Parameters
+        ----------
+        scene : `dict`
+            The sample data dictionary with keys:
+                ``'band_name_1'``
+                    data of band_1 (`numpy.ndarray`).
+                ``'band_name_2'``
+                    data of band_2 (`numpy.ndarray`).
+                ``'band_name_n'``
+                    data of band_n (`numpy.ndarray`).
+                ``'gt'``
+                    data of the ground truth (`numpy.ndarray`).
+                ``'date'``
+                    The date of the sample.
+                ``'tile'``
+                    The tile id of the sample.
+                ``'transform'``
+                    The transformation to apply.
+                ``'id'``
+                    The scene identifier.
+
+        Returns
+        -------
+        stack : `numpy.ndarray`
+            The input data of the sample.
+        gt : TYPE
+            The ground truth of the sample.
+
+        """
         # iterate over the channels to stack
         stack = np.stack([scene[band] for band in self.use_bands], axis=0)
         gt = scene['gt']
 
         return stack, gt
 
-    def to_tensor(self, x, y):
-        return (torch.tensor(x.copy(), dtype=torch.float32),
-                torch.tensor(y.copy(), dtype=torch.uint8))
+    def to_tensor(self, x, dtype):
+        """Convert ``x`` to `torch.Tensor`.
+
+        Parameters
+        ----------
+        x : array_like
+            The input data.
+        dtype : `torch.dtype`
+            The data type used to convert ``x``.
+
+        Returns
+        -------
+        x : `torch.Tensor`
+            The input data tensor.
+
+        """
+        return torch.tensor(np.asarray(x).copy(), dtype=dtype)
 
     def __repr__(self):
+        """Dataset representation.
 
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
         # representation string to print
         fs = self.__class__.__name__ + '(\n'
 
@@ -358,17 +553,106 @@ class ImageDataset(Dataset):
         return fs
 
 
-
 class StandardEoDataset(ImageDataset):
+    """Base class for standard Earth Observation style datasets.
 
-    def __init__(self, root_dir, **kwargs):
+    `pysegcnn.core.dataset.StandardEoDataset` implements the
+    `~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method for
+    datasets with the following directory structure:
+
+    root_dir/
+        scene_id_1/
+            scene_id_1_B1.tif
+            scene_id_1_B2.tif
+            .
+            .
+            .
+            scene_id_1_BN.tif
+        scene_id_2/
+            scene_id_2_B1.tif
+            scene_id_2_B2.tif
+            .
+            .
+            .
+            scene_id_2_BN.tif
+        .
+        .
+        .
+        scene_id_N/
+            .
+            .
+            .
+
+    If your dataset shares this directory structure, you can directly inherit
+    `pysegcnn.core.dataset.StandardEoDataset` and implement the remaining
+    methods.
+
+    See `pysegcnn.core.dataset.SparcsDataset` for an example.
+
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
         # initialize super class ImageDataset
-        super().__init__(root_dir, **kwargs)
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
-    # returns the band number of a Landsat8 or Sentinel2 tif file
-    # path: path to a tif file
-    def get_band_number(self, path):
+    def _get_band_number(self, path):
+        """Return the band number of a scene .tif file.
 
+        Parameters
+        ----------
+        path : `str`
+            The path to the .tif file.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``path`` is not a .tif file.
+
+        Returns
+        -------
+        band : `int` or `str`
+            The band number.
+
+        """
         # check whether the path leads to a tif file
         if not path.endswith(('tif', 'TIF')):
             raise ValueError('Expected a path to a tif file.')
@@ -377,7 +661,7 @@ class StandardEoDataset(ImageDataset):
         fname = os.path.basename(path)
 
         # search for numbers following a "B" in the filename
-        band = re.search('B\dA|B\d{1,2}', fname)[0].replace('B', '')
+        band = re.search('B\\dA|B\\d{1,2}', fname)[0].replace('B', '')
 
         # try converting to an integer:
         # raises a ValueError for Sentinel2 8A band
@@ -388,14 +672,34 @@ class StandardEoDataset(ImageDataset):
 
         return band
 
-    # store_bands() writes the paths to the data of each scene to a dictionary
-    # only the bands of interest are stored
-    def store_bands(self, bands, gt):
+    def _store_bands(self, bands, gt):
+        """Write the bands of interest to a dictionary.
 
+        Parameters
+        ----------
+        bands : `list` [`str`]
+            Paths to the .tif files of the bands of the scene.
+        gt : `str`
+            Path to the ground truth of the scene.
+
+        Returns
+        -------
+        scene_data : `dict`
+            The scene data dictionary with keys:
+                ``'band_name_1'``
+                    Path to the .tif file of band_1.
+                ``'band_name_2'``
+                    Path to the .tif file of band_2.
+                ``'band_name_n'``
+                    Path to the .tif file of band_n.
+                ``'gt'``
+                    Path to the ground truth file.
+
+        """
         # store the bands of interest in a dictionary
         scene_data = {}
         for i, b in enumerate(bands):
-            band = self.bands[self.get_band_number(b)]
+            band = self.bands[self._get_band_number(b)]
             if band in self.use_bands:
                 scene_data[band] = b
 
@@ -404,12 +708,33 @@ class StandardEoDataset(ImageDataset):
 
         return scene_data
 
-    # compose_scenes() creates a list of dictionaries containing the paths
-    # to the tif files of each scene
-    # if the scenes are divided into tiles, each tile has its own entry
-    # with corresponding tile id
     def compose_scenes(self):
+        """Build the list of samples of the dataset.
 
+        Each sample is represented by a dictionary.
+
+        Returns
+        -------
+        scenes : `list` [`dict`]
+            Each item in ``scenes`` is a `dict` with keys:
+                ``'band_name_1'``
+                    Path to the file of band_1.
+                ``'band_name_2'``
+                    Path to the file of band_2.
+                ``'band_name_n'``
+                    Path to the file of band_n.
+                ``'gt'``
+                    Path to the ground truth file.
+                ``'date'``
+                    The date of the sample.
+                ``'tile'``
+                    The tile id of the sample.
+                ``'transform'``
+                    The transformation to apply.
+                ``'id'``
+                    The scene identifier.
+
+        """
         # search the root directory
         scenes = []
         self.gt = []
@@ -447,7 +772,7 @@ class StandardEoDataset(ImageDataset):
                     for transf in self.transforms:
 
                         # store the bands and the ground truth mask of the tile
-                        data = self.store_bands(bands, gt)
+                        data = self._store_bands(bands, gt)
 
                         # the name of the scene
                         data['id'] = scene['id']
@@ -472,122 +797,518 @@ class StandardEoDataset(ImageDataset):
         return scenes
 
 
-# SparcsDataset class: inherits from the generic ImageDataset class
 class SparcsDataset(StandardEoDataset):
+    """Dataset class for the `Sparcs`_ dataset.
 
-    def __init__(self, root_dir, **kwargs):
+    .. _Sparcs:
+        https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation
+
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, **kwargs)
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
-    # image size of the Sparcs dataset: (height, width)
     def get_size(self):
+        """Image size of the Sparcs dataset.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
         return (1000, 1000)
 
-    # Landsat 8 bands of the Sparcs dataset
     def get_sensor(self):
+        """Landsat 8 bands of the Sparcs dataset.
+
+        Returns
+        -------
+        sensor : `enum.Enum`
+            An enumeration of the bands of the sensor.
+
+        """
         return Landsat8
 
-    # class labels of the Sparcs dataset
     def get_labels(self):
+        """Class labels of the Sparcs dataset.
+
+        Returns
+        -------
+        labels : `enum.Enum`
+            The class labels.
+
+        """
         return SparcsLabels
 
-    # preprocessing of the Sparcs dataset
     def preprocess(self, data, gt):
+        """Preprocess Sparcs dataset images.
 
+        Parameters
+        ----------
+        data : `numpy.ndarray`
+            The sample input data.
+        gt : `numpy.ndarray`
+            The sample ground truth.
+
+        Returns
+        -------
+        data : `numpy.ndarray`
+            The preprocessed input data.
+        gt : `numpy.ndarray`
+            The preprocessed ground truth data.
+
+        """
         # if the preprocessing is not done externally, implement it here
         return data, gt
 
-    # function that parses the date from a Landsat 8 scene id
-    def parse_scene_id(self, scene):
-        return parse_landsat_scene(scene)
+    def parse_scene_id(self, scene_id):
+        """Parse Sparcs scene identifiers (Landsat 8).
+
+        Parameters
+        ----------
+        scene_id : `str`
+            A scene identifier.
+
+        Returns
+        -------
+        scene : `dict` or `None`
+            A dictionary containing scene metadata. If `None`, ``scene_id`` is
+            not a valid Landsat scene identifier.
+
+        """
+        return parse_landsat_scene(scene_id)
 
 
 class ProSnowDataset(StandardEoDataset):
+    """Dataset class for the ProSnow datasets.
 
-    def __init__(self, root_dir, **kwargs):
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, **kwargs)
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
-    # Sentinel 2 bands
     def get_sensor(self):
+        """Sentinel 2 bands of the ProSnow datasets.
+
+        Returns
+        -------
+        sensor : `enum.Enum`
+            An enumeration of the bands of the sensor.
+
+        """
         return Sentinel2
 
-    # class labels of the ProSnow dataset
     def get_labels(self):
+        """Class labels of the ProSnow datasets.
+
+        Returns
+        -------
+        labels : `enum.Enum`
+            The class labels.
+
+        """
         return ProSnowLabels
 
-    # preprocessing of the ProSnow dataset
     def preprocess(self, data, gt):
+        """Preprocess ProSnow dataset images.
 
+        Parameters
+        ----------
+        data : `numpy.ndarray`
+            The sample input data.
+        gt : `numpy.ndarray`
+            The sample ground truth.
+
+        Returns
+        -------
+        data : `numpy.ndarray`
+            The preprocessed input data.
+        gt : `numpy.ndarray`
+            The preprocessed ground truth data.
+
+        """
         # if the preprocessing is not done externally, implement it here
         return data, gt
 
-    # function that parses the date from a Sentinel 2 scene id
-    def parse_scene_id(self, scene):
-        return parse_sentinel2_scene(scene)
+    def parse_scene_id(self, scene_id):
+        """Parse ProSnow scene identifiers (Sentinel 2).
+
+        Parameters
+        ----------
+        scene_id : `str`
+            A scene identifier.
+
+        Returns
+        -------
+        scene : `dict` or `None`
+            A dictionary containing scene metadata. If `None`, ``scene_id`` is
+            not a valid Sentinel-2 scene identifier.
+
+        """
+        return parse_sentinel2_scene(scene_id)
 
 
 class ProSnowGarmisch(ProSnowDataset):
+    """Dataset class for the ProSnow Garmisch dataset.
 
-    def __init__(self, root_dir, **kwargs):
-        # initialize super class StandardEoDatasets
-        super().__init__(root_dir, **kwargs)
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+        # initialize super class StandardEoDataset
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
     def get_size(self):
+        """Image size of the ProSnow Garmisch dataset.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
         return (615, 543)
 
 
 class ProSnowObergurgl(ProSnowDataset):
+    """Dataset class for the ProSnow Obergurgl dataset.
 
-    def __init__(self, root_dir, **kwargs):
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
-        super().__init__(root_dir, **kwargs)
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
     def get_size(self):
+        """Image size of the ProSnow Obergurgl dataset.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
         return (310, 270)
 
 
 class Cloud95Dataset(ImageDataset):
+    """Dataset class for the `Cloud95`_ dataset by `Mohajerani et al. (2020)`_.
 
-    def __init__(self, root_dir, **kwargs):
+    .. _Cloud95:
+        https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset
+    .. _`Mohajerani et al. (2020)`:
+        https://arxiv.org/abs/2001.08768
+
+    Parameters
+    ----------
+    root_dir : `str`
+        The root directory, path to the dataset.
+    use_bands : `list` [`str`], optional
+        A list of the spectral bands to use. The default is [].
+    tile_size : `int` or `None`, optional
+        The size of the tiles. If not `None`, each scene is divided into square
+        tiles of shape (tile_size, tile_size). The default is None.
+    pad : `bool`, optional
+        Whether to center pad the input image. Set ``pad`` = True, if the
+        images are not evenly divisible by the ``tile_size``. The image data is
+        padded with a constant padding value of zero. For each image, the
+        corresponding ground truth image is padded with a "no data" label.
+        The default is False.
+    gt_pattern : `str`, optional
+        A pattern to match the ground truth naming convention. All directories
+        and subdirectories in ``root_dir`` are searched for files matching
+        ``gt_pattern``. The default is '*gt.tif'.
+    sort : `bool`, optional
+        Whether to chronologically sort the samples. Useful for time series
+        data. The default is False.
+    seed : `int`, optional
+        The random seed. Used to split the dataset into training, validation
+        and test set. Useful for reproducibility. The default is 0.
+    transforms : `list` [`pysegcnn.core.split.Augment`], optional
+        List of `pysegcnn.core.split.Augment` instances. Each item in
+        ``transforms`` generates a distinct transformed version of the dataset.
+        The total dataset is composed of the original untransformed dataset
+        together with each transformed version of it.
+        If ``transforms`` = [], only the original dataset is used.
+        The default is [].
+
+    Returns
+    -------
+    None.
+
+    """
+
+    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
+                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+        # initialize super class StandardEoDataset
+        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
+                         sort, seed, transforms)
 
         # the csv file containing the names of the informative patches
         # patches with more than 80% black pixels, i.e. patches resulting from
         # the black margins around a Landsat 8 scene are excluded
         self.exclude = 'training_patches_95-cloud_nonempty.csv'
 
-        # initialize super class ImageDataset
-        super().__init__(root_dir, **kwargs)
-
-    # image size of the Cloud-95 dataset: (height, width)
     def get_size(self):
+        """Image size of the Cloud-95 dataset.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
         return (384, 384)
 
-    # Landsat 8 bands in the Cloud-95 dataset
     def get_sensor(self):
+        """Landsat 8 bands of the Cloud-95 dataset.
+
+        Returns
+        -------
+        sensor : `enum.Enum`
+            An enumeration of the bands of the sensor.
+
+        """
         return Landsat8
 
-    # class labels of the Cloud-95 dataset
     def get_labels(self):
+        """Class labels of the Cloud-95 dataset.
+
+        Returns
+        -------
+        labels : `enum.Enum`
+            The class labels.
+
+        """
         return Cloud95Labels
 
-    # preprocess Cloud-95 dataset
     def preprocess(self, data, gt):
+        """Preprocess Cloud-95 dataset images.
 
+        Parameters
+        ----------
+        data : `numpy.ndarray`
+            The sample input data.
+        gt : `numpy.ndarray`
+            The sample ground truth.
+
+        Returns
+        -------
+        data : `numpy.ndarray`
+            The preprocessed input data.
+        gt : `numpy.ndarray`
+            The preprocessed ground truth data.
+
+        """
         # normalize the data
         # here, we use the normalization of the authors of Cloud-95, i.e.
         # Mohajerani and Saeedi (2019, 2020)
         data /= 65535
         gt[gt != self.cval] /= 255
-
         return data, gt
 
-    # function that parses the date from a Landsat 8 scene id
-    def parse_scene_id(self, scene):
-        return parse_landsat_scene(scene)
+    def parse_scene_id(self, scene_id):
+        """Parse Sparcs scene identifiers (Landsat 8).
+
+        Parameters
+        ----------
+        scene_id : `str`
+            A scene identifier.
+
+        Returns
+        -------
+        scene : `dict` or `None`
+            A dictionary containing scene metadata. If `None`, ``scene_id`` is
+            not a valid Landsat scene identifier.
+
+        """
+        return parse_landsat_scene(scene_id)
 
     def compose_scenes(self):
+        """Build the list of samples of the dataset.
 
+        Each sample is represented by a dictionary.
+
+        Returns
+        -------
+        scenes : `list` [`dict`]
+            Each item in ``scenes`` is a `dict` with keys:
+                ``'band_name_1'``
+                    Path to the file of band_1.
+                ``'band_name_2'``
+                    Path to the file of band_2.
+                ``'band_name_n'``
+                    Path to the file of band_n.
+                ``'gt'``
+                    Path to the ground truth file.
+                ``'date'``
+                    The date of the sample.
+                ``'tile'``
+                    The tile id of the sample.
+                ``'transform'``
+                    The transformation to apply.
+                ``'id'``
+                    The scene identifier.
+
+        """
         # whether to exclude patches with more than 80% black pixels
         ipatches = []
         if self.exclude is not None:
@@ -620,7 +1341,7 @@ class Cloud95Dataset(ImageDataset):
             patchname = file.split('.')[0].replace(biter + '_', '')
 
             # get the date of the current scene
-            date = self.parse_scene_id(patchname)['date']
+            scene_meta = self.parse_scene_id(patchname)
 
             # check whether the current file is an informative patch
             if ipatches and patchname not in ipatches:
@@ -641,11 +1362,14 @@ class Cloud95Dataset(ImageDataset):
                         scene[band] = os.path.join(band_dirs[band],
                                                    file.replace(biter, band))
 
+                    # the name of the scene the patch was extracted from
+                    scene['id'] = scene_meta['id']
+
                     # store tile number
                     scene['tile'] = tile
 
                     # store date
-                    scene['date'] = date
+                    scene['date'] = scene_meta['date']
 
                     # store optional transformation
                     scene['transform'] = transf
@@ -661,49 +1385,9 @@ class Cloud95Dataset(ImageDataset):
 
 
 class SupportedDatasets(enum.Enum):
+    """Names and corresponding classes of the implemented datasets."""
+
     Sparcs = SparcsDataset
     Cloud95 = Cloud95Dataset
     Garmisch = ProSnowGarmisch
     Obergurgl = ProSnowObergurgl
-
-
-if __name__ == '__main__':
-
-    # define path to working directory
-    # wd = '//projectdata.eurac.edu/projects/cci_snow/dfrisinghelli/'
-    # wd = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli'
-    wd = 'C:/Eurac/2020/'
-
-    # path to the preprocessed sparcs dataset
-    sparcs_path = os.path.join(wd, '_Datasets/Sparcs')
-
-    # path to the Cloud-95 dataset
-    # cloud_path = os.path.join(wd, '_Datasets/Cloud95/Training')
-
-    # path to the ProSnow dataset
-    # prosnow_path = os.path.join(wd, '_Datasets/ProSnow/')
-
-    # instanciate the Cloud-95 dataset
-    # cloud_dataset = Cloud95Dataset(cloud_path,
-    #                                tile_size=192,
-    #                                use_bands=[],
-    #                                sort=False)
-
-    # instanciate the SparcsDataset class
-    sparcs_dataset = SparcsDataset(sparcs_path,
-                                   tile_size=None,
-                                   use_bands=['red', 'green', 'blue', 'nir'],
-                                   sort=False,
-                                   transforms=[],
-                                   gt_pattern='*mask.png',
-                                   pad=True,
-                                   cval=99,
-                                   )
-
-    # instanciate the ProSnow datasets
-    # garmisch = ProSnowGarmisch(os.path.join(prosnow_path, 'Garmisch'),
-    #                            tile_size=None,
-    #                            use_bands=['nir', 'red', 'green', 'blue'],
-    #                            sort=True,
-    #                            transforms=[],
-    #                            gt_pattern='*class.img')

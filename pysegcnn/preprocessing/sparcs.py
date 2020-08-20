@@ -1,4 +1,15 @@
-"""Functions to preprocess the Sparcs dataset to work with pylandsat."""
+"""Functions to preprocess the Sparcs dataset.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
+"""
 
 # !/usr/bin/env python
 # coding: utf-8
@@ -18,16 +29,16 @@ from pylandsat.core.calibration import landsat_radiometric_calibration
 
 
 def sparcs2pylandsat(source_path, target_path, overwrite=True):
-    """Convert the Sparcs dataset structure to the pylandsat standard.
+    """Convert the Sparcs dataset structure to standard EO structure.
 
     Parameters
     ----------
-    source_path : string
-        path to the Sparcs archive downloaded `here`_
-    target_path : string
-        path to save the preprocessed sparcs dataset
-    overwrite : bool
-        whether to overwrite existing files
+    source_path : `str`
+        Path to the Sparcs archive downloaded `here`_.
+    target_path : `str`
+        Path to save the preprocessed sparcs dataset.
+    overwrite : `bool`
+        Whether to overwrite existing files.
 
     Returns
     -------
@@ -83,10 +94,10 @@ def destack_sparcs_raster(inpath, outpath=None, suffix='*_toa.tif'):
 
     Parameters
     ----------
-    inpath : string
-        path to a directory containing the TIFF file to destack
-    outpath : string, optional
-        path to save the output TIFF files. The default is None. If None,
+    inpath : `str`
+        Path to a directory containing the TIFF file to destack.
+    outpath : `str`, optional
+        Path to save the output TIFF files. The default is None. If None,
         ``outpath`` = ``inpath``.
 
     Returns

@@ -1,9 +1,19 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 22 09:06:45 2020
+"""Test suite for pysegcnn.core.utils.py.
 
-@author: Daniel
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
 """
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # externals
 import pytest
 import numpy as np

@@ -1,9 +1,27 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 29 15:57:01 2020
+"""Main script to evaluate a model.
 
-@author: Daniel
+Steps to run a model evaluation:
+
+    (1) Configure the dictionary 'eval_config' in pysegcnn/main/config.py
+    (2) Save pysegcnn/main/config.py
+    (3) In a terminal, navigate to the repository's root directory
+    (4) run "python pysegcnn/main/eval.py"
+
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
 """
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 from logging.config import dictConfig
 
@@ -29,7 +47,7 @@ if __name__ == '__main__':
     model, _, model_state = Network.load(ec.state_file)
 
     # plot loss and accuracy
-    plot_loss(ec.state_file, outpath=ec.models_path)
+    plot_loss(ec.state_file, outpath=ec.perfmc_path)
 
     # check whether to evaluate the model on the training set, validation set
     # or the test set
@@ -60,4 +78,4 @@ if __name__ == '__main__':
     if ec.cm:
         plot_confusion_matrix(cm, ds.dataset.labels,
                               state=ec.state_file.name.replace('.pt', '.png'),
-                              outpath=ec.models_path)
+                              outpath=ec.perfmc_path)

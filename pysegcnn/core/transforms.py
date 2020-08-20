@@ -1,6 +1,18 @@
 """Data augmentation.
 
-Image transformations to artificially increase a dataset.
+This module provides classes implementing common image augmentation methods.
+
+These methods may be used to artificially increase a dataset.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
 """
 
 # !/usr/bin/env python
@@ -420,7 +432,7 @@ class Augment(object):
         return image, gt
 
     def __repr__(self):
-        """Representation of the container.
+        """Representation of `~pysegcnn.core.transforms.Augment`.
 
         Returns
         -------

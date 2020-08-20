@@ -1,4 +1,15 @@
-"""Functions for model inference."""
+"""Functions for model inference.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
+"""
 
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-

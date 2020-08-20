@@ -6,6 +6,16 @@ during model training.
 
 For any kind of image-like dataset, inherit the ImageDataset class to create
 your custom dataset.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
 """
 
 # !/usr/bin/env python

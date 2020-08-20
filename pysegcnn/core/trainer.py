@@ -1,4 +1,20 @@
-"""Model configuration and training."""
+"""Model configuration and training.
+
+This module provides an end-to-end framework of dataclasses designed to train
+segmentation models on image datasets.
+
+See pysegcnn/main/train.py for a complete walkthrough.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
+"""
 
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
@@ -70,6 +86,8 @@ class BaseConfig:
 class DatasetConfig(BaseConfig):
     """Dataset configuration class.
 
+    Instanciate a dataset.
+
     Parameters
     ----------
     dataset_name : `str`
@@ -105,6 +123,10 @@ class DatasetConfig(BaseConfig):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
 
+    Returns
+    -------
+    None.
+
     """
 
     dataset_name: str
@@ -122,6 +144,8 @@ class DatasetConfig(BaseConfig):
 
         Raises
         ------
+        ValueError
+            Raised if ``dataset_name`` is not supported.
         FileNotFoundError
             Raised if ``root_dir`` does not exist.
         TypeError
@@ -178,6 +202,8 @@ class DatasetConfig(BaseConfig):
 class SplitConfig(BaseConfig):
     """Dataset split configuration class.
 
+    Split a dataset into training, validation and test set.
+
     Parameters
     ----------
     split_mode : `str`
@@ -199,6 +225,10 @@ class SplitConfig(BaseConfig):
         Whether to drop samples (during training only) with a fraction of
         pixels equal to the constant padding value >= ``drop``. ``drop`` = 0
         means, do not drop any samples. The default is 0.
+
+    Returns
+    -------
+    None.
 
     """
 
@@ -373,6 +403,8 @@ class SplitConfig(BaseConfig):
 class ModelConfig(BaseConfig):
     """Model configuration class.
 
+    Instanciate a (pretrained) model.
+
     Parameters
     ----------
     model_name : `str`
@@ -435,6 +467,10 @@ class ModelConfig(BaseConfig):
     .. _early stopping:
         https://en.wikipedia.org/wiki/Early_stopping
 
+    Returns
+    -------
+    None.
+
     """
 
     model_name: str
@@ -460,6 +496,8 @@ class ModelConfig(BaseConfig):
 
     def __post_init__(self):
         """Check the type of each argument.
+
+        Configure path to save model state.
 
         Raises
         ------
@@ -547,7 +585,7 @@ class ModelConfig(BaseConfig):
             An instance of `pysegcnn.core.models.Network`.
         optimizer : `torch.optim.Optimizer`
             An instance of `torch.optim.Optimizer`.
-        checkpoint_state : `dict`
+        checkpoint_state : `dict` [`str`, `numpy.ndarray`]
             If the model checkpoint ``state_file`` exists, ``checkpoint_state``
             has keys:
                 ``'ta'``
@@ -618,7 +656,7 @@ class ModelConfig(BaseConfig):
             An instance of `pysegcnn.core.models.Network`.
         optimizer : `torch.optim.Optimizer`
             An instance of `torch.optim.Optimizer`.
-        checkpoint_state : `dict`
+        checkpoint_state : `dict` [`str`, `numpy.ndarray`]
             If the model checkpoint ``state_file`` exists, ``checkpoint_state``
             has keys:
                 ``'ta'``
@@ -725,15 +763,51 @@ class ModelConfig(BaseConfig):
 
 @dataclasses.dataclass
 class StateConfig(BaseConfig):
+    """Model state configuration class.
+
+    Generate the model state filename according to the following naming
+    convention:
+
+    model_dataset_optimizer_splitmode_splitparams_tilesize_batchsize_bands.pt
+
+    Parameters
+    ----------
+    ds : `pysegcnn.core.dataset.ImageDataset`
+        An instance of `pysegcnn.core.dataset.ImageDataset`.
+    sc : `pysegcnn.core.trainer.SplitConfig`
+        An instance of `pysegcnn.core.trainer.SplitConfig`.
+    mc : `pysegcnn.core.trainer.ModelConfig`
+        An instance of `pysegcnn.core.trainer.SplitConfig`.
+
+    Returns
+    -------
+    None.
+
+    """
+
     ds: ImageDataset
     sc: SplitConfig
     mc: ModelConfig
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Returns
+        -------
+        None.
+
+        """
         super().__post_init__()
 
     def init_state(self):
+        """Generate the model state filename.
 
+        Returns
+        -------
+        state : `pathlib.Path`
+            The path to the model state file.
+
+        """
         # file to save model state to:
         # network_dataset_optim_split_splitparams_tilesize_batchsize_bands.pt
 
@@ -787,6 +861,48 @@ class StateConfig(BaseConfig):
 
 @dataclasses.dataclass
 class EvalConfig(BaseConfig):
+    """Model inference configuration.
+
+    Evaluate a model.
+
+    Parameters
+    ----------
+    state_file : `pathlib.Path`
+        Path to the model to evaluate.
+    test : `bool` or `None`
+        Whether to evaluate the model on the training(``test`` = `None`), the
+        validation (``test`` = False) or the test set (``test`` = True).
+    predict_scene : `bool`, optional
+        The model prediction order. If False, the samples (tiles) of a dataset
+        are predicted in any order and the scenes are not reconstructed.
+        If True, the samples (tiles) are ordered according to the scene they
+        belong to and a model prediction for each entire reconstructed scene is
+        returned. The default is False.
+    plot_samples : `bool`, optional
+        Whether to save a plot of false color composite, ground truth and model
+        prediction for each sample (tile). Only used if ``predict_scene`` =
+        False. The default is False.
+    plot_scenes : `bool`, optional
+        Whether to save a plot of false color composite, ground truth and model
+        prediction for each entire scene. Only used if ``predict_scene`` =
+        True. The default is False.
+    plot_bands : `list` [`str`], optional
+        The bands to build the false color composite. The default is
+        ['nir', 'red', 'green'].
+    cm : `bool`, optional
+        Whether to compute and plot the confusion matrix. The default is True.
+    figsize : `tuple`, optional
+        The figure size in centimeters. The default is (10, 10).
+    alpha : `int`, optional
+        The level of the percentiles for contrast stretching of the false color
+        compsite. The default is 0, i.e. no stretching.
+
+    Returns
+    -------
+    None.
+
+    """
+
     state_file: pathlib.Path
     test: object
     predict_scene: bool = False
@@ -799,6 +915,20 @@ class EvalConfig(BaseConfig):
     alpha: int = 5
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Configure figure output paths.
+
+        Raises
+        ------
+        TypeError
+            Raised if ``test`` is not of type `bool` or `None`.
+
+        Returns
+        -------
+        None.
+
+        """
         super().__post_init__()
 
         # check whether the test input parameter is correctly specified
@@ -810,7 +940,11 @@ class EvalConfig(BaseConfig):
         self.base_path = pathlib.Path(HERE)
         self.sample_path = self.base_path.joinpath('_samples')
         self.scenes_path = self.base_path.joinpath('_scenes')
-        self.models_path = self.base_path.joinpath('_graphics')
+        self.perfmc_path = self.base_path.joinpath('_graphics')
+
+        # input path for model state files
+        self.models_path = self.base_path.joinpath('_models')
+        self.state_file = self.models_path.joinpath(self.state_file)
 
         # write initialization string to log file
         LogConfig.init_log('{}: ' + 'Evaluating model: {}.'.format(
@@ -819,9 +953,29 @@ class EvalConfig(BaseConfig):
 
 @dataclasses.dataclass
 class LogConfig(BaseConfig):
+    """Logging configuration class.
+
+    Generate the model log file.
+
+    Parameters
+    ----------
+    state_file : `pathlib.Path`
+        Path to a model state file.
+
+    """
+
     state_file: pathlib.Path
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Generate model log file.
+
+        Returns
+        -------
+        None.
+
+        """
         super().__post_init__()
 
         # the path to store model logs
@@ -833,11 +987,31 @@ class LogConfig(BaseConfig):
 
     @staticmethod
     def now():
+        """Return the current date and time.
+
+        Returns
+        -------
+        date : `datetime.datetime`
+            The current date and time.
+
+        """
         return datetime.datetime.strftime(datetime.datetime.now(),
                                           '%Y-%m-%dT%H:%M:%S')
 
     @staticmethod
     def init_log(init_str):
+        """Generate a string to identify a new model run.
+
+        Parameters
+        ----------
+        init_str : `str`
+            The string to write to the model log file.
+
+        Returns
+        -------
+        None.
+
+        """
         LOGGER.info(80 * '-')
         LOGGER.info(init_str.format(LogConfig.now()))
         LOGGER.info(80 * '-')
@@ -845,6 +1019,74 @@ class LogConfig(BaseConfig):
 
 @dataclasses.dataclass
 class NetworkTrainer(BaseConfig):
+    """Model training class.
+
+    Generic class to train an instance of `pysegcnn.core.models.Network` on
+    a dataset of type `pysegcnn.core.dataset.ImageDataset`.
+
+    Parameters
+    ----------
+    model : `pysegcnn.core.models.Network`
+        The model to train. An instance of `pysegcnn.core.models.Network`.
+    optimizer : `torch.optim.Optimizer`
+        The optimizer to update the model weights. An instance of
+        `torch.optim.Optimizer`.
+    loss_function : `torch.nn.Module`
+        The loss function to compute the model error. An instance of
+        `torch.nn.Module`.
+    train_dl : `torch.utils.data.DataLoader`
+        The training `torch.utils.data.DataLoader` instance.
+    valid_dl : `torch.utils.data.DataLoader`
+        The validation `torch.utils.data.DataLoader` instance.
+    test_dl : `torch.utils.data.DataLoader`
+        The test `torch.utils.data.DataLoader` instance.
+    state_file : `pathlib.Path`
+        Path to save the model state.
+    epochs : `int`, optional
+        The maximum number of epochs to train. The default is 1.
+    nthreads : `int`, optional
+        The number of cpu threads to use during training. The default is
+        torch.get_num_threads().
+    early_stop : `bool`, optional
+        Whether to apply `early stopping`_. The default is False.
+    mode : `str`, optional
+        The mode of the early stopping. Depends on the metric measuring
+        performance. When using model loss as metric, use ``mode`` = 'min',
+        however, when using accuracy as metric, use ``mode`` = 'max'. For now,
+        only ``mode`` = 'max' is supported. Only used if ``early_stop`` = True.
+        The default is 'max'.
+    delta : `float`, optional
+        Minimum change in early stopping metric to be considered as an
+        improvement. Only used if ``early_stop`` = True. The default is 0.
+    patience : `int`, optional
+        The number of epochs to wait for an improvement in the early stopping
+        metric. If the model does not improve over more than ``patience``
+        epochs, quit training. Only used if ``early_stop`` = True.
+        The default is 10.
+    checkpoint_state : `dict` [`str`, `numpy.ndarray`], optional
+        A model checkpoint for ``model``. If specified, ``checkpoint_state``
+        should be a dictionary with keys:
+            ``'ta'``
+                The accuracy on the training set (`numpy.ndarray`).
+            ``'tl'``
+                The loss on the training set (`numpy.ndarray`).
+            ``'va'``
+                The accuracy on the validation set (`numpy.ndarray`).
+            ``'vl'``
+                The loss on the validation set (`numpy.ndarray`).
+        The default is {}.
+    save : `bool`, optional
+        Whether to save the model state to ``state_file``. The default is True.
+
+    .. _early stopping:
+        https://en.wikipedia.org/wiki/Early_stopping
+
+    Returns
+    -------
+    None.
+
+    """
+
     model: Network
     optimizer: Optimizer
     loss_function: nn.Module
@@ -862,11 +1104,26 @@ class NetworkTrainer(BaseConfig):
     save: bool = True
 
     def __post_init__(self):
+        """Check the type of each argument.
+
+        Configure the device to train the model on, i.e. train on the gpu if
+        available.
+
+        Configure early stopping if required.
+
+        Returns
+        -------
+        None.
+
+        """
         super().__post_init__()
 
         # whether to use the gpu
         self.device = torch.device("cuda:0" if torch.cuda.is_available()
                                    else "cpu")
+
+        # send the model to the gpu if available
+        self.model = self.model.to(self.device)
 
         # maximum accuracy on the validation dataset
         self.max_accuracy = 0
@@ -884,7 +1141,22 @@ class NetworkTrainer(BaseConfig):
         LOGGER.info(repr(self))
 
     def train(self):
+        """Train the model.
 
+        Returns
+        -------
+        training_state : `dict` [`str`, `numpy.ndarray`]
+            The training state dictionary with keys:
+            ``'ta'``
+                The accuracy on the training set (`numpy.ndarray`).
+            ``'tl'``
+                The loss on the training set (`numpy.ndarray`).
+            ``'va'``
+                The accuracy on the validation set (`numpy.ndarray`).
+            ``'vl'``
+                The loss on the validation set (`numpy.ndarray`).
+
+        """
         LOGGER.info(35 * '-' + ' Training ' + 35 * '-')
 
         # set the number of threads
@@ -902,10 +1174,7 @@ class NetworkTrainer(BaseConfig):
                                'va': np.zeros(shape=vshape)
                                }
 
-        # send the model to the gpu if available
-        self.model = self.model.to(self.device)
-
-        # initialize the training: iterate over the entire training data set
+        # initialize the training: iterate over the entire training dataset
         for epoch in range(self.epochs):
 
             # set the model to training mode
@@ -988,14 +1257,20 @@ class NetworkTrainer(BaseConfig):
                 # saved after each epoch
                 self.save_state()
 
-
         return self.training_state
 
     def predict(self):
+        """Model inference at training time.
 
-        # send the model to the gpu if available
-        self.model = self.model.to(self.device)
+        Returns
+        -------
+        accuracies : `numpy.ndarray`
+            The mean model prediction accuracy on each mini-batch in the
+            validation set.
+        losses : `numpy.ndarray`
+            The model loss for each mini-batch in the validation set.
 
+        """
         # set the model to evaluation mode
         LOGGER.info('Setting model to evaluation mode ...')
         self.model.eval()
@@ -1038,7 +1313,13 @@ class NetworkTrainer(BaseConfig):
         return accuracies, losses
 
     def save_state(self):
+        """Save the model state.
 
+        Returns
+        -------
+        None.
+
+        """
         # whether to save the model state
         if self.save:
 
@@ -1064,9 +1345,15 @@ class NetworkTrainer(BaseConfig):
                 state=state,
                 )
 
-
     def __repr__(self):
+        """Representation of `~pysegcnn.core.trainer.NetworkTrainer`.
 
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
         # representation string to print
         fs = self.__class__.__name__ + '(\n'
 
@@ -1108,6 +1395,47 @@ class NetworkTrainer(BaseConfig):
 
 
 class EarlyStopping(object):
+    """`Early stopping`_ algorithm.
+
+    This implementation of the early stopping algorithm advances a counter each
+    time a metric did not improve over a training epoch. If the metric does not
+    improve over more than ``patience`` epochs, the early stopping criterion is
+    met.
+
+    See `pysegcnn.core.trainer.NetworkTrainer.train` for an example
+    implementation.
+
+    Parameters
+    ----------
+    mode : `str`, optional
+        The mode of the early stopping. Depends on the metric measuring
+        performance. When using model loss as metric, use ``mode`` = 'min',
+        however, when using accuracy as metric, use ``mode`` = 'max'. The
+        default is 'max'.
+    best : `float`, optional
+        Threshold indicating the best metric score. At instanciation, set
+        ``best`` to the worst possible score of the metric. ``best`` will be
+        overwritten during training. The default is 0.
+    min_delta : `float`, optional
+        Minimum change in early stopping metric to be considered as an
+        improvement. The default is 0.
+    patience : `int`, optional
+        The number of epochs to wait for an improvement in the early stopping
+        metric. The default is 10.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``mode`` is not either 'min' or 'max'.
+
+    Returns
+    -------
+    None.
+
+    .. _Early stopping:
+        https://en.wikipedia.org/wiki/Early_stopping
+
+    """
 
     def __init__(self, mode='max', best=0, min_delta=0, patience=10):
 
@@ -1141,7 +1469,19 @@ class EarlyStopping(object):
         self.counter = 0
 
     def stop(self, metric):
+        """Advance early stopping counter.
 
+        Parameters
+        ----------
+        metric : `float`
+            The current metric score.
+
+        Returns
+        -------
+        early_stop : `bool`
+            Whether the early stopping criterion is met.
+
+        """
         # if the metric improved, reset the epochs counter, else, advance
         if self.is_better(metric, self.best, self.min_delta):
             self.counter = 0
@@ -1160,13 +1500,62 @@ class EarlyStopping(object):
         return self.early_stop
 
     def decreased(self, metric, best, min_delta):
+        """Whether a metric decreased with respect to a best score.
+
+        Measure improvement for metrics that are considered as 'better' when
+        they decrease, e.g. model loss, mean squared error, etc.
+
+        Parameters
+        ----------
+        metric : `float`
+            The current score.
+        best : `float`
+            The current best score.
+        min_delta : `float`
+            Minimum change to be considered as an improvement.
+
+        Returns
+        -------
+        `bool`
+            Whether the metric improved.
+
+        """
         return metric < best - min_delta
 
     def increased(self, metric, best, min_delta):
+        """Whether a metric increased with respect to a best score.
+
+        Measure improvement for metrics that are considered as 'better' when
+        they increase, e.g. accuracy, precision, recall, etc.
+
+        Parameters
+        ----------
+        metric : `float`
+            The current score.
+        best : `float`
+            The current best score.
+        min_delta : `float`
+            Minimum change to be considered as an improvement.
+
+        Returns
+        -------
+        `bool`
+            Whether the metric improved.
+
+        """
         return metric > best + min_delta
 
     def __repr__(self):
+        """Representation of `~pysegcnn.core.trainer.EarlyStopping`.
+
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
         fs = self.__class__.__name__
         fs += '(mode={}, best={:.2f}, delta={}, patience={})'.format(
             self.mode, self.best, self.min_delta, self.patience)
+
         return fs

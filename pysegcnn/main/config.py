@@ -1,8 +1,18 @@
 """The configuration file to train and evaluate a model.
 
-The configuration is handled by the config dictionary.
+The configuration is handled by the configuration dictionaries.
 
-Modify the variable values to your needs, but DO NOT modify the variable names.
+Modify the values to your needs, but DO NOT modify the keys.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
 """
 
 # !/usr/bin/env python
@@ -17,7 +27,7 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH ='C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
 # DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
@@ -29,12 +39,6 @@ DATASET_NAME = 'Sparcs'
 DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
 # DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME, 'Training')
 # DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
-
-# path to store the model states
-MODEL_PATH = os.path.join(HERE, '_models/')
-
-# path to store model logs
-LOG_PATH = os.path.join(HERE, '_logs/')
 
 # the dataset configuration dictionary
 dataset_config = {
@@ -266,8 +270,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': os.path.join(MODEL_PATH,
-                               'UNet_SparcsDataset_Adam_SceneSplit_s0_t005v05_t125_b64_r4g3b2n5.pt'),
+    'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t005v05_t125_b64_r4g3b2n5.pt',
 
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set

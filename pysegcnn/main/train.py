@@ -1,10 +1,29 @@
+"""Main script to train a model.
+
+Steps to launch a model run:
+
+    (1) Configure the model run in pysegcnn/main/config.py
+        (i) configure the dataset      : dictionary 'dataset_config'
+        (j) configure the dataset split: dictionary 'split_config'
+        (k) configure the model        : dictionary 'model_config'
+    (2) Save pysegcnn/main/config.py
+    (3) In a terminal, navigate to the repository's root directory
+    (4) run "python pysegcnn/main/train.py"
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
+"""
+
 # !/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Jun 30 09:33:38 2020
 
-@author: Daniel
-"""
 # builtins
 from logging.config import dictConfig
 
@@ -12,8 +31,7 @@ from logging.config import dictConfig
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
                                    StateConfig, LogConfig, NetworkTrainer)
 from pysegcnn.core.logging import log_conf
-from pysegcnn.main.config import (dataset_config, split_config, model_config,
-                                  LOG_PATH)
+from pysegcnn.main.config import (dataset_config, split_config, model_config)
 
 
 if __name__ == '__main__':

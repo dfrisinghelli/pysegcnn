@@ -168,9 +168,9 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
             # plot inputs, ground truth and model predictions
             sname = fname + '_{}_{}.pt'.format(ds.name, batch)
             fig, ax = plot_sample(inputs.numpy().clip(0, 1),
-                                  labels,
                                   ds.dataset.use_bands,
                                   ds.dataset.labels,
+                                  y=labels,
                                   y_pred=prd,
                                   state=sname,
                                   **kwargs)
@@ -298,9 +298,9 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
         # plot current scene
         if plot:
             fig, ax = plot_sample(inputs.clip(0, 1),
-                                  labels,
                                   ds.dataset.use_bands,
                                   ds.dataset.labels,
+                                  y=labels,
                                   y_pred=prdtcn,
                                   state=sname,
                                   **kwargs)

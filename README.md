@@ -8,11 +8,11 @@ is based on the machine learning framework [PyTorch](https://pytorch.org/).
 ``pysegcnn`` requires **Python 3.7** or greater.
 
 ## Installation
-You can download ``pysegcnn`` from [this repository's website](https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning/)
+You can download ``pysegcnn`` from [this repository's website](https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn)
 or alternatively use ``git`` from terminal:
 
 ```bash
-git clone https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning/
+git clone https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn.git
 ```
 This creates a copy of the repository in your current directory on the file
 system.
@@ -61,15 +61,15 @@ and [Cloud-95](https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dat
 by Mohajerani S. & Saeedi P. ([2019](https://arxiv.org/abs/1901.10077), [2020](https://arxiv.org/abs/2001.08768))
 
 ## Contributors & Contact
-- [Daniel Frisinghelli](http://www.eurac.edu/en/research/mountains/remsen/staff/Pages/staffdetails.aspx?persId=37603)
+- Daniel Frisinghelli
 
 For further information or ideas for future development please contact:
-daniel.frisinghelli@eurac.edu
+daniel.frisinghelli@gmail.com.
 
 ## License
 If not explicitly stated otherwise, this repository is licensed under the
 **GNU GENERAL PUBLIC LICENSE v3.0**
-(see [LICENSE](https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning/-/blob/master/LICENSE)).
+(see [LICENSE](https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn/-/blob/master/LICENSE)).
 
 ## Acknowledgements
 I wrote a part of the code base for the ``pysegcnn`` package while I was working

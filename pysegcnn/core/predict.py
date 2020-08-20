@@ -38,10 +38,18 @@ def _get_scene_tiles(ds, scene_id):
 
     Parameters
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : `pysegcnn.core.split.RandomSubset` or
+    `pysegcnn.core.split.SceneSubset`
+        An instance of `~pysegcnn.core.split.RandomSubset` or
+        `~pysegcnn.core.split.SceneSubset`.
     scene_id : `str`
         A valid scene identifier.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``scene_id`` is not a valid scene identifier for the dataset
+        ``ds``.
 
     Returns
     -------
@@ -49,6 +57,11 @@ def _get_scene_tiles(ds, scene_id):
         List of indices of the tiles from scene with id ``scene_id`` in ``ds``.
 
     """
+    # check if the scene id is valid
+    scene_meta = ds.dataset.parse_scene_id(scene_id)
+    if scene_meta is None:
+        raise ValueError('{} is not a valid scene identifier'.format(scene_id))
+
     # iterate over the scenes of the dataset
     indices = []
     for i, scene in enumerate(ds.scenes):

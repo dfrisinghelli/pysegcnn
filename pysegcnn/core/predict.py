@@ -245,9 +245,6 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
         # the name of the selected scene
         scene_ids = [scene_id]
 
-    # spatial size of scene
-    scene_size = (ds.dataset.height, ds.dataset.width)
-
     # iterate over the scenes
     LOGGER.info('Predicting scenes of the {} dataset ...'.format(ds.name))
     output = {}
@@ -284,9 +281,9 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
                     conf_mat[ytrue.long(), ypred.long()] += 1
 
         # reconstruct the entire scene
-        inputs = reconstruct_scene(inp, scene_size, nbands=inp.shape[1])
-        labels = reconstruct_scene(lab, scene_size, nbands=1)
-        prdtcn = reconstruct_scene(prd, scene_size, nbands=1)
+        inputs = reconstruct_scene(inp)
+        labels = reconstruct_scene(lab)
+        prdtcn = reconstruct_scene(prd)
 
         # print progress
         LOGGER.info('Scene {:d}/{:d}, Id: {}, Accuracy: {:.2f}'.format(

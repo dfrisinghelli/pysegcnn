@@ -398,19 +398,14 @@ def tile_topleft_corner(img_size, tile_size):
     return indices
 
 
-def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
+def reconstruct_scene(tiles):
     """Reconstruct a tiled image.
 
     Parameters
     ----------
-    tiles : array_like
-        The tiled image, shape=(tiles, bands, tile_size, tile_size).
-    img_size : `tuple`
-        The size of the reconstructed image (height, width).
-    tile_size : `int` or `None`, optional
-        The size of the tile. The default is None.
-    nbands : `int`, optional
-        The number of bands of the reconstructed image. The default is 1.
+    tiles : `torch.Tensor` or `numpy.ndarray`
+        The tiled image, shape=(tiles, bands, tile_size, tile_size) or
+        shape=(tiles, tile_size, tile_size).
 
     Returns
     -------
@@ -422,11 +417,15 @@ def reconstruct_scene(tiles, img_size, tile_size=None, nbands=1):
     tiles = np.asarray(tiles)
 
     # check the size
-    if tile_size is None:
-        if tiles.ndim > 3:
-            tile_size = tiles.shape[2]
-        else:
-            tile_size = tiles.shape[1]
+    if tiles.ndim > 3:
+        nbands = tiles.shape[1]
+        tile_size = tiles.shape[2]
+    else:
+        nbands = 1
+        tile_size = tiles.shape[1]
+
+    # calculate image size
+    img_size = 2 * (int(np.sqrt(tiles.shape[0]) * tile_size),)
 
     # calculate the topleft corners of the tiles
     topleft = tile_topleft_corner(img_size, tile_size)

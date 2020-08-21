@@ -42,7 +42,7 @@ def log_conf(logfile):
     # check if the parent directory of the log file exists
     logfile = pathlib.Path(logfile)
     if not logfile.parent.is_dir():
-        logfile.parents.mkdir(parent=True, exist_ok=True)
+        logfile.parent.mkdir(parents=True, exist_ok=True)
 
     LOGGING_CONFIG = {
         'version': 1,

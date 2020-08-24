@@ -680,7 +680,7 @@ class ModelConfig(BaseConfig):
                            .format(state_file.name))
         else:
             # load model checkpoint
-            model, optimizer, model_state = Network.load(state_file, optimizer)
+            model, optimizer, model_state = Network.load(state_file)
 
             # load model loss and accuracy
 

@@ -216,9 +216,9 @@ class EncoderBlock(Block):
 
         Returns
         -------
-        y : `torch.Tensor`
+        y : `torch.Tensor`, shape=(batch, channel, height, width)
             Output of the encoder block.
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Intermediate output before applying downsampling. Useful to
             implement skip connections.
         indices : `torch.Tensor` or `None`
@@ -239,7 +239,7 @@ class EncoderBlock(Block):
     def downsample(self, x):
         """Define the downsampling method.
 
-        The `~pysegcnn.core.layers.EncoderBlock.downsample` `method should
+        The `~pysegcnn.core.layers.EncoderBlock.downsample` method should
         implement the spatial pooling operation.
 
         Use one of the following functions to downsample:
@@ -251,7 +251,7 @@ class EncoderBlock(Block):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor, e.g. output of a convolutional block.
 
         Raises
@@ -261,7 +261,7 @@ class EncoderBlock(Block):
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             The spatially downsampled tensor.
         indices : `torch.Tensor` or `None`
             Optional indices of the downsampling method, e.g. indices of the
@@ -299,7 +299,7 @@ class DecoderBlock(Block):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor.
         feature : `torch.Tensor`, shape=(batch, channel, height, width)
             Intermediate output of a layer in the encoder.
@@ -313,7 +313,7 @@ class DecoderBlock(Block):
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Output of the decoder block.
 
         """
@@ -334,7 +334,7 @@ class DecoderBlock(Block):
     def upsample(self, x, feature, indices):
         """Define the upsampling method.
 
-        The `~pysegcnn.core.layers.DecoderBlock.upsample` `method should
+        The `~pysegcnn.core.layers.DecoderBlock.upsample` method should
         implement the spatial upsampling operation.
 
         Use one of the following functions to upsample:
@@ -347,7 +347,7 @@ class DecoderBlock(Block):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor, e.g. output of a convolutional block.
         feature : `torch.Tensor`, shape=(batch, channel, height, width)
             Intermediate output of a layer in the encoder. Used to implement
@@ -362,7 +362,7 @@ class DecoderBlock(Block):
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             The spatially upsampled tensor.
 
         """
@@ -433,12 +433,12 @@ class Encoder(nn.Module):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input image.
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Output of the encoder.
 
         """
@@ -520,7 +520,7 @@ class Decoder(nn.Module):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Output of the encoder.
         enc_cache : `dict` [`dict`]
             Cache dictionary. The keys of the dictionary are the number of the
@@ -533,7 +533,7 @@ class Decoder(nn.Module):
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Output of the decoder.
 
         """
@@ -591,12 +591,12 @@ class ConvBnReluMaxPool(EncoderBlock):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor.
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height // 2, width // 2)
             The 2x2 max pooled tensor.
         indices : `torch.Tensor` or `None`
             The indices of the maxima. Useful for upsampling with
@@ -604,6 +604,17 @@ class ConvBnReluMaxPool(EncoderBlock):
         """
         x, indices = F.max_pool2d(x, kernel_size=2, return_indices=True)
         return x, indices
+
+    def extra_repr(self):
+        """Define optional extra information about this module.
+
+        Returns
+        -------
+        `str`
+            Extra representation string.
+        """
+        return ('(pool): MaxPool2d(kernel_size=2, stride=2, padding=0, '
+                'dilation=1, ceil_mode=False)')
 
 
 class ConvBnReluMaxUnpool(DecoderBlock):
@@ -646,7 +657,7 @@ class ConvBnReluMaxUnpool(DecoderBlock):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor.
         feature : `torch.Tensor`, shape=(batch, channel, height, width)
             Intermediate output of a layer in the encoder. Used to determine
@@ -657,12 +668,23 @@ class ConvBnReluMaxUnpool(DecoderBlock):
 
         Returns
         -------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height * 2, width * 2)
             The 2x2 max unpooled tensor.
 
         """
         return F.max_unpool2d(x, indices, kernel_size=2,
                               output_size=feature.shape[2:])
+
+    def extra_repr(self):
+        """Define optional extra information about this module.
+
+        Returns
+        -------
+        `str`
+            Extra representation string.
+        """
+        return ('(pool): MaxUnpool2d(kernel_size=(2, 2), stride=(2, 2), '
+                'padding=(0, 0))')
 
 
 class ConvBnReluUpsample(DecoderBlock):
@@ -704,7 +726,7 @@ class ConvBnReluUpsample(DecoderBlock):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
             Input tensor.
         feature : `torch.Tensor`, shape=(batch, channel, height, width)
             Intermediate output of a layer in the encoder. Used to determine
@@ -716,8 +738,18 @@ class ConvBnReluUpsample(DecoderBlock):
 
         Returns
         -------
-        x : `torch.Tensor`
-            The 2x2 max unpooled tensor.
+        x : `torch.Tensor`, shape=(batch, channel, height, width)
+            The 2x2 upsampled tensor.
 
         """
         return F.interpolate(x, size=feature.shape[2:], mode='nearest')
+
+    def extra_repr(self):
+        """Define optional extra information about this module.
+
+        Returns
+        -------
+        `str`
+            Extra representation string.
+        """
+        return '(pool): Upsample(mode="nearest")'

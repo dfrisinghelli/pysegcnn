@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """A setuptools based setup module adapted from PyPa's sample project.
 
 See:
@@ -29,6 +28,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # builtins
 import os
 import codecs
@@ -99,7 +102,7 @@ CONTENT_TYPE = 'text/markdown'
 #
 # This field corresponds to the "Home-Page" metadata field:
 # https://packaging.python.org/specifications/core-metadata/#home-page-optional
-URL = 'https://gitlab.inf.unibz.it/REMSEN/ccisnow/deep-learning'
+URL = 'https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn'
 
 
 # This should be your name or the name of the organization which owns the
@@ -109,7 +112,7 @@ AUTHOR = 'Daniel Frisinghelli'
 
 # This should be a valid email address corresponding to the author listed
 # above.
-AUTHOR_EMAIL = 'daniel.frisinghelli@eurac.edu'
+AUTHOR_EMAIL = 'daniel.frisinghelli@gmail.com'
 
 
 # Classifiers help users find your project by categorizing it.
@@ -144,7 +147,7 @@ CLASSIFIERS = [
 # project page. What does your project relate to?
 #
 # Note that this is a string of words separated by whitespace, not a list.
-KEYWORDS = """Image Segmentation, Snow, Convolutional neural networks,
+KEYWORDS = """Image Segmentation, Convolutional neural networks,
 Deep Learning, Transfer Learning"""
 
 # When your source code is in a subdirectory under the project root, e.g.

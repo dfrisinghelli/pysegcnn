@@ -39,13 +39,17 @@ environment name, in this case ``pysegcnn``. Activate your environment using:
 ```bash
 conda activate pysegcnn
 ```
-After activating your environment, type:
+After activating your environment, install the version of PyTorch and CUDA
+that your system supports by following this [guide](https://pytorch.org/get-started/locally/).
+Having [successfully installed](https://pytorch.org/get-started/locally/#linux-verification)
+PyTorch, type:
 
 ```bash
 pip install -e .
 ```
-This will install ``pysegcnn`` - if successful, you should be able to import
-``pysegcnn`` from any Python interpreter using
+Make sure you run the above command **from this repositories root directory
+within the activated ``pysegcnn`` conda environment**. If successful,
+you should be able to import ``pysegcnn`` from any Python interpreter using
 
 ```python
 import pysegcnn

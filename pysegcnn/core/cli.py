@@ -60,6 +60,6 @@ def structure_parser():
     # optional argument: whether to copy or move extracted files
     parser.add_argument('-r', '--remove', type=bool,
                         help='Remove original dataset {}'.format(default),
-                        default=False, nargs='?', const=True, metavar='')
+                        default=True, nargs='?', const=True, metavar='')
 
     return parser

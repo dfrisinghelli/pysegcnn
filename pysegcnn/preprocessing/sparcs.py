@@ -19,8 +19,8 @@ import sys
 from logging.config import dictConfig
 
 # locals
-from pysegcnn.core.utils import (destack_tiff, standard_eo_structure,
-                                 extract_archive)
+from pysegcnn.core.utils import (destack_tiff, landsat_radiometric_calibration,
+                                 standard_eo_structure, extract_archive)
 from pysegcnn.core.logging import log_conf
 from pysegcnn.core.cli import structure_parser
 
@@ -52,9 +52,13 @@ if __name__ == '__main__':
     for scene in args.target.iterdir():
         # the TIFF file containing the bands
         try:
-            data = next(scene.glob('*data.tif'))
-        except StopIteration:
+            data = list(scene.glob('*data.tif')).pop()
+        except IndexError:
             continue
 
         # build the TIFFs for each band
         destack_tiff(data, overwrite=args.overwrite, remove=args.remove)
+
+        # perform radiometric calibration
+        landsat_radiometric_calibration(scene, remove_raw=args.remove,
+                                        overwrite=args.overwrite)

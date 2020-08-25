@@ -174,7 +174,8 @@ PACKAGES = find_packages(exclude=['tests'])
 INSTALL_REQUIRES = ['numpy',
                     'torch',
                     'scipy',
-                    'gdal'
+                    'gdal',
+                    'matplotlib'
                     ]
 
 # Specify which Python versions you support. In contrast to the

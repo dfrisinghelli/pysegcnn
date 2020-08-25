@@ -25,7 +25,6 @@ License
 import os
 import re
 import csv
-import glob
 import enum
 import itertools
 import logging
@@ -46,7 +45,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ImageDataset(Dataset):
-    """Base class for multispectral image data.
+    r"""Base class for multispectral image data.
 
     Inheriting from `torch.utils.data.Dataset` to be compliant to the PyTorch
     standard. Furthermore, using instances of `torch.utils.data.Dataset`
@@ -69,9 +68,9 @@ class ImageDataset(Dataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention.
+        All directories and subdirectories in ``root_dir`` are searched for
+        files matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -93,7 +92,7 @@ class ImageDataset(Dataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt.tif', sort=False, seed=0, transforms=[]):
         super().__init__()
 
         # dataset configuration
@@ -564,7 +563,7 @@ class ImageDataset(Dataset):
 
 
 class StandardEoDataset(ImageDataset):
-    """Base class for standard Earth Observation style datasets.
+    r"""Base class for standard Earth Observation style datasets.
 
     `pysegcnn.core.dataset.StandardEoDataset` implements the
     `~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method for
@@ -615,9 +614,9 @@ class StandardEoDataset(ImageDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -639,7 +638,7 @@ class StandardEoDataset(ImageDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class ImageDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
@@ -652,21 +651,12 @@ class StandardEoDataset(ImageDataset):
         path : `str`
             The path to the .tif file.
 
-        Raises
-        ------
-        ValueError
-            Raised if ``path`` is not a .tif file.
-
         Returns
         -------
         band : `int` or `str`
             The band number.
 
         """
-        # check whether the path leads to a tif file
-        if not path.endswith(('tif', 'TIF')):
-            raise ValueError('Expected a path to a tif file.')
-
         # filename
         fname = os.path.basename(path)
 
@@ -751,7 +741,8 @@ class StandardEoDataset(ImageDataset):
         for dirpath, dirname, files in os.walk(self.root):
 
             # search for a ground truth in the current directory
-            self.gt.extend(glob.glob(os.path.join(dirpath, self.gt_pattern)))
+            self.gt.extend([os.path.join(dirpath, f) for f in files
+                            if re.search(self.gt_pattern, f)])
 
             # check if the current directory name matches a scene identifier
             scene = self.parse_scene_id(dirpath)
@@ -762,7 +753,8 @@ class StandardEoDataset(ImageDataset):
                 date = scene['date']
 
                 # list the spectral bands of the scene
-                bands = glob.glob(os.path.join(dirpath, '*B*.tif'))
+                bands = [os.path.join(dirpath, f) for f in files
+                         if re.search('B\\dA|B\\d{1,2}', f)]
 
                 # get the ground truth mask
                 try:
@@ -808,7 +800,7 @@ class StandardEoDataset(ImageDataset):
 
 
 class SparcsDataset(StandardEoDataset):
-    """Dataset class for the `Sparcs`_ dataset.
+    r"""Class for the `Sparcs`_ dataset.
 
     .. _Sparcs:
         https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation
@@ -829,9 +821,9 @@ class SparcsDataset(StandardEoDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -853,7 +845,7 @@ class SparcsDataset(StandardEoDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
@@ -931,7 +923,7 @@ class SparcsDataset(StandardEoDataset):
 
 
 class ProSnowDataset(StandardEoDataset):
-    """Dataset class for the ProSnow datasets.
+    r"""Class for the ProSnow datasets.
 
     Parameters
     ----------
@@ -949,9 +941,9 @@ class ProSnowDataset(StandardEoDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -973,7 +965,7 @@ class ProSnowDataset(StandardEoDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
@@ -1040,7 +1032,7 @@ class ProSnowDataset(StandardEoDataset):
 
 
 class ProSnowGarmisch(ProSnowDataset):
-    """Dataset class for the ProSnow Garmisch dataset.
+    r"""Class for the ProSnow Garmisch dataset.
 
     Parameters
     ----------
@@ -1058,9 +1050,9 @@ class ProSnowGarmisch(ProSnowDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -1082,7 +1074,7 @@ class ProSnowGarmisch(ProSnowDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
@@ -1100,7 +1092,7 @@ class ProSnowGarmisch(ProSnowDataset):
 
 
 class ProSnowObergurgl(ProSnowDataset):
-    """Dataset class for the ProSnow Obergurgl dataset.
+    r"""Class for the ProSnow Obergurgl dataset.
 
     Parameters
     ----------
@@ -1118,9 +1110,9 @@ class ProSnowObergurgl(ProSnowDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -1142,7 +1134,7 @@ class ProSnowObergurgl(ProSnowDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
@@ -1160,7 +1152,7 @@ class ProSnowObergurgl(ProSnowDataset):
 
 
 class Cloud95Dataset(ImageDataset):
-    """Dataset class for the `Cloud95`_ dataset by `Mohajerani et al. (2020)`_.
+    r"""Class for the `Cloud-95`_ dataset by `Mohajerani et al. (2020)`_.
 
     .. _Cloud95:
         https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset
@@ -1183,9 +1175,9 @@ class Cloud95Dataset(ImageDataset):
         corresponding ground truth image is padded with a "no data" label.
         The default is False.
     gt_pattern : `str`, optional
-        A pattern to match the ground truth naming convention. All directories
-        and subdirectories in ``root_dir`` are searched for files matching
-        ``gt_pattern``. The default is '*gt.tif'.
+        A regural expression to match the ground truth naming convention. All
+        directories and subdirectories in ``root_dir`` are searched for files
+        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
     sort : `bool`, optional
         Whether to chronologically sort the samples. Useful for time series
         data. The default is False.
@@ -1207,7 +1199,7 @@ class Cloud95Dataset(ImageDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='*gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)

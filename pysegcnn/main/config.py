@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
 DATASET_NAME = 'Sparcs'
@@ -53,9 +53,9 @@ dataset_config = {
     # path to the dataset
     'root_dir': DATASET_PATH,
 
-    # a pattern to match the ground truth file naming convention
-    'gt_pattern': '*mask.png',
-    # 'gt_pattern': '*class.img',
+    # a regex pattern to match the ground truth file naming convention
+    'gt_pattern': '(.*)mask\\.png',
+    # 'gt_pattern': '(.*)class\\.img',
 
     # define the bands to use to train the segmentation network:
     # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -149,12 +149,12 @@ split_config = {
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
     # used if split_mode='random' and split_mode='scene'
-    'ttratio': 0.05,
+    'ttratio': 1,
 
-    # (ttratio * tvratio) * 100 % will be used as for training
+    # (ttratio * tvratio) * 100 % will be used for training
     # (1 - ttratio * tvratio) * 100 % will be used for validation
     # used if split_mode='random' and split_mode='scene'
-    'tvratio': 0.5,
+    'tvratio': 0.8,
 
     # the date to split the scenes
     # format: 'yyyymmdd'
@@ -218,12 +218,12 @@ model_config = {
     # Training ----------------------------------------------------------------
 
     # whether to resume training from an existing model checkpoint
-    'checkpoint': True,
+    'checkpoint': False,
 
     # define the batch size
     # determines how many samples of the dataset are processed until the
     # weights of the network are updated (via mini-batch gradient descent)
-    'batch_size': 64,
+    'batch_size': 128,
 
     # the seed for the random number generator intializing the network weights
     'torch_seed': 0,

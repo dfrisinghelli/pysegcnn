@@ -1,4 +1,10 @@
-"""Functions to preprocess the Sparcs dataset.
+"""Command line script to preprocess the Sparcs dataset.
+
+After downloading the Sparcs dataset, from the repository's root directory run:
+
+    python pysegcnn/preprocessing/sparcs.py
+
+The above command will print the usage of the script.
 
 License
 -------

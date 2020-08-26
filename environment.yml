@@ -8,3 +8,6 @@ dependencies:
   - scipy
   - gdal
   - matplotlib
+  - sphinx
+  - sphinx_rtd_theme
+  - pytest

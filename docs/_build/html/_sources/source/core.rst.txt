@@ -1,0 +1,109 @@
+core package
+============
+
+Submodules
+----------
+
+core.cli module
+---------------
+
+.. automodule:: core.cli
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.constants module
+---------------------
+
+.. automodule:: core.constants
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.dataset module
+-------------------
+
+.. automodule:: core.dataset
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.graphics module
+--------------------
+
+.. automodule:: core.graphics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.layers module
+------------------
+
+.. automodule:: core.layers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.logging module
+-------------------
+
+.. automodule:: core.logging
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.models module
+------------------
+
+.. automodule:: core.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.predict module
+-------------------
+
+.. automodule:: core.predict
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.split module
+-----------------
+
+.. automodule:: core.split
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.trainer module
+-------------------
+
+.. automodule:: core.trainer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.transforms module
+----------------------
+
+.. automodule:: core.transforms
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.utils module
+-----------------
+
+.. automodule:: core.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: core
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -1,0 +1,279 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Installation &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Requirements" href="requirements.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="requirements.html">Requirements</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#download">Download</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conda-package-manager">Conda package manager</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conda-environment">Conda environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-pytorch">Install PyTorch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#install-pysegcnn">Install PySegCNN</a></li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Installation</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/source/installation.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="download">
+<h2>Download<a class="headerlink" href="#download" title="Permalink to this headline">¶</a></h2>
+<p>You can download <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code> from this repository’s
+<a class="reference external" href="https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn">website</a>
+or alternatively use <code class="docutils literal notranslate"><span class="pre">git</span></code> from terminal:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn.git
+</pre></div>
+</div>
+<p>This creates a copy of the repository in your current directory on the file
+system.</p>
+</div>
+<div class="section" id="conda-package-manager">
+<h2>Conda package manager<a class="headerlink" href="#conda-package-manager" title="Permalink to this headline">¶</a></h2>
+<p>To install <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code>, I recommend to use the <code class="docutils literal notranslate"><span class="pre">conda</span></code> package manager.
+You can download <code class="docutils literal notranslate"><span class="pre">conda</span></code> <a class="reference external" href="https://docs.conda.io/en/latest/miniconda.html">here</a>.
+Once successfully installed <code class="docutils literal notranslate"><span class="pre">conda</span></code>, I recommend to add <code class="docutils literal notranslate"><span class="pre">conda-forge</span></code> as
+your default channel:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda config --add channels conda-forge
+</pre></div>
+</div>
+</div>
+<div class="section" id="conda-environment">
+<h2>Conda environment<a class="headerlink" href="#conda-environment" title="Permalink to this headline">¶</a></h2>
+<p>To install <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code>, I recommend to create a specific <code class="docutils literal notranslate"><span class="pre">conda</span></code>
+<a class="reference external" href="https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html">environment</a>,
+by using the provided <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> file. In a terminal, navigate to the
+<strong>cloned git repositories root directory</strong> and type:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda env create -f environment.yml
+</pre></div>
+</div>
+<p>This may take a while. The above command creates a conda environment with all
+required dependencies except the <code class="docutils literal notranslate"><span class="pre">pytorch</span></code> package. The first line in
+<code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> defines the environment name, in this case <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code>.
+Activate your environment using:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda activate pysegcnn
+</pre></div>
+</div>
+</div>
+<div class="section" id="install-pytorch">
+<h2>Install PyTorch<a class="headerlink" href="#install-pytorch" title="Permalink to this headline">¶</a></h2>
+<p>The installation of <code class="docutils literal notranslate"><span class="pre">pytorch</span></code> is heavily dependent on the hardware of your
+machine. Therefore, after activating your environment, install the version of
+<a class="reference external" href="https://pytorch.org/">PyTorch</a> that your system supports by following the
+official <a class="reference external" href="https://pytorch.org/get-started/locally/">instructions</a>.</p>
+<p>If you have to build <code class="docutils literal notranslate"><span class="pre">pytorch</span></code> from source, follow this
+<a class="reference external" href="https://github.com/pytorch/pytorch#from-source">guide</a>.</p>
+<p>To verify the installation, run some sample PyTorch
+<a class="reference external" href="https://pytorch.org/get-started/locally/#linux-verification">code</a>.</p>
+</div>
+<div class="section" id="install-pysegcnn">
+<h2>Install PySegCNN<a class="headerlink" href="#install-pysegcnn" title="Permalink to this headline">¶</a></h2>
+<p>To finally install <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code> run the below command <strong>from this repositories
+root directory within the activated ``pysegcnn`` conda environment</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install -e .
+</pre></div>
+</div>
+<p>If successful, you should be able to import <code class="docutils literal notranslate"><span class="pre">pysegcnn</span></code> from any Python
+interpreter using:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pysegcnn</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="requirements.html" class="btn btn-neutral float-left" title="Requirements" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

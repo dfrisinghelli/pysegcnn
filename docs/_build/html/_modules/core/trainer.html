@@ -1,0 +1,1760 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core.trainer &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/requirements.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/api.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>core.trainer</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core.trainer</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Model configuration and training.</span>
+
+<span class="sd">This module provides an end-to-end framework of dataclasses designed to train</span>
+<span class="sd">segmentation models on image datasets.</span>
+
+<span class="sd">See pysegcnn/main/train.py for a complete walkthrough.</span>
+
+<span class="sd">License</span>
+<span class="sd">-------</span>
+
+<span class="sd">    Copyright (c) 2020 Daniel Frisinghelli</span>
+
+<span class="sd">    This source code is licensed under the GNU General Public License v3.</span>
+
+<span class="sd">    See the LICENSE file in the repository&#39;s root directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># !/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># builtins</span>
+<span class="kn">import</span> <span class="nn">dataclasses</span>
+<span class="kn">import</span> <span class="nn">pathlib</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="kn">import</span> <span class="nn">datetime</span>
+
+<span class="c1"># externals</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">Dataset</span>
+<span class="kn">from</span> <span class="nn">torch.optim</span> <span class="kn">import</span> <span class="n">Optimizer</span>
+
+<span class="c1"># locals</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.dataset</span> <span class="kn">import</span> <span class="n">SupportedDatasets</span><span class="p">,</span> <span class="n">ImageDataset</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.transforms</span> <span class="kn">import</span> <span class="n">Augment</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.utils</span> <span class="kn">import</span> <span class="n">img2np</span><span class="p">,</span> <span class="n">item_in_enum</span><span class="p">,</span> <span class="n">accuracy_function</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.split</span> <span class="kn">import</span> <span class="n">SupportedSplits</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.models</span> <span class="kn">import</span> <span class="p">(</span><span class="n">SupportedModels</span><span class="p">,</span> <span class="n">SupportedOptimizers</span><span class="p">,</span>
+                                  <span class="n">SupportedLossFunctions</span><span class="p">,</span> <span class="n">Network</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.layers</span> <span class="kn">import</span> <span class="n">Conv2dSame</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.main.config</span> <span class="kn">import</span> <span class="n">HERE</span>
+
+<span class="c1"># module level logger</span>
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="BaseConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.BaseConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">BaseConfig</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;Base `dataclasses.dataclass` for each configuration.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if the conversion to the specified type of the argument</span>
+<span class="sd">            fails.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check input types</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="c1"># the value of the current field</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="c1"># check whether the value is of the correct type</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">):</span>
+                <span class="c1"># try to convert the value to the correct type</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">(</span><span class="n">value</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+                    <span class="c1"># raise an exception if the conversion fails</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected </span><span class="si">{}</span><span class="s1"> to be </span><span class="si">{}</span><span class="s1">, got </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">field</span><span class="o">.</span><span class="n">type</span><span class="p">,</span>
+                                            <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span></div>
+
+
+<div class="viewcode-block" id="DatasetConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.DatasetConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">DatasetConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dataset configuration class.</span>
+
+<span class="sd">    Instanciate a dataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    dataset_name : `str`</span>
+<span class="sd">        The name of the dataset.</span>
+<span class="sd">    root_dir : `pathlib.Path`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    bands : `list` [`str`]</span>
+<span class="sd">        A list of the spectral bands to use.</span>
+<span class="sd">    tile_size : `int`</span>
+<span class="sd">        The size of the tiles. Each scene is divided into square tiles of shape</span>
+<span class="sd">        (tile_size, tile_size).</span>
+<span class="sd">    gt_pattern : `str`</span>
+<span class="sd">        A pattern to match the ground truth naming convention. All directories</span>
+<span class="sd">        and subdirectories in ``root_dir`` are searched for files matching</span>
+<span class="sd">        ``gt_pattern``.</span>
+<span class="sd">    seed : `int`</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">dataset_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">root_dir</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>
+    <span class="n">bands</span><span class="p">:</span> <span class="nb">list</span>
+    <span class="n">tile_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">gt_pattern</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">sort</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">transforms</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+    <span class="n">pad</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            Raised if ``dataset_name`` is not supported.</span>
+<span class="sd">        FileNotFoundError</span>
+<span class="sd">            Raised if ``root_dir`` does not exist.</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if not each item in ``transforms`` is an instance of</span>
+<span class="sd">            `pysegcnn.core.split.Augment` in case ``transforms`` is not empty.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check input types</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># check whether the dataset is currently supported</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dataset_class</span> <span class="o">=</span> <span class="n">item_in_enum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_name</span><span class="p">,</span> <span class="n">SupportedDatasets</span><span class="p">)</span>
+
+        <span class="c1"># check whether the root directory exists</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_dir</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1"> does not exist.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_dir</span><span class="p">))</span>
+
+        <span class="c1"># check whether the transformations inherit from the correct class</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Augment</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="k">if</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">]):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Each transformation is expected to be an instance&#39;</span>
+                            <span class="s1">&#39; of </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">Augment</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                                                       <span class="n">Augment</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])))</span>
+
+<div class="viewcode-block" id="DatasetConfig.init_dataset"><a class="viewcode-back" href="../../source/core.html#core.trainer.DatasetConfig.init_dataset">[docs]</a>    <span class="k">def</span> <span class="nf">init_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instanciate the dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dataset : `pysegcnn.core.dataset.ImageDataset`</span>
+<span class="sd">            An instance of `pysegcnn.core.dataset.ImageDataset`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># instanciate the dataset</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_class</span><span class="p">(</span>
+                    <span class="n">root_dir</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_dir</span><span class="p">),</span>
+                    <span class="n">use_bands</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">,</span>
+                    <span class="n">tile_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+                    <span class="n">seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+                    <span class="n">sort</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">sort</span><span class="p">,</span>
+                    <span class="n">transforms</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">,</span>
+                    <span class="n">pad</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pad</span><span class="p">,</span>
+                    <span class="n">gt_pattern</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">gt_pattern</span>
+                    <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div></div>
+
+
+<div class="viewcode-block" id="SplitConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.SplitConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">SplitConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dataset split configuration class.</span>
+
+<span class="sd">    Split a dataset into training, validation and test set.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    split_mode : `str`</span>
+<span class="sd">        The mode to split the dataset.</span>
+<span class="sd">    ttratio : `float`</span>
+<span class="sd">        The ratio of training and validation data to test data, e.g.</span>
+<span class="sd">        ``ttratio`` = 0.6 means 60% for training and validation, 40% for</span>
+<span class="sd">        testing.</span>
+<span class="sd">    tvratio : `float`</span>
+<span class="sd">        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8</span>
+<span class="sd">        means 80% training, 20% validation.</span>
+<span class="sd">    date : `str`, optional</span>
+<span class="sd">        A date. Used if ``split_mode`` = &#39;date&#39;. The default is &#39;yyyymmdd&#39;.</span>
+<span class="sd">    dateformat : `str`, optional</span>
+<span class="sd">        The format of ``date``. ``dateformat`` is used by</span>
+<span class="sd">        `datetime.datetime.strptime&#39; to parse ``date`` to a `datetime.datetime`</span>
+<span class="sd">        object. The default is &#39;%Y%m%d&#39;.</span>
+<span class="sd">    drop : `float`, optional</span>
+<span class="sd">        Whether to drop samples (during training only) with a fraction of</span>
+<span class="sd">        pixels equal to the constant padding value &gt;= ``drop``. ``drop`` = 0</span>
+<span class="sd">        means, do not drop any samples. The default is 0.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">split_mode</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">ttratio</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">tvratio</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">date</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;yyyymmdd&#39;</span>
+    <span class="n">dateformat</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;%Y%m</span><span class="si">%d</span><span class="s1">&#39;</span>
+    <span class="n">drop</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            Raised if ``split_mode`` is not supported.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check input types</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># check if the split mode is valid</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">split_class</span> <span class="o">=</span> <span class="n">item_in_enum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">split_mode</span><span class="p">,</span> <span class="n">SupportedSplits</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_drop_samples</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">drop_threshold</span><span class="o">=</span><span class="mi">1</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Drop samples with a fraction of pixels equal to the padding value.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ds : `pysegcnn.core.split.RandomSubset` or</span>
+<span class="sd">        `pysegcnn.core.split.SceneSubset`.</span>
+<span class="sd">            An instance of `pysegcnn.core.split.RandomSubset` or</span>
+<span class="sd">            `pysegcnn.core.split.SceneSubset`.</span>
+<span class="sd">        drop_threshold : `float`, optional</span>
+<span class="sd">            The threshold above which samples are dropped. ``drop_threshold`` =</span>
+<span class="sd">            1 means a sample is dropped, if all pixels are equal to the padding</span>
+<span class="sd">            value. ``drop_threshold`` = 0.8 means, drop a sample if 80% of the</span>
+<span class="sd">            pixels are equal to the padding value, etc. The default is 1.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        dropped : `list` [`dict`]</span>
+<span class="sd">            List of the dropped samples.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># iterate over the scenes returned by self.compose_scenes()</span>
+        <span class="n">dropped</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">pos</span><span class="p">,</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">indices</span><span class="p">):</span>
+
+            <span class="c1"># the current scene</span>
+            <span class="n">s</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">scenes</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+            <span class="c1"># the current tile in the ground truth</span>
+            <span class="n">tile_gt</span> <span class="o">=</span> <span class="n">img2np</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;gt&#39;</span><span class="p">],</span> <span class="n">ds</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">],</span>
+                             <span class="n">ds</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">pad</span><span class="p">,</span> <span class="n">ds</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">cval</span><span class="p">)</span>
+
+            <span class="c1"># percent of pixels equal to the constant padding value</span>
+            <span class="n">npixels</span> <span class="o">=</span> <span class="p">(</span><span class="n">tile_gt</span><span class="p">[</span><span class="n">tile_gt</span> <span class="o">==</span> <span class="n">ds</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">cval</span><span class="p">]</span><span class="o">.</span><span class="n">size</span> <span class="o">/</span> <span class="n">tile_gt</span><span class="o">.</span><span class="n">size</span><span class="p">)</span>
+
+            <span class="c1"># drop samples where npixels &gt;= self.drop</span>
+            <span class="k">if</span> <span class="n">npixels</span> <span class="o">&gt;=</span> <span class="n">drop_threshold</span><span class="p">:</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Skipping scene </span><span class="si">{}</span><span class="s1">, tile </span><span class="si">{}</span><span class="s1">: </span><span class="si">{:.2f}</span><span class="s1">% padded pixels&#39;</span>
+                            <span class="s1">&#39; ...&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">],</span> <span class="n">npixels</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
+                <span class="n">dropped</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">pos</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dropped</span>
+
+<div class="viewcode-block" id="SplitConfig.train_val_test_split"><a class="viewcode-back" href="../../source/core.html#core.trainer.SplitConfig.train_val_test_split">[docs]</a>    <span class="k">def</span> <span class="nf">train_val_test_split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Split ``ds`` into training, validation and test set.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ds : `pysegcnn.core.dataset.ImageDataset`</span>
+<span class="sd">            An instance of `pysegcnn.core.dataset.ImageDataset`.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if ``ds`` is not an instance of</span>
+<span class="sd">            `pysegcnn.core.dataset.ImageDataset`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        train_ds : `pysegcnn.core.split.RandomSubset` or</span>
+<span class="sd">        `pysegcnn.core.split.SceneSubset`.</span>
+<span class="sd">            The training set.</span>
+<span class="sd">        valid_ds : `pysegcnn.core.split.RandomSubset` or</span>
+<span class="sd">        `pysegcnn.core.split.SceneSubset`.</span>
+<span class="sd">            The validation set.</span>
+<span class="sd">        test_ds : `pysegcnn.core.split.RandomSubset` or</span>
+<span class="sd">        `pysegcnn.core.split.SceneSubset`.</span>
+<span class="sd">            The test set.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">ImageDataset</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected &quot;ds&quot; to be </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">ImageDataset</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                                              <span class="n">ImageDataset</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_mode</span> <span class="o">==</span> <span class="s1">&#39;random&#39;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_mode</span> <span class="o">==</span> <span class="s1">&#39;scene&#39;</span><span class="p">:</span>
+            <span class="n">subset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_class</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">ttratio</span><span class="p">,</span>
+                                      <span class="bp">self</span><span class="o">.</span><span class="n">tvratio</span><span class="p">,</span>
+                                      <span class="n">ds</span><span class="o">.</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">subset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">split_class</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">dateformat</span><span class="p">)</span>
+
+        <span class="c1"># the training, validation and test dataset</span>
+        <span class="n">train_ds</span><span class="p">,</span> <span class="n">valid_ds</span><span class="p">,</span> <span class="n">test_ds</span> <span class="o">=</span> <span class="n">subset</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
+
+        <span class="c1"># whether to drop training samples with a fraction of pixels equal to</span>
+        <span class="c1"># the constant padding value cval &gt;= drop</span>
+        <span class="k">if</span> <span class="n">ds</span><span class="o">.</span><span class="n">pad</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dropped</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_drop_samples</span><span class="p">(</span><span class="n">train_ds</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">drop</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">valid_ds</span><span class="p">,</span> <span class="n">test_ds</span></div>
+
+<div class="viewcode-block" id="SplitConfig.dataloaders"><a class="viewcode-back" href="../../source/core.html#core.trainer.SplitConfig.dataloaders">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">dataloaders</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build `torch.utils.data.DataLoader` instances.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        *args : `list` [`torch.utils.data.Dataset`]</span>
+<span class="sd">            List of instances of `torch.utils.data.Dataset`.</span>
+<span class="sd">        **kwargs</span>
+<span class="sd">            Additional keyword arguments passed to</span>
+<span class="sd">            `torch.utils.data.DataLoader`.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if not each item in ``args`` is an instance of</span>
+<span class="sd">            `torch.utils.data.Dataset`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loaders : `list` [`torch.utils.data.DataLoader`]</span>
+<span class="sd">            List of instances of `torch.utils.data.DataLoader`. If an instance</span>
+<span class="sd">            of `torch.utils.data.Dataset` in ``args`` is empty, `None` is</span>
+<span class="sd">            appended to ``loaders`` instead of an instance of</span>
+<span class="sd">            `torch.utils.data.DataLoader`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check whether each dataset in args has the correct type</span>
+        <span class="n">loaders</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">ds</span> <span class="ow">in</span> <span class="n">args</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">Dataset</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected </span><span class="si">{}</span><span class="s1">, got </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                                <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">Dataset</span><span class="p">),</span> <span class="nb">type</span><span class="p">(</span><span class="n">ds</span><span class="p">)))</span>
+
+            <span class="c1"># check if the dataset is not empty</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># build the dataloader</span>
+                <span class="n">loader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">loader</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">loaders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loader</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">loaders</span></div></div>
+
+
+<div class="viewcode-block" id="ModelConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">ModelConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Model configuration class.</span>
+
+<span class="sd">    Instanciate a (pretrained) model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model_name : `str`</span>
+<span class="sd">        The name of the model.</span>
+<span class="sd">    filters : `list` [`int`]</span>
+<span class="sd">        List of input channels to the convolutional layers.</span>
+<span class="sd">    torch_seed : `int`</span>
+<span class="sd">        The random seed to initialize the model weights.</span>
+<span class="sd">        Useful for reproducibility.</span>
+<span class="sd">    optim_name : `str`</span>
+<span class="sd">        The name of the optimizer to update the model weights.</span>
+<span class="sd">    loss_name : `str`</span>
+<span class="sd">        The name of the loss function measuring the model error.</span>
+<span class="sd">    skip_connection : `bool`, optional</span>
+<span class="sd">        Whether to apply skip connections. The defaul is True.</span>
+<span class="sd">    kwargs: `dict`, optional</span>
+<span class="sd">        The configuration for each convolution in the model. The default is</span>
+<span class="sd">        {&#39;kernel_size&#39;: 3, &#39;stride&#39;: 1, &#39;dilation&#39;: 1}.</span>
+<span class="sd">    batch_size : `int`, optional</span>
+<span class="sd">        The model batch size. Determines the number of samples to process</span>
+<span class="sd">        before updating the model weights. The default is 64.</span>
+<span class="sd">    checkpoint : `bool`, optional</span>
+<span class="sd">        Whether to resume training from an existing model checkpoint. The</span>
+<span class="sd">        default is False.</span>
+<span class="sd">    transfer : `bool`, optional</span>
+<span class="sd">        Whether to use a model for transfer learning on a new dataset. If True,</span>
+<span class="sd">        the model architecture of ``pretrained_model`` is adjusted to a new</span>
+<span class="sd">        dataset. The default is False.</span>
+<span class="sd">    pretrained_model : `str`, optional</span>
+<span class="sd">        The name of the pretrained model to use for transfer learning.</span>
+<span class="sd">        The default is &#39;&#39;.</span>
+<span class="sd">    lr : `float`, optional</span>
+<span class="sd">        The learning rate used by the gradient descent algorithm.</span>
+<span class="sd">        The default is 0.001.</span>
+<span class="sd">    early_stop : `bool`, optional</span>
+<span class="sd">        Whether to apply `early stopping`_. The default is False.</span>
+<span class="sd">    mode : `str`, optional</span>
+<span class="sd">        The mode of the early stopping. Depends on the metric measuring</span>
+<span class="sd">        performance. When using model loss as metric, use ``mode`` = &#39;min&#39;,</span>
+<span class="sd">        however, when using accuracy as metric, use ``mode`` = &#39;max&#39;. For now,</span>
+<span class="sd">        only ``mode`` = &#39;max&#39; is supported. Only used if ``early_stop`` = True.</span>
+<span class="sd">        The default is &#39;max&#39;.</span>
+<span class="sd">    delta : `float`, optional</span>
+<span class="sd">        Minimum change in early stopping metric to be considered as an</span>
+<span class="sd">        improvement. Only used if ``early_stop`` = True. The default is 0.</span>
+<span class="sd">    patience : `int`, optional</span>
+<span class="sd">        The number of epochs to wait for an improvement in the early stopping</span>
+<span class="sd">        metric. If the model does not improve over more than ``patience``</span>
+<span class="sd">        epochs, quit training. Only used if ``early_stop`` = True.</span>
+<span class="sd">        The default is 10.</span>
+<span class="sd">    epochs : `int`, optional</span>
+<span class="sd">        The maximum number of epochs to train. The default is 50.</span>
+<span class="sd">    nthreads : `int`, optional</span>
+<span class="sd">        The number of cpu threads to use during training. The default is</span>
+<span class="sd">        torch.get_num_threads().</span>
+<span class="sd">    save : `bool`, optional</span>
+<span class="sd">        Whether to save the model state to disk. Model states are saved in</span>
+<span class="sd">        pysegcnn/main/_models. The default is True.</span>
+
+<span class="sd">    .. _early stopping:</span>
+<span class="sd">        https://en.wikipedia.org/wiki/Early_stopping</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">filters</span><span class="p">:</span> <span class="nb">list</span>
+    <span class="n">torch_seed</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">optim_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">loss_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">skip_connection</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;kernel_size&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;stride&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;dilation&#39;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span>
+    <span class="n">checkpoint</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">transfer</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">pretrained_model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.001</span>
+    <span class="n">early_stop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;max&#39;</span>
+    <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">nthreads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">get_num_threads</span><span class="p">()</span>
+    <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Configure path to save model state.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            Raised if the model ``model_name``, the optimizer ``optim_name`` or</span>
+<span class="sd">            the loss function ``loss_name`` is not supported.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check input types</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># check whether the model is currently supported</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model_class</span> <span class="o">=</span> <span class="n">item_in_enum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="p">,</span> <span class="n">SupportedModels</span><span class="p">)</span>
+
+        <span class="c1"># check whether the optimizer is currently supported</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optim_class</span> <span class="o">=</span> <span class="n">item_in_enum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optim_name</span><span class="p">,</span> <span class="n">SupportedOptimizers</span><span class="p">)</span>
+
+        <span class="c1"># check whether the loss function is currently supported</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_class</span> <span class="o">=</span> <span class="n">item_in_enum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_name</span><span class="p">,</span> <span class="n">SupportedLossFunctions</span><span class="p">)</span>
+
+        <span class="c1"># path to model states</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">HERE</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_models/&#39;</span><span class="p">)</span>
+
+        <span class="c1"># path to pretrained model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pretrained_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrained_model</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ModelConfig.init_optimizer"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig.init_optimizer">[docs]</a>    <span class="k">def</span> <span class="nf">init_optimizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instanciate the optimizer.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        model : `torch.nn.Module`</span>
+<span class="sd">            An instance of `torch.nn.Module`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        optimizer : `torch.optim.Optimizer`</span>
+<span class="sd">            An instance of `torch.optim.Optimizer`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Optimizer: </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optim_class</span><span class="p">)))</span>
+
+        <span class="c1"># initialize the optimizer for the specified model</span>
+        <span class="n">optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optim_class</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">lr</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">optimizer</span></div>
+
+<div class="viewcode-block" id="ModelConfig.init_loss_function"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig.init_loss_function">[docs]</a>    <span class="k">def</span> <span class="nf">init_loss_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instanciate the loss function.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        loss_function : `torch.nn.Module`</span>
+<span class="sd">            An instance of `torch.nn.Module`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Loss function: </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_class</span><span class="p">)))</span>
+
+        <span class="c1"># instanciate the loss function</span>
+        <span class="n">loss_function</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_class</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="n">loss_function</span></div>
+
+<div class="viewcode-block" id="ModelConfig.init_model"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig.init_model">[docs]</a>    <span class="k">def</span> <span class="nf">init_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ds</span><span class="p">,</span> <span class="n">state_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Instanciate the model and the optimizer.</span>
+
+<span class="sd">        If the model checkpoint ``state_file`` exists, the pretrained model and</span>
+<span class="sd">        optimizer states are loaded, otherwise the model and the optimizer are</span>
+<span class="sd">        initialized from scratch.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ds : `pysegcnn.core.dataset.ImageDataset`</span>
+<span class="sd">            An instance of `pysegcnn.core.dataset.ImageDataset`.</span>
+<span class="sd">        state_file : `pathlib.Path`</span>
+<span class="sd">            Path to a model checkpoint.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        model : `pysegcnn.core.models.Network`</span>
+<span class="sd">            An instance of `pysegcnn.core.models.Network`.</span>
+<span class="sd">        optimizer : `torch.optim.Optimizer`</span>
+<span class="sd">            An instance of `torch.optim.Optimizer`.</span>
+<span class="sd">        checkpoint_state : `dict` [`str`, `numpy.ndarray`]</span>
+<span class="sd">            If the model checkpoint ``state_file`` exists, ``checkpoint_state``</span>
+<span class="sd">            has keys:</span>
+<span class="sd">                ``&#39;ta&#39;``</span>
+<span class="sd">                    The accuracy on the training set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;tl&#39;``</span>
+<span class="sd">                    The loss on the training set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;va&#39;``</span>
+<span class="sd">                    The accuracy on the validation set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;vl&#39;``</span>
+<span class="sd">                    The loss on the validation set (`numpy.ndarray`).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># write an initialization string to the log file</span>
+        <span class="n">LogConfig</span><span class="o">.</span><span class="n">init_log</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">: Initializing model run. &#39;</span><span class="p">)</span>
+
+        <span class="c1"># case (1): build a new model</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer</span><span class="p">:</span>
+
+            <span class="c1"># set the random seed for reproducibility</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">torch_seed</span><span class="p">)</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Initializing model: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">state_file</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+
+            <span class="c1"># instanciate the model</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_class</span><span class="p">(</span>
+                <span class="n">in_channels</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">use_bands</span><span class="p">),</span>
+                <span class="n">nclasses</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">labels</span><span class="p">),</span>
+                <span class="n">filters</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">filters</span><span class="p">,</span>
+                <span class="n">skip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">skip_connection</span><span class="p">,</span>
+                <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># case (2): load a pretrained model for transfer learning</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># load pretrained model</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Loading pretrained model for transfer learning from: &#39;</span>
+                        <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrained_path</span><span class="p">))</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transfer_model</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrained_path</span><span class="p">,</span> <span class="n">ds</span><span class="p">)</span>
+
+        <span class="c1"># initialize the optimizer</span>
+        <span class="n">optimizer</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_optimizer</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+
+        <span class="c1"># whether to resume training from an existing model checkpoint</span>
+        <span class="n">checkpoint_state</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">:</span>
+            <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">checkpoint_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">load_checkpoint</span><span class="p">(</span>
+                <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">state_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">checkpoint_state</span></div>
+
+<div class="viewcode-block" id="ModelConfig.load_checkpoint"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig.load_checkpoint">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">load_checkpoint</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">state_file</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Load an existing model checkpoint.</span>
+
+<span class="sd">        If the model checkpoint ``state_file`` exists, the pretrained model and</span>
+<span class="sd">        optimizer states are loaded.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        model : `pysegcnn.core.models.Network`</span>
+<span class="sd">            An instance of `pysegcnn.core.models.Network`.</span>
+<span class="sd">        optimizer : `torch.optim.Optimizer`</span>
+<span class="sd">            An instance of `torch.optim.Optimizer`.</span>
+<span class="sd">        state_file : `pathlib.Path`</span>
+<span class="sd">            Path to the model checkpoint.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        model : `pysegcnn.core.models.Network`</span>
+<span class="sd">            An instance of `pysegcnn.core.models.Network`.</span>
+<span class="sd">        optimizer : `torch.optim.Optimizer`</span>
+<span class="sd">            An instance of `torch.optim.Optimizer`.</span>
+<span class="sd">        checkpoint_state : `dict` [`str`, `numpy.ndarray`]</span>
+<span class="sd">            If the model checkpoint ``state_file`` exists, ``checkpoint_state``</span>
+<span class="sd">            has keys:</span>
+<span class="sd">                ``&#39;ta&#39;``</span>
+<span class="sd">                    The accuracy on the training set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;tl&#39;``</span>
+<span class="sd">                    The loss on the training set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;va&#39;``</span>
+<span class="sd">                    The accuracy on the validation set (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;vl&#39;``</span>
+<span class="sd">                    The loss on the validation set (`numpy.ndarray`).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># whether to resume training from an existing model checkpoint</span>
+        <span class="n">checkpoint_state</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># if no checkpoint exists, file a warning and continue with a model</span>
+        <span class="c1"># initialized from scratch</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state_file</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s1">&#39;Checkpoint for model </span><span class="si">{}</span><span class="s1"> does not exist. &#39;</span>
+                           <span class="s1">&#39;Initializing new model.&#39;</span>
+                           <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">state_file</span><span class="o">.</span><span class="n">name</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># load model checkpoint</span>
+            <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">model_state</span> <span class="o">=</span> <span class="n">Network</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">state_file</span><span class="p">)</span>
+
+            <span class="c1"># load model loss and accuracy</span>
+
+            <span class="c1"># get all non-zero elements, i.e. get number of epochs trained</span>
+            <span class="c1"># before the early stop</span>
+            <span class="n">checkpoint_state</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">v</span><span class="p">)]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+                                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+        <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">checkpoint_state</span></div>
+
+<div class="viewcode-block" id="ModelConfig.transfer_model"><a class="viewcode-back" href="../../source/core.html#core.trainer.ModelConfig.transfer_model">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">transfer_model</span><span class="p">(</span><span class="n">state_file</span><span class="p">,</span> <span class="n">ds</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adjust a pretrained model to a new dataset.</span>
+
+<span class="sd">        The classification layer of the pretrained model in ``state_file`` is</span>
+<span class="sd">        initilialized from scratch with the classes of the new dataset ``ds``.</span>
+
+<span class="sd">        The remaining model weights are preserved.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        state_file : `pathlib.Path`</span>
+<span class="sd">            Path to a pretrained model.</span>
+<span class="sd">        ds : `pysegcnn.core.dataset.ImageDataset`</span>
+<span class="sd">            An instance of `pysegcnn.core.dataset.ImageDataset`.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if ``ds`` is not an instance of</span>
+<span class="sd">            `pysegcnn.core.dataset.ImageDataset`.</span>
+<span class="sd">        ValueError</span>
+<span class="sd">            Raised if the bands of ``ds`` do not match the bands of the dataset</span>
+<span class="sd">            the pretrained model was trained with.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        model : `pysegcnn.core.models.Network`</span>
+<span class="sd">            An instance of `pysegcnn.core.models.Network`. The pretrained model</span>
+<span class="sd">            adjusted to the new dataset.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># check input type</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ds</span><span class="p">,</span> <span class="n">ImageDataset</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected &quot;ds&quot; to be </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="n">ImageDataset</span><span class="o">.</span><span class="vm">__module__</span><span class="p">,</span>
+                                              <span class="n">ImageDataset</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])))</span>
+
+        <span class="c1"># load the pretrained model</span>
+        <span class="n">model</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">model_state</span> <span class="o">=</span> <span class="n">Network</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">state_file</span><span class="p">)</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Configuring model for new dataset: </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="n">ds</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+        <span class="c1"># check whether the current dataset uses the correct spectral bands</span>
+        <span class="k">if</span> <span class="n">ds</span><span class="o">.</span><span class="n">use_bands</span> <span class="o">!=</span> <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;bands&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;The pretrained network was trained with &#39;</span>
+                             <span class="s1">&#39;bands </span><span class="si">{}</span><span class="s1">, not with bands </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;bands&#39;</span><span class="p">],</span> <span class="n">ds</span><span class="o">.</span><span class="n">use_bands</span><span class="p">))</span>
+
+        <span class="c1"># get the number of convolutional filters</span>
+        <span class="n">filters</span> <span class="o">=</span> <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;params&#39;</span><span class="p">][</span><span class="s1">&#39;filters&#39;</span><span class="p">]</span>
+
+        <span class="c1"># reset model epoch to 0, since the model is trained on a different</span>
+        <span class="c1"># dataset</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">epoch</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># adjust the number of classes in the model</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">nclasses</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Replacing classification layer to classes: </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;(</span><span class="si">{}</span><span class="s1">, </span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span>
+                                      <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">ds</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">items</span><span class="p">())))</span>
+
+        <span class="c1"># adjust the classification layer to the classes of the new dataset</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">classifier</span> <span class="o">=</span> <span class="n">Conv2dSame</span><span class="p">(</span><span class="n">in_channels</span><span class="o">=</span><span class="n">filters</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                                      <span class="n">out_channels</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">nclasses</span><span class="p">,</span>
+                                      <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">model</span></div></div>
+
+
+<div class="viewcode-block" id="StateConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.StateConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">StateConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Model state configuration class.</span>
+
+<span class="sd">    Generate the model state filename according to the following naming</span>
+<span class="sd">    convention:</span>
+
+<span class="sd">    model_dataset_optimizer_splitmode_splitparams_tilesize_batchsize_bands.pt</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    ds : `pysegcnn.core.dataset.ImageDataset`</span>
+<span class="sd">        An instance of `pysegcnn.core.dataset.ImageDataset`.</span>
+<span class="sd">    sc : `pysegcnn.core.trainer.SplitConfig`</span>
+<span class="sd">        An instance of `pysegcnn.core.trainer.SplitConfig`.</span>
+<span class="sd">    mc : `pysegcnn.core.trainer.ModelConfig`</span>
+<span class="sd">        An instance of `pysegcnn.core.trainer.SplitConfig`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ds</span><span class="p">:</span> <span class="n">ImageDataset</span>
+    <span class="n">sc</span><span class="p">:</span> <span class="n">SplitConfig</span>
+    <span class="n">mc</span><span class="p">:</span> <span class="n">ModelConfig</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+<div class="viewcode-block" id="StateConfig.init_state"><a class="viewcode-back" href="../../source/core.html#core.trainer.StateConfig.init_state">[docs]</a>    <span class="k">def</span> <span class="nf">init_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate the model state filename.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        state : `pathlib.Path`</span>
+<span class="sd">            The path to the model state file.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># file to save model state to:</span>
+        <span class="c1"># network_dataset_optim_split_splitparams_tilesize_batchsize_bands.pt</span>
+
+        <span class="c1"># model state filename</span>
+        <span class="n">state_file</span> <span class="o">=</span> <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">Split_</span><span class="si">{}</span><span class="s1">_t</span><span class="si">{}</span><span class="s1">_b</span><span class="si">{}</span><span class="s1">_</span><span class="si">{}</span><span class="s1">.pt&#39;</span>
+
+        <span class="c1"># get the band numbers</span>
+        <span class="n">bformat</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">band</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span>
+                          <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">sensor</span><span class="o">.</span><span class="n">__members__</span><span class="p">[</span><span class="n">band</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span>
+                          <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">use_bands</span><span class="p">)</span>
+
+        <span class="c1"># check which split mode was used</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">split_mode</span> <span class="o">==</span> <span class="s1">&#39;date&#39;</span><span class="p">:</span>
+            <span class="c1"># store the date that was used to split the dataset</span>
+            <span class="n">state_file</span> <span class="o">=</span> <span class="n">state_file</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">model_name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">optim_name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">split_mode</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">date</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                                           <span class="n">bformat</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># store the random split parameters</span>
+            <span class="n">split_params</span> <span class="o">=</span> <span class="s1">&#39;s</span><span class="si">{}</span><span class="s1">_t</span><span class="si">{}</span><span class="s1">v</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">ttratio</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">),</span>
+                <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">tvratio</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+
+            <span class="c1"># model state filename</span>
+            <span class="n">state_file</span> <span class="o">=</span> <span class="n">state_file</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">model_name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">optim_name</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">sc</span><span class="o">.</span><span class="n">split_mode</span><span class="o">.</span><span class="n">capitalize</span><span class="p">(),</span>
+                                           <span class="n">split_params</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">ds</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+                                           <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+                                           <span class="n">bformat</span><span class="p">)</span>
+
+        <span class="c1"># check whether a pretrained model was used and change state filename</span>
+        <span class="c1"># accordingly</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">transfer</span><span class="p">:</span>
+            <span class="c1"># add the configuration of the pretrained model to the state name</span>
+            <span class="n">state_file</span> <span class="o">=</span> <span class="p">(</span><span class="n">state_file</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.pt&#39;</span><span class="p">,</span> <span class="s1">&#39;_&#39;</span><span class="p">)</span> <span class="o">+</span>
+                          <span class="s1">&#39;pretrained_&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">pretrained_model</span><span class="p">)</span>
+
+        <span class="c1"># path to model state</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc</span><span class="o">.</span><span class="n">state_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">state_file</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">state</span></div></div>
+
+
+<div class="viewcode-block" id="EvalConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.EvalConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">EvalConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Model inference configuration.</span>
+
+<span class="sd">    Evaluate a model.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state_file : `pathlib.Path`</span>
+<span class="sd">        Path to the model to evaluate.</span>
+<span class="sd">    test : `bool` or `None`</span>
+<span class="sd">        Whether to evaluate the model on the training(``test`` = `None`), the</span>
+<span class="sd">        validation (``test`` = False) or the test set (``test`` = True).</span>
+<span class="sd">    predict_scene : `bool`, optional</span>
+<span class="sd">        The model prediction order. If False, the samples (tiles) of a dataset</span>
+<span class="sd">        are predicted in any order and the scenes are not reconstructed.</span>
+<span class="sd">        If True, the samples (tiles) are ordered according to the scene they</span>
+<span class="sd">        belong to and a model prediction for each entire reconstructed scene is</span>
+<span class="sd">        returned. The default is False.</span>
+<span class="sd">    plot_samples : `bool`, optional</span>
+<span class="sd">        Whether to save a plot of false color composite, ground truth and model</span>
+<span class="sd">        prediction for each sample (tile). Only used if ``predict_scene`` =</span>
+<span class="sd">        False. The default is False.</span>
+<span class="sd">    plot_scenes : `bool`, optional</span>
+<span class="sd">        Whether to save a plot of false color composite, ground truth and model</span>
+<span class="sd">        prediction for each entire scene. Only used if ``predict_scene`` =</span>
+<span class="sd">        True. The default is False.</span>
+<span class="sd">    plot_bands : `list` [`str`], optional</span>
+<span class="sd">        The bands to build the false color composite. The default is</span>
+<span class="sd">        [&#39;nir&#39;, &#39;red&#39;, &#39;green&#39;].</span>
+<span class="sd">    cm : `bool`, optional</span>
+<span class="sd">        Whether to compute and plot the confusion matrix. The default is True.</span>
+<span class="sd">    figsize : `tuple`, optional</span>
+<span class="sd">        The figure size in centimeters. The default is (10, 10).</span>
+<span class="sd">    alpha : `int`, optional</span>
+<span class="sd">        The level of the percentiles for contrast stretching of the false color</span>
+<span class="sd">        compsite. The default is 0, i.e. no stretching.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">state_file</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>
+    <span class="n">test</span><span class="p">:</span> <span class="nb">object</span>
+    <span class="n">predict_scene</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">plot_samples</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">plot_scenes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">plot_bands</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span>
+        <span class="n">default_factory</span><span class="o">=</span><span class="k">lambda</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;nir&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">])</span>
+    <span class="n">cm</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">figsize</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+    <span class="n">alpha</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Configure figure output paths.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        TypeError</span>
+<span class="sd">            Raised if ``test`` is not of type `bool` or `None`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># check whether the test input parameter is correctly specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">test</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;Expected &quot;test&quot; to be None, True or False, got &#39;</span>
+                            <span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test</span><span class="p">))</span>
+
+        <span class="c1"># the output paths for the different graphics</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">HERE</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sample_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_samples&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scenes_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_scenes&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">perfmc_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_graphics&#39;</span><span class="p">)</span>
+
+        <span class="c1"># input path for model state files</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">models_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_models&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">models_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">)</span>
+
+        <span class="c1"># write initialization string to log file</span>
+        <span class="n">LogConfig</span><span class="o">.</span><span class="n">init_log</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">: &#39;</span> <span class="o">+</span> <span class="s1">&#39;Evaluating model: </span><span class="si">{}</span><span class="s1">.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="o">.</span><span class="n">name</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="LogConfig"><a class="viewcode-back" href="../../source/core.html#core.trainer.LogConfig">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">LogConfig</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Logging configuration class.</span>
+
+<span class="sd">    Generate the model log file.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state_file : `pathlib.Path`</span>
+<span class="sd">        Path to a model state file.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">state_file</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Generate model log file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># the path to store model logs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="n">HERE</span><span class="p">)</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;_logs&#39;</span><span class="p">)</span>
+
+        <span class="c1"># the log file of the current model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log_file</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.pt&#39;</span><span class="p">,</span> <span class="s1">&#39;.log&#39;</span><span class="p">))</span>
+
+<div class="viewcode-block" id="LogConfig.now"><a class="viewcode-back" href="../../source/core.html#core.trainer.LogConfig.now">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">now</span><span class="p">():</span>
+        <span class="sd">&quot;&quot;&quot;Return the current date and time.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        date : `datetime.datetime`</span>
+<span class="sd">            The current date and time.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(),</span>
+                                          <span class="s1">&#39;%Y-%m-</span><span class="si">%d</span><span class="s1">T%H:%M:%S&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="LogConfig.init_log"><a class="viewcode-back" href="../../source/core.html#core.trainer.LogConfig.init_log">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">init_log</span><span class="p">(</span><span class="n">init_str</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Generate a string to identify a new model run.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        init_str : `str`</span>
+<span class="sd">            The string to write to the model log file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="mi">80</span> <span class="o">*</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">init_str</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">LogConfig</span><span class="o">.</span><span class="n">now</span><span class="p">()))</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="mi">80</span> <span class="o">*</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="NetworkTrainer"><a class="viewcode-back" href="../../source/core.html#core.trainer.NetworkTrainer">[docs]</a><span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span> <span class="nc">NetworkTrainer</span><span class="p">(</span><span class="n">BaseConfig</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Model training class.</span>
+
+<span class="sd">    Generic class to train an instance of `pysegcnn.core.models.Network` on</span>
+<span class="sd">    a dataset of type `pysegcnn.core.dataset.ImageDataset`.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    model : `pysegcnn.core.models.Network`</span>
+<span class="sd">        The model to train. An instance of `pysegcnn.core.models.Network`.</span>
+<span class="sd">    optimizer : `torch.optim.Optimizer`</span>
+<span class="sd">        The optimizer to update the model weights. An instance of</span>
+<span class="sd">        `torch.optim.Optimizer`.</span>
+<span class="sd">    loss_function : `torch.nn.Module`</span>
+<span class="sd">        The loss function to compute the model error. An instance of</span>
+<span class="sd">        `torch.nn.Module`.</span>
+<span class="sd">    train_dl : `torch.utils.data.DataLoader`</span>
+<span class="sd">        The training `torch.utils.data.DataLoader` instance.</span>
+<span class="sd">    valid_dl : `torch.utils.data.DataLoader`</span>
+<span class="sd">        The validation `torch.utils.data.DataLoader` instance.</span>
+<span class="sd">    test_dl : `torch.utils.data.DataLoader`</span>
+<span class="sd">        The test `torch.utils.data.DataLoader` instance.</span>
+<span class="sd">    state_file : `pathlib.Path`</span>
+<span class="sd">        Path to save the model state.</span>
+<span class="sd">    epochs : `int`, optional</span>
+<span class="sd">        The maximum number of epochs to train. The default is 1.</span>
+<span class="sd">    nthreads : `int`, optional</span>
+<span class="sd">        The number of cpu threads to use during training. The default is</span>
+<span class="sd">        torch.get_num_threads().</span>
+<span class="sd">    early_stop : `bool`, optional</span>
+<span class="sd">        Whether to apply `early stopping`_. The default is False.</span>
+<span class="sd">    mode : `str`, optional</span>
+<span class="sd">        The mode of the early stopping. Depends on the metric measuring</span>
+<span class="sd">        performance. When using model loss as metric, use ``mode`` = &#39;min&#39;,</span>
+<span class="sd">        however, when using accuracy as metric, use ``mode`` = &#39;max&#39;. For now,</span>
+<span class="sd">        only ``mode`` = &#39;max&#39; is supported. Only used if ``early_stop`` = True.</span>
+<span class="sd">        The default is &#39;max&#39;.</span>
+<span class="sd">    delta : `float`, optional</span>
+<span class="sd">        Minimum change in early stopping metric to be considered as an</span>
+<span class="sd">        improvement. Only used if ``early_stop`` = True. The default is 0.</span>
+<span class="sd">    patience : `int`, optional</span>
+<span class="sd">        The number of epochs to wait for an improvement in the early stopping</span>
+<span class="sd">        metric. If the model does not improve over more than ``patience``</span>
+<span class="sd">        epochs, quit training. Only used if ``early_stop`` = True.</span>
+<span class="sd">        The default is 10.</span>
+<span class="sd">    checkpoint_state : `dict` [`str`, `numpy.ndarray`], optional</span>
+<span class="sd">        A model checkpoint for ``model``. If specified, ``checkpoint_state``</span>
+<span class="sd">        should be a dictionary with keys:</span>
+<span class="sd">            ``&#39;ta&#39;``</span>
+<span class="sd">                The accuracy on the training set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;tl&#39;``</span>
+<span class="sd">                The loss on the training set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;va&#39;``</span>
+<span class="sd">                The accuracy on the validation set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;vl&#39;``</span>
+<span class="sd">                The loss on the validation set (`numpy.ndarray`).</span>
+<span class="sd">        The default is {}.</span>
+<span class="sd">    save : `bool`, optional</span>
+<span class="sd">        Whether to save the model state to ``state_file``. The default is True.</span>
+
+<span class="sd">    .. _early stopping:</span>
+<span class="sd">        https://en.wikipedia.org/wiki/Early_stopping</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model</span><span class="p">:</span> <span class="n">Network</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span>
+    <span class="n">loss_function</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span>
+    <span class="n">train_dl</span><span class="p">:</span> <span class="n">DataLoader</span>
+    <span class="n">valid_dl</span><span class="p">:</span> <span class="n">DataLoader</span>
+    <span class="n">test_dl</span><span class="p">:</span> <span class="n">DataLoader</span>
+    <span class="n">state_file</span><span class="p">:</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>
+    <span class="n">epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">nthreads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">get_num_threads</span><span class="p">()</span>
+    <span class="n">early_stop</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;max&#39;</span>
+    <span class="n">delta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">checkpoint_state</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">save</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span> <span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check the type of each argument.</span>
+
+<span class="sd">        Configure the device to train the model on, i.e. train on the gpu if</span>
+<span class="sd">        available.</span>
+
+<span class="sd">        Configure early stopping if required.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">__post_init__</span><span class="p">()</span>
+
+        <span class="c1"># whether to use the gpu</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="s2">&quot;cuda:0&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span>
+                                   <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+
+        <span class="c1"># send the model to the gpu if available</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="c1"># maximum accuracy on the validation dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_accuracy</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_state</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">max_accuracy</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_state</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span>
+                <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+        <span class="c1"># whether to use early stopping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">es</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">es</span> <span class="o">=</span> <span class="n">EarlyStopping</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_accuracy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta</span><span class="p">,</span>
+                                    <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">)</span>
+
+        <span class="c1"># log representation</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="p">))</span>
+
+<div class="viewcode-block" id="NetworkTrainer.train"><a class="viewcode-back" href="../../source/core.html#core.trainer.NetworkTrainer.train">[docs]</a>    <span class="k">def</span> <span class="nf">train</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Train the model.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        training_state : `dict` [`str`, `numpy.ndarray`]</span>
+<span class="sd">            The training state dictionary with keys:</span>
+<span class="sd">            ``&#39;ta&#39;``</span>
+<span class="sd">                The accuracy on the training set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;tl&#39;``</span>
+<span class="sd">                The loss on the training set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;va&#39;``</span>
+<span class="sd">                The accuracy on the validation set (`numpy.ndarray`).</span>
+<span class="sd">            ``&#39;vl&#39;``</span>
+<span class="sd">                The loss on the validation set (`numpy.ndarray`).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="mi">35</span> <span class="o">*</span> <span class="s1">&#39;-&#39;</span> <span class="o">+</span> <span class="s1">&#39; Training &#39;</span> <span class="o">+</span> <span class="mi">35</span> <span class="o">*</span> <span class="s1">&#39;-&#39;</span><span class="p">)</span>
+
+        <span class="c1"># set the number of threads</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Device: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">))</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Number of cpu threads: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nthreads</span><span class="p">))</span>
+        <span class="n">torch</span><span class="o">.</span><span class="n">set_num_threads</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">nthreads</span><span class="p">)</span>
+
+        <span class="c1"># create dictionary of the observed losses and accuracies on the</span>
+        <span class="c1"># training and validation dataset</span>
+        <span class="n">tshape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">)</span>
+        <span class="n">vshape</span> <span class="o">=</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;tl&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">tshape</span><span class="p">),</span>
+                               <span class="s1">&#39;ta&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">tshape</span><span class="p">),</span>
+                               <span class="s1">&#39;vl&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">vshape</span><span class="p">),</span>
+                               <span class="s1">&#39;va&#39;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="n">vshape</span><span class="p">)</span>
+                               <span class="p">}</span>
+
+        <span class="c1"># initialize the training: iterate over the entire training dataset</span>
+        <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">):</span>
+
+            <span class="c1"># set the model to training mode</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting model to training mode ...&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+            <span class="c1"># iterate over the dataloader object</span>
+            <span class="k">for</span> <span class="n">batch</span><span class="p">,</span> <span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="p">):</span>
+
+                <span class="c1"># send the data to the gpu if available</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+                <span class="c1"># reset the gradients</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+
+                <span class="c1"># perform forward pass</span>
+                <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+
+                <span class="c1"># compute loss</span>
+                <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_function</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+                <span class="n">observed_loss</span> <span class="o">=</span> <span class="n">loss</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span><span class="p">[</span><span class="s1">&#39;tl&#39;</span><span class="p">][</span><span class="n">batch</span><span class="p">,</span> <span class="n">epoch</span><span class="p">]</span> <span class="o">=</span> <span class="n">observed_loss</span>
+
+                <span class="c1"># compute the gradients of the loss function w.r.t.</span>
+                <span class="c1"># the network weights</span>
+                <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+
+                <span class="c1"># update the weights</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+                <span class="c1"># calculate predicted class labels</span>
+                <span class="n">ypred</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+                <span class="c1"># calculate accuracy on current batch</span>
+                <span class="n">observed_accuracy</span> <span class="o">=</span> <span class="n">accuracy_function</span><span class="p">(</span><span class="n">ypred</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span><span class="p">[</span><span class="s1">&#39;ta&#39;</span><span class="p">][</span><span class="n">batch</span><span class="p">,</span> <span class="n">epoch</span><span class="p">]</span> <span class="o">=</span> <span class="n">observed_accuracy</span>
+
+                <span class="c1"># print progress</span>
+                <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Epoch: </span><span class="si">{:d}</span><span class="s1">/</span><span class="si">{:d}</span><span class="s1">, Mini-batch: </span><span class="si">{:d}</span><span class="s1">/</span><span class="si">{:d}</span><span class="s1">, &#39;</span>
+                            <span class="s1">&#39;Loss: </span><span class="si">{:.2f}</span><span class="s1">, Accuracy: </span><span class="si">{:.2f}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                                <span class="n">epoch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">epochs</span><span class="p">,</span>
+                                <span class="n">batch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+                                <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="p">),</span>
+                                <span class="n">observed_loss</span><span class="p">,</span>
+                                <span class="n">observed_accuracy</span><span class="p">))</span>
+
+            <span class="c1"># update the number of epochs trained</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">epoch</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># whether to evaluate model performance on the validation set and</span>
+            <span class="c1"># early stop the training process</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span><span class="p">:</span>
+
+                <span class="c1"># model predictions on the validation set</span>
+                <span class="n">vacc</span><span class="p">,</span> <span class="n">vloss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict</span><span class="p">()</span>
+
+                <span class="c1"># append observed accuracy and loss to arrays</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">][:,</span> <span class="n">epoch</span><span class="p">]</span> <span class="o">=</span> <span class="n">vacc</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span><span class="p">[</span><span class="s1">&#39;vl&#39;</span><span class="p">][:,</span> <span class="n">epoch</span><span class="p">]</span> <span class="o">=</span> <span class="n">vloss</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span>
+
+                <span class="c1"># metric to assess model performance on the validation set</span>
+                <span class="n">epoch_acc</span> <span class="o">=</span> <span class="n">vacc</span><span class="o">.</span><span class="n">squeeze</span><span class="p">()</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+                <span class="c1"># whether the model improved with respect to the previous epoch</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">es</span><span class="o">.</span><span class="n">increased</span><span class="p">(</span><span class="n">epoch_acc</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_accuracy</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">delta</span><span class="p">):</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">max_accuracy</span> <span class="o">=</span> <span class="n">epoch_acc</span>
+
+                    <span class="c1"># save model state if the model improved with</span>
+                    <span class="c1"># respect to the previous epoch</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">save_state</span><span class="p">()</span>
+
+                <span class="c1"># whether the early stopping criterion is met</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">es</span><span class="o">.</span><span class="n">stop</span><span class="p">(</span><span class="n">epoch_acc</span><span class="p">):</span>
+                    <span class="k">break</span>
+
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># if no early stopping is required, the model state is</span>
+                <span class="c1"># saved after each epoch</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">save_state</span><span class="p">()</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span></div>
+
+<div class="viewcode-block" id="NetworkTrainer.predict"><a class="viewcode-back" href="../../source/core.html#core.trainer.NetworkTrainer.predict">[docs]</a>    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Model inference at training time.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        accuracies : `numpy.ndarray`</span>
+<span class="sd">            The mean model prediction accuracy on each mini-batch in the</span>
+<span class="sd">            validation set.</span>
+<span class="sd">        losses : `numpy.ndarray`</span>
+<span class="sd">            The model loss for each mini-batch in the validation set.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># set the model to evaluation mode</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Setting model to evaluation mode ...&#39;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+
+        <span class="c1"># create arrays of the observed losses and accuracies</span>
+        <span class="n">accuracies</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">losses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="p">),</span> <span class="mi">1</span><span class="p">))</span>
+
+        <span class="c1"># iterate over the validation/test set</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Calculating accuracy on the validation set ...&#39;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">batch</span><span class="p">,</span> <span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="p">):</span>
+
+            <span class="c1"># send the data to the gpu if available</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+            <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+            <span class="c1"># calculate network outputs</span>
+            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+                <span class="n">outputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+
+            <span class="c1"># compute loss</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_function</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">labels</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+            <span class="n">losses</span><span class="p">[</span><span class="n">batch</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">loss</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+            <span class="c1"># calculate predicted class labels</span>
+            <span class="n">pred</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># calculate accuracy on current batch</span>
+            <span class="n">acc</span> <span class="o">=</span> <span class="n">accuracy_function</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">labels</span><span class="p">)</span>
+            <span class="n">accuracies</span><span class="p">[</span><span class="n">batch</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">acc</span>
+
+            <span class="c1"># print progress</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Mini-batch: </span><span class="si">{:d}</span><span class="s1">/</span><span class="si">{:d}</span><span class="s1">, Accuracy: </span><span class="si">{:.2f}</span><span class="s1">&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">batch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="p">),</span> <span class="n">acc</span><span class="p">))</span>
+
+        <span class="c1"># calculate overall accuracy on the validation/test set</span>
+        <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Epoch: </span><span class="si">{:d}</span><span class="s1">, Mean accuracy: </span><span class="si">{:.2f}</span><span class="s1">%.&#39;</span>
+                    <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">epoch</span><span class="p">,</span> <span class="n">accuracies</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="mi">100</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">accuracies</span><span class="p">,</span> <span class="n">losses</span></div>
+
+<div class="viewcode-block" id="NetworkTrainer.save_state"><a class="viewcode-back" href="../../source/core.html#core.trainer.NetworkTrainer.save_state">[docs]</a>    <span class="k">def</span> <span class="nf">save_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Save the model state.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># whether to save the model state</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">save</span><span class="p">:</span>
+
+            <span class="c1"># append the model performance before the checkpoint to the model</span>
+            <span class="c1"># state, if a checkpoint is passed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_state</span><span class="p">:</span>
+
+                <span class="c1"># append values from checkpoint to current training state</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="p">{</span><span class="n">k1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">hstack</span><span class="p">([</span><span class="n">v1</span><span class="p">,</span> <span class="n">v2</span><span class="p">])</span> <span class="k">for</span> <span class="p">(</span><span class="n">k1</span><span class="p">,</span> <span class="n">v1</span><span class="p">),</span> <span class="p">(</span><span class="n">k2</span><span class="p">,</span> <span class="n">v2</span><span class="p">)</span> <span class="ow">in</span>
+                         <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">checkpoint_state</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span>
+                             <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="k">if</span> <span class="n">k1</span> <span class="o">==</span> <span class="n">k2</span><span class="p">}</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">training_state</span>
+
+            <span class="c1"># save model state</span>
+            <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">save</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">state_file</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span>
+                <span class="n">bands</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">use_bands</span><span class="p">,</span>
+                <span class="n">train_ds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
+                <span class="n">valid_ds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
+                <span class="n">test_ds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">test_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
+                <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">,</span>
+                <span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation of `~pysegcnn.core.trainer.NetworkTrainer`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        fs : `str`</span>
+<span class="sd">            Representation string.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># representation string to print</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s1">&#39;(</span><span class="se">\n</span><span class="s1">&#39;</span>
+
+        <span class="c1"># dataset</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;    (dataset):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+            <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="p">)</span>
+
+        <span class="c1"># batch size</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (batch):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- batch size: </span><span class="si">{}</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- mini-batch shape (b, c, h, w): </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+             <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">use_bands</span><span class="p">),</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+             <span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="c1"># dataset split</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (split):&#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">train_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">valid_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span> <span class="o">+</span> <span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">test_dl</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># model</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (model):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="p">)</span>
+
+        <span class="c1"># optimizer</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (optimizer):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="p">)</span>
+
+        <span class="c1"># early stopping</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (early stop):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">es</span><span class="p">))</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="p">)</span>
+
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">)&#39;</span>
+        <span class="k">return</span> <span class="n">fs</span></div>
+
+
+<div class="viewcode-block" id="EarlyStopping"><a class="viewcode-back" href="../../source/core.html#core.trainer.EarlyStopping">[docs]</a><span class="k">class</span> <span class="nc">EarlyStopping</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;`Early stopping`_ algorithm.</span>
+
+<span class="sd">    This implementation of the early stopping algorithm advances a counter each</span>
+<span class="sd">    time a metric did not improve over a training epoch. If the metric does not</span>
+<span class="sd">    improve over more than ``patience`` epochs, the early stopping criterion is</span>
+<span class="sd">    met.</span>
+
+<span class="sd">    See `pysegcnn.core.trainer.NetworkTrainer.train` for an example</span>
+<span class="sd">    implementation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mode : `str`, optional</span>
+<span class="sd">        The mode of the early stopping. Depends on the metric measuring</span>
+<span class="sd">        performance. When using model loss as metric, use ``mode`` = &#39;min&#39;,</span>
+<span class="sd">        however, when using accuracy as metric, use ``mode`` = &#39;max&#39;. The</span>
+<span class="sd">        default is &#39;max&#39;.</span>
+<span class="sd">    best : `float`, optional</span>
+<span class="sd">        Threshold indicating the best metric score. At instanciation, set</span>
+<span class="sd">        ``best`` to the worst possible score of the metric. ``best`` will be</span>
+<span class="sd">        overwritten during training. The default is 0.</span>
+<span class="sd">    min_delta : `float`, optional</span>
+<span class="sd">        Minimum change in early stopping metric to be considered as an</span>
+<span class="sd">        improvement. The default is 0.</span>
+<span class="sd">    patience : `int`, optional</span>
+<span class="sd">        The number of epochs to wait for an improvement in the early stopping</span>
+<span class="sd">        metric. The default is 10.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    ValueError</span>
+<span class="sd">        Raised if ``mode`` is not either &#39;min&#39; or &#39;max&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    .. _Early stopping:</span>
+<span class="sd">        https://en.wikipedia.org/wiki/Early_stopping</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;max&#39;</span><span class="p">,</span> <span class="n">best</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">min_delta</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="mi">10</span><span class="p">):</span>
+
+        <span class="c1"># check if mode is correctly specified</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;min&#39;</span><span class="p">,</span> <span class="s1">&#39;max&#39;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Mode &quot;</span><span class="si">{}</span><span class="s1">&quot; not supported. &#39;</span>
+                             <span class="s1">&#39;Mode is either &quot;min&quot; (check whether the metric &#39;</span>
+                             <span class="s1">&#39;decreased, e.g. loss) or &quot;max&quot; (check whether &#39;</span>
+                             <span class="s1">&#39;the metric increased, e.g. accuracy).&#39;</span>
+                             <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">mode</span><span class="p">))</span>
+
+        <span class="c1"># mode to determine if metric improved</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
+
+        <span class="c1"># whether to check for an increase or a decrease in a given metric</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">is_better</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">decreased</span> <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s1">&#39;min&#39;</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">increased</span>
+
+        <span class="c1"># minimum change in metric to be considered as an improvement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_delta</span> <span class="o">=</span> <span class="n">min_delta</span>
+
+        <span class="c1"># number of epochs to wait for improvement</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">patience</span> <span class="o">=</span> <span class="n">patience</span>
+
+        <span class="c1"># initialize best metric</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">best</span> <span class="o">=</span> <span class="n">best</span>
+
+        <span class="c1"># initialize early stopping flag</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># initialize the early stop counter</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+<div class="viewcode-block" id="EarlyStopping.stop"><a class="viewcode-back" href="../../source/core.html#core.trainer.EarlyStopping.stop">[docs]</a>    <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Advance early stopping counter.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        metric : `float`</span>
+<span class="sd">            The current metric score.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        early_stop : `bool`</span>
+<span class="sd">            Whether the early stopping criterion is met.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if the metric improved, reset the epochs counter, else, advance</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_better</span><span class="p">(</span><span class="n">metric</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">best</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_delta</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">best</span> <span class="o">=</span> <span class="n">metric</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Early stopping counter: </span><span class="si">{}</span><span class="s1">/</span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">counter</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">))</span>
+
+        <span class="c1"># if the metric did not improve over the last patience epochs,</span>
+        <span class="c1"># the early stopping criterion is met</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">counter</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">:</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Early stopping criterion met, stopping training.&#39;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">early_stop</span></div>
+
+<div class="viewcode-block" id="EarlyStopping.decreased"><a class="viewcode-back" href="../../source/core.html#core.trainer.EarlyStopping.decreased">[docs]</a>    <span class="k">def</span> <span class="nf">decreased</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">min_delta</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Whether a metric decreased with respect to a best score.</span>
+
+<span class="sd">        Measure improvement for metrics that are considered as &#39;better&#39; when</span>
+<span class="sd">        they decrease, e.g. model loss, mean squared error, etc.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        metric : `float`</span>
+<span class="sd">            The current score.</span>
+<span class="sd">        best : `float`</span>
+<span class="sd">            The current best score.</span>
+<span class="sd">        min_delta : `float`</span>
+<span class="sd">            Minimum change to be considered as an improvement.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `bool`</span>
+<span class="sd">            Whether the metric improved.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">metric</span> <span class="o">&lt;</span> <span class="n">best</span> <span class="o">-</span> <span class="n">min_delta</span></div>
+
+<div class="viewcode-block" id="EarlyStopping.increased"><a class="viewcode-back" href="../../source/core.html#core.trainer.EarlyStopping.increased">[docs]</a>    <span class="k">def</span> <span class="nf">increased</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric</span><span class="p">,</span> <span class="n">best</span><span class="p">,</span> <span class="n">min_delta</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Whether a metric increased with respect to a best score.</span>
+
+<span class="sd">        Measure improvement for metrics that are considered as &#39;better&#39; when</span>
+<span class="sd">        they increase, e.g. accuracy, precision, recall, etc.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        metric : `float`</span>
+<span class="sd">            The current score.</span>
+<span class="sd">        best : `float`</span>
+<span class="sd">            The current best score.</span>
+<span class="sd">        min_delta : `float`</span>
+<span class="sd">            Minimum change to be considered as an improvement.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `bool`</span>
+<span class="sd">            Whether the metric improved.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">metric</span> <span class="o">&gt;</span> <span class="n">best</span> <span class="o">+</span> <span class="n">min_delta</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Representation of `~pysegcnn.core.trainer.EarlyStopping`.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        fs : `str`</span>
+<span class="sd">            Representation string.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;(mode=</span><span class="si">{}</span><span class="s1">, best=</span><span class="si">{:.2f}</span><span class="s1">, delta=</span><span class="si">{}</span><span class="s1">, patience=</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">best</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_delta</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">patience</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fs</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

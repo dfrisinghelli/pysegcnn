@@ -1,0 +1,1594 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core.dataset &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/requirements.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/api.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>core.dataset</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core.dataset</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Custom dataset classes compliant to the PyTorch standard.</span>
+
+<span class="sd">Each custom dataset should inherit from torch.utils.data.Dataset to benefit</span>
+<span class="sd">from the torch.utils.data.DataLoader class, which implements helpful utilities</span>
+<span class="sd">during model training.</span>
+
+<span class="sd">For any kind of image-like dataset, inherit the ImageDataset class to create</span>
+<span class="sd">your custom dataset.</span>
+
+<span class="sd">License</span>
+<span class="sd">-------</span>
+
+<span class="sd">    Copyright (c) 2020 Daniel Frisinghelli</span>
+
+<span class="sd">    This source code is licensed under the GNU General Public License v3.</span>
+
+<span class="sd">    See the LICENSE file in the repository&#39;s root directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># !/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># builtins</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">re</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+<span class="kn">import</span> <span class="nn">logging</span>
+
+<span class="c1"># externals</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">from</span> <span class="nn">torch.utils.data</span> <span class="kn">import</span> <span class="n">Dataset</span>
+
+<span class="c1"># locals</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.constants</span> <span class="kn">import</span> <span class="p">(</span><span class="n">Landsat8</span><span class="p">,</span> <span class="n">Sentinel2</span><span class="p">,</span> <span class="n">Label</span><span class="p">,</span> <span class="n">SparcsLabels</span><span class="p">,</span>
+                                     <span class="n">Cloud95Labels</span><span class="p">,</span> <span class="n">ProSnowLabels</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.utils</span> <span class="kn">import</span> <span class="p">(</span><span class="n">img2np</span><span class="p">,</span> <span class="n">is_divisible</span><span class="p">,</span> <span class="n">tile_topleft_corner</span><span class="p">,</span>
+                                 <span class="n">parse_landsat_scene</span><span class="p">,</span> <span class="n">parse_sentinel2_scene</span><span class="p">)</span>
+
+<span class="c1"># module level logger</span>
+<span class="n">LOGGER</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="ImageDataset"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset">[docs]</a><span class="k">class</span> <span class="nc">ImageDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Base class for multispectral image data.</span>
+
+<span class="sd">    Inheriting from `torch.utils.data.Dataset` to be compliant to the PyTorch</span>
+<span class="sd">    standard. Furthermore, using instances of `torch.utils.data.Dataset`</span>
+<span class="sd">    enables the use of the handy `torch.utils.data.DataLoader` class during</span>
+<span class="sd">    model training.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention.</span>
+<span class="sd">        All directories and subdirectories in ``root_dir`` are searched for</span>
+<span class="sd">        files matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># dataset configuration</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="n">root_dir</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="o">=</span> <span class="n">use_bands</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span> <span class="o">=</span> <span class="n">tile_size</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pad</span> <span class="o">=</span> <span class="n">pad</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gt_pattern</span> <span class="o">=</span> <span class="n">gt_pattern</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sort</span> <span class="o">=</span> <span class="n">sort</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="n">seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="n">transforms</span>
+
+        <span class="c1"># initialize instance attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_attributes</span><span class="p">()</span>
+
+        <span class="c1"># the samples of the dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scenes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compose_scenes</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assert_compose_scenes</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">_init_attributes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Initialize the class instance attributes.&quot;&quot;&quot;</span>
+        <span class="c1"># the size of a scene/patch in the dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_size</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assert_get_size</span><span class="p">()</span>
+
+        <span class="c1"># the available spectral bands in the dataset</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sensor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_sensor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assert_get_sensor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bands</span> <span class="o">=</span> <span class="p">{</span><span class="n">band</span><span class="o">.</span><span class="n">value</span><span class="p">:</span> <span class="n">band</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="p">}</span>
+
+        <span class="c1"># the class labels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_labels</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_assert_get_labels</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">labels</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_labels</span><span class="p">()</span>
+
+        <span class="c1"># check which bands to use</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="k">else</span>
+                          <span class="p">[</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="o">.</span><span class="n">values</span><span class="p">()])</span>
+
+        <span class="c1"># calculate number of resulting tiles and check whether the images are</span>
+        <span class="c1"># evenly divisible in square tiles of size (tile_size x tile_size)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="n">is_divisible</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+                                                    <span class="bp">self</span><span class="o">.</span><span class="n">pad</span><span class="p">)</span>
+
+        <span class="c1"># the size of the padded scenes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+
+        <span class="c1"># the topleft corners of the tiles</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">topleft</span> <span class="o">=</span> <span class="n">tile_topleft_corner</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">),</span>
+                                               <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">)</span>
+
+        <span class="c1"># always use the original dataset together with the augmentations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span>
+
+        <span class="c1"># when padding, add a new &quot;no data&quot; label to the ground truth</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cval</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pad</span> <span class="ow">and</span> <span class="nb">sum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cval</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">cval</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="s1">&#39;No data&#39;</span><span class="p">,</span> <span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="s1">&#39;black&#39;</span><span class="p">}</span>
+            <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Adding label &quot;No data&quot; with value=</span><span class="si">{}</span><span class="s1"> to ground truth.&#39;</span>
+                        <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">cval</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_build_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build the label dictionary.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        labels : `dict` [`int`, `dict`]</span>
+<span class="sd">            The label dictionary. The keys are the values of the class labels</span>
+<span class="sd">            in the ground truth ``y``. Each nested `dict` should have keys:</span>
+<span class="sd">                ``&#39;color&#39;``</span>
+<span class="sd">                    A named color (`str`).</span>
+<span class="sd">                ``&#39;label&#39;``</span>
+<span class="sd">                    The name of the class label (`str`).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="n">band</span><span class="o">.</span><span class="n">id</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;label&#39;</span><span class="p">:</span> <span class="n">band</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39; &#39;</span><span class="p">),</span>
+                          <span class="s1">&#39;color&#39;</span><span class="p">:</span> <span class="n">band</span><span class="o">.</span><span class="n">color</span><span class="p">}</span>
+                <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_class</span><span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_assert_compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether compose_scenes() is correctly implemented.&quot;&quot;&quot;</span>
+        <span class="c1"># list of required keys</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">keys</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;gt&#39;</span><span class="p">,</span> <span class="s1">&#39;date&#39;</span><span class="p">,</span> <span class="s1">&#39;tile&#39;</span><span class="p">,</span> <span class="s1">&#39;transform&#39;</span><span class="p">,</span> <span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+        <span class="c1"># check if each scene is correctly composed</span>
+        <span class="k">for</span> <span class="n">scene</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenes</span><span class="p">:</span>
+            <span class="c1"># check the type of each scene</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scene</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.compose_scenes() should return a list of &#39;</span>
+                                <span class="s1">&#39;dictionaries.&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+                                <span class="p">)</span>
+
+            <span class="c1"># check if each scene dictionary has the correct keys</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">([</span><span class="n">k</span> <span class="ow">in</span> <span class="n">scene</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">]):</span>
+                <span class="k">raise</span> <span class="ne">KeyError</span><span class="p">(</span><span class="s1">&#39;Each scene dictionary should have keys </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                               <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keys</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_assert_get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether get_size() is correctly implemented.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">size</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.get_size() should return the spatial size of &#39;</span>
+                            <span class="s1">&#39;an image sample as tuple, i.e. (height, width).&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_assert_get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether get_sensor() is correctly implemented.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">EnumMeta</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.get_sensor() should return an instance of &#39;</span>
+                            <span class="s1">&#39;enum.Enum, containing an enumeration of the &#39;</span>
+                            <span class="s1">&#39;spectral bands of the sensor the dataset is &#39;</span>
+                            <span class="s1">&#39;derived from. Examples can be found in &#39;</span>
+                            <span class="s1">&#39;pysegcnn.core.constants.py.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="nf">_assert_get_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Check whether get_labels() is correctly implemented.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_label_class</span><span class="p">,</span> <span class="n">Label</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.get_labels() should return an instance of &#39;</span>
+                            <span class="s1">&#39;pysegcnn.core.constants.Label, &#39;</span>
+                            <span class="s1">&#39;containing an enumeration of the &#39;</span>
+                            <span class="s1">&#39;class labels, together with the corresponing id &#39;</span>
+                            <span class="s1">&#39;in the ground truth mask and a color for &#39;</span>
+                            <span class="s1">&#39;visualization. Examples can be found in &#39;</span>
+                            <span class="s1">&#39;pysegcnn.core.constants.py.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the number of samples in the dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        nsamples : `int`</span>
+<span class="sd">            The number of samples in the dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scenes</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the data of a sample of the dataset given an index ``idx``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx : `int`</span>
+<span class="sd">            The index of the sample.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`</span>
+<span class="sd">            The sample input data.</span>
+<span class="sd">        y : `torch.Tensor`</span>
+<span class="sd">            The sample ground truth.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># select a scene</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">read_scene</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+
+        <span class="c1"># get samples</span>
+        <span class="c1"># data: (tiles, bands, height, width)</span>
+        <span class="c1"># gt: (height, width)</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">gt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">build_samples</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+
+        <span class="c1"># preprocess samples</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">gt</span><span class="p">)</span>
+
+        <span class="c1"># apply transformation</span>
+        <span class="k">if</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">](</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+
+        <span class="c1"># convert to torch tensors</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">to_tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span>
+
+<div class="viewcode-block" id="ImageDataset.compose_scenes"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.compose_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.</span>
+
+<span class="sd">        Each sample is represented by a dictionary.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        samples : `list` [`dict`]</span>
+<span class="sd">            Each dictionary representing a sample should have keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    Path to the file of band_1.</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    Path to the file of band_2.</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    Path to the file of band_n.</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    Path to the ground truth file.</span>
+<span class="sd">                ``&#39;date&#39;``</span>
+<span class="sd">                    The date of the sample.</span>
+<span class="sd">                ``&#39;tile&#39;``</span>
+<span class="sd">                    The tile id of the sample.</span>
+<span class="sd">                ``&#39;transform&#39;``</span>
+<span class="sd">                    The transformation to apply.</span>
+<span class="sd">                ``&#39;id&#39;``</span>
+<span class="sd">                    The scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.get_size"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.get_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the size of the images in the dataset.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        size : `tuple`</span>
+<span class="sd">            The image size (height, width).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.get_sensor"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.get_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return an enumeration of the bands of the sensor of the dataset.</span>
+
+<span class="sd">        Examples can be found in `pysegcnn.core.constants`.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sensor : `enum.Enum`</span>
+<span class="sd">            An enumeration of the bands of the sensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.get_labels"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.get_labels">[docs]</a>    <span class="k">def</span> <span class="nf">get_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return an enumeration of the class labels of the dataset.</span>
+
+<span class="sd">        Examples can be found in `pysegcnn.core.constants`.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        labels : `enum.Enum`</span>
+<span class="sd">            The class labels.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.preprocess"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.preprocess">[docs]</a>    <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Preprocess a sample before feeding it to a model.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The sample input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The sample ground truth.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed ground truth data.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.parse_scene_id"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.parse_scene_id">[docs]</a>    <span class="k">def</span> <span class="nf">parse_scene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse the scene identifier.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scene_id : `str`</span>
+<span class="sd">            A scene identifier.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not</span>
+<span class="sd">            inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene : `dict` or `None`</span>
+<span class="sd">            A dictionary containing scene metadata. If `None`, ``scene_id`` is</span>
+<span class="sd">            not a valid scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Inherit the ImageDataset class and &#39;</span>
+                                  <span class="s1">&#39;implement the method.&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ImageDataset.read_scene"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.read_scene">[docs]</a>    <span class="k">def</span> <span class="nf">read_scene</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Read the data of the sample with index ``idx``.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        idx : `int`</span>
+<span class="sd">            The index of the sample.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene_data : `dict`</span>
+<span class="sd">            The sample data dictionary with keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    data of band_1 (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    data of band_2 (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    data of band_n (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    data of the ground truth (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;date&#39;``</span>
+<span class="sd">                    The date of the sample.</span>
+<span class="sd">                ``&#39;tile&#39;``</span>
+<span class="sd">                    The tile id of the sample.</span>
+<span class="sd">                ``&#39;transform&#39;``</span>
+<span class="sd">                    The transformation to apply.</span>
+<span class="sd">                ``&#39;id&#39;``</span>
+<span class="sd">                    The scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># select a scene from the root directory</span>
+        <span class="n">scene</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenes</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+
+        <span class="c1"># read each band of the scene into a numpy array</span>
+        <span class="n">scene_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">scene</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># pad zeros to each band if self.pad=True, but pad self.cval to</span>
+            <span class="c1"># the ground truth</span>
+            <span class="n">npad</span> <span class="o">=</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s1">&#39;gt&#39;</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">!=</span> <span class="s1">&#39;id&#39;</span><span class="p">:</span>
+                <span class="n">scene_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">img2np</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">],</span>
+                                         <span class="bp">self</span><span class="o">.</span><span class="n">pad</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cval</span> <span class="o">*</span> <span class="n">npad</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">scene_data</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+
+        <span class="k">return</span> <span class="n">scene_data</span></div>
+
+<div class="viewcode-block" id="ImageDataset.build_samples"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.build_samples">[docs]</a>    <span class="k">def</span> <span class="nf">build_samples</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stack the bands of a sample in a single array.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scene : `dict`</span>
+<span class="sd">            The sample data dictionary with keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    data of band_1 (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    data of band_2 (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    data of band_n (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    data of the ground truth (`numpy.ndarray`).</span>
+<span class="sd">                ``&#39;date&#39;``</span>
+<span class="sd">                    The date of the sample.</span>
+<span class="sd">                ``&#39;tile&#39;``</span>
+<span class="sd">                    The tile id of the sample.</span>
+<span class="sd">                ``&#39;transform&#39;``</span>
+<span class="sd">                    The transformation to apply.</span>
+<span class="sd">                ``&#39;id&#39;``</span>
+<span class="sd">                    The scene identifier.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        stack : `numpy.ndarray`</span>
+<span class="sd">            The input data of the sample.</span>
+<span class="sd">        gt : TYPE</span>
+<span class="sd">            The ground truth of the sample.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># iterate over the channels to stack</span>
+        <span class="n">stack</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">scene</span><span class="p">[</span><span class="n">band</span><span class="p">]</span> <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">gt</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;gt&#39;</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">stack</span><span class="p">,</span> <span class="n">gt</span></div>
+
+<div class="viewcode-block" id="ImageDataset.to_tensor"><a class="viewcode-back" href="../../source/core.html#core.dataset.ImageDataset.to_tensor">[docs]</a>    <span class="k">def</span> <span class="nf">to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Convert ``x`` to `torch.Tensor`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : array_like</span>
+<span class="sd">            The input data.</span>
+<span class="sd">        dtype : `torch.dtype`</span>
+<span class="sd">            The data type used to convert ``x``.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`</span>
+<span class="sd">            The input data tensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Dataset representation.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        fs : `str`</span>
+<span class="sd">            Representation string.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># representation string to print</span>
+        <span class="n">fs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s1">&#39;(</span><span class="se">\n</span><span class="s1">&#39;</span>
+
+        <span class="c1"># sensor</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;    (sensor):</span><span class="se">\n</span><span class="s1">        - &#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">sensor</span><span class="o">.</span><span class="vm">__name__</span>
+
+        <span class="c1"># bands used for the segmentation</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (bands):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;- Band </span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">b</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span>
+                                <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span><span class="p">))</span>
+
+        <span class="c1"># scenes</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (scene):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- size (h, w): </span><span class="si">{}</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">height</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">width</span><span class="p">))</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- number of scenes: </span><span class="si">{}</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">([</span><span class="n">f</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">scenes</span><span class="p">])))</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- padding (bottom, left, top, right): </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">padding</span><span class="p">)</span>
+
+        <span class="c1"># tiles</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (tiles):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- number of tiles per scene: </span><span class="si">{}</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">)</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- tile size: </span><span class="si">{}</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">format</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">,</span>
+                                                  <span class="bp">self</span><span class="o">.</span><span class="n">tile_size</span><span class="p">))</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;- number of tiles: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">scenes</span><span class="p">))</span>
+
+        <span class="c1"># classes of interest</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">    (classes):</span><span class="se">\n</span><span class="s1">        &#39;</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">        &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="s1">&#39;- Class </span><span class="si">{}</span><span class="s1">: </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">])</span> <span class="k">for</span>
+                                <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">labels</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="n">fs</span> <span class="o">+=</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">)&#39;</span>
+        <span class="k">return</span> <span class="n">fs</span></div>
+
+
+<div class="viewcode-block" id="StandardEoDataset"><a class="viewcode-back" href="../../source/core.html#core.dataset.StandardEoDataset">[docs]</a><span class="k">class</span> <span class="nc">StandardEoDataset</span><span class="p">(</span><span class="n">ImageDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Base class for standard Earth Observation style datasets.</span>
+
+<span class="sd">    `pysegcnn.core.dataset.StandardEoDataset` implements the</span>
+<span class="sd">    `~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method for</span>
+<span class="sd">    datasets with the following directory structure:</span>
+
+<span class="sd">    root_dir/</span>
+<span class="sd">        scene_id_1/</span>
+<span class="sd">            scene_id_1_B1.tif</span>
+<span class="sd">            scene_id_1_B2.tif</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+<span class="sd">            scene_id_1_BN.tif</span>
+<span class="sd">        scene_id_2/</span>
+<span class="sd">            scene_id_2_B1.tif</span>
+<span class="sd">            scene_id_2_B2.tif</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+<span class="sd">            scene_id_2_BN.tif</span>
+<span class="sd">        .</span>
+<span class="sd">        .</span>
+<span class="sd">        .</span>
+<span class="sd">        scene_id_N/</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+<span class="sd">            .</span>
+
+<span class="sd">    If your dataset shares this directory structure, you can directly inherit</span>
+<span class="sd">    `pysegcnn.core.dataset.StandardEoDataset` and implement the remaining</span>
+<span class="sd">    methods.</span>
+
+<span class="sd">    See `pysegcnn.core.dataset.SparcsDataset` for an example.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class ImageDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_get_band_number</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the band number of a scene .tif file.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        path : `str`</span>
+<span class="sd">            The path to the .tif file.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        band : `int` or `str`</span>
+<span class="sd">            The band number.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># filename</span>
+        <span class="n">fname</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+
+        <span class="c1"># search for numbers following a &quot;B&quot; in the filename</span>
+        <span class="n">band</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;B</span><span class="se">\\</span><span class="s1">dA|B</span><span class="se">\\</span><span class="s1">d{1,2}&#39;</span><span class="p">,</span> <span class="n">fname</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;B&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+        <span class="c1"># try converting to an integer:</span>
+        <span class="c1"># raises a ValueError for Sentinel2 8A band</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">band</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">band</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+        <span class="k">return</span> <span class="n">band</span>
+
+    <span class="k">def</span> <span class="nf">_store_bands</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bands</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Write the bands of interest to a dictionary.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        bands : `list` [`str`]</span>
+<span class="sd">            Paths to the .tif files of the bands of the scene.</span>
+<span class="sd">        gt : `str`</span>
+<span class="sd">            Path to the ground truth of the scene.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene_data : `dict`</span>
+<span class="sd">            The scene data dictionary with keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    Path to the .tif file of band_1.</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    Path to the .tif file of band_2.</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    Path to the .tif file of band_n.</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    Path to the ground truth file.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># store the bands of interest in a dictionary</span>
+        <span class="n">scene_data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bands</span><span class="p">):</span>
+            <span class="n">band</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bands</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_band_number</span><span class="p">(</span><span class="n">b</span><span class="p">)]</span>
+            <span class="k">if</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span><span class="p">:</span>
+                <span class="n">scene_data</span><span class="p">[</span><span class="n">band</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+
+        <span class="c1"># store ground truth</span>
+        <span class="n">scene_data</span><span class="p">[</span><span class="s1">&#39;gt&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">gt</span>
+
+        <span class="k">return</span> <span class="n">scene_data</span>
+
+<div class="viewcode-block" id="StandardEoDataset.compose_scenes"><a class="viewcode-back" href="../../source/core.html#core.dataset.StandardEoDataset.compose_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.</span>
+
+<span class="sd">        Each sample is represented by a dictionary.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scenes : `list` [`dict`]</span>
+<span class="sd">            Each item in ``scenes`` is a `dict` with keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    Path to the file of band_1.</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    Path to the file of band_2.</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    Path to the file of band_n.</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    Path to the ground truth file.</span>
+<span class="sd">                ``&#39;date&#39;``</span>
+<span class="sd">                    The date of the sample.</span>
+<span class="sd">                ``&#39;tile&#39;``</span>
+<span class="sd">                    The tile id of the sample.</span>
+<span class="sd">                ``&#39;transform&#39;``</span>
+<span class="sd">                    The transformation to apply.</span>
+<span class="sd">                ``&#39;id&#39;``</span>
+<span class="sd">                    The scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># search the root directory</span>
+        <span class="n">scenes</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gt</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">):</span>
+
+            <span class="c1"># search for a ground truth in the current directory</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gt</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span>
+                            <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gt_pattern</span><span class="p">,</span> <span class="n">f</span><span class="p">)])</span>
+
+            <span class="c1"># check if the current directory name matches a scene identifier</span>
+            <span class="n">scene</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_scene_id</span><span class="p">(</span><span class="n">dirpath</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">scene</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+
+                <span class="c1"># get the date of the current scene</span>
+                <span class="n">date</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span>
+
+                <span class="c1"># list the spectral bands of the scene</span>
+                <span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span>
+                         <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;B</span><span class="se">\\</span><span class="s1">dA|B</span><span class="se">\\</span><span class="s1">d{1,2}&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">)]</span>
+
+                <span class="c1"># get the ground truth mask</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">gt</span> <span class="o">=</span> <span class="p">[</span><span class="n">truth</span> <span class="k">for</span> <span class="n">truth</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">gt</span> <span class="k">if</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="ow">in</span> <span class="n">truth</span><span class="p">]</span>
+                    <span class="n">gt</span> <span class="o">=</span> <span class="n">gt</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+                <span class="k">except</span> <span class="ne">IndexError</span><span class="p">:</span>
+                    <span class="n">LOGGER</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s1">&#39;Skipping scene </span><span class="si">{}</span><span class="s1">: ground truth not available&#39;</span>
+                                <span class="s1">&#39; (pattern = </span><span class="si">{}</span><span class="s1">).&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">scene</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">],</span>
+                                                          <span class="bp">self</span><span class="o">.</span><span class="n">gt_pattern</span><span class="p">))</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># iterate over the tiles</span>
+                <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">):</span>
+
+                    <span class="c1"># iterate over the transformations to apply</span>
+                    <span class="k">for</span> <span class="n">transf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+
+                        <span class="c1"># store the bands and the ground truth mask of the tile</span>
+                        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_store_bands</span><span class="p">(</span><span class="n">bands</span><span class="p">,</span> <span class="n">gt</span><span class="p">)</span>
+
+                        <span class="c1"># the name of the scene</span>
+                        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+                        <span class="c1"># store tile number</span>
+                        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tile</span>
+
+                        <span class="c1"># store date</span>
+                        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">date</span>
+
+                        <span class="c1"># store optional transformation</span>
+                        <span class="n">data</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transf</span>
+
+                        <span class="c1"># append to list</span>
+                        <span class="n">scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="c1"># sort list of scenes and ground truths in chronological order</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort</span><span class="p">:</span>
+            <span class="n">scenes</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">gt</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_scene_id</span><span class="p">(</span><span class="n">k</span><span class="p">)[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">scenes</span></div></div>
+
+
+<div class="viewcode-block" id="SparcsDataset"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset">[docs]</a><span class="k">class</span> <span class="nc">SparcsDataset</span><span class="p">(</span><span class="n">StandardEoDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the `Sparcs`_ dataset.</span>
+
+<span class="sd">    .. _Sparcs:</span>
+<span class="sd">        https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class StandardEoDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SparcsDataset.get_size"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset.get_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Image size of the Sparcs dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        size : `tuple`</span>
+<span class="sd">            The image size (height, width).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">1000</span><span class="p">,</span> <span class="mi">1000</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SparcsDataset.get_sensor"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset.get_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Landsat 8 bands of the Sparcs dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sensor : `enum.Enum`</span>
+<span class="sd">            An enumeration of the bands of the sensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Landsat8</span></div>
+
+<div class="viewcode-block" id="SparcsDataset.get_labels"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset.get_labels">[docs]</a>    <span class="k">def</span> <span class="nf">get_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Class labels of the Sparcs dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        labels : `enum.Enum`</span>
+<span class="sd">            The class labels.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">SparcsLabels</span></div>
+
+<div class="viewcode-block" id="SparcsDataset.preprocess"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset.preprocess">[docs]</a>    <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Preprocess Sparcs dataset images.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The sample input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The sample ground truth.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed ground truth data.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if the preprocessing is not done externally, implement it here</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span></div>
+
+<div class="viewcode-block" id="SparcsDataset.parse_scene_id"><a class="viewcode-back" href="../../source/core.html#core.dataset.SparcsDataset.parse_scene_id">[docs]</a>    <span class="k">def</span> <span class="nf">parse_scene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse Sparcs scene identifiers (Landsat 8).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scene_id : `str`</span>
+<span class="sd">            A scene identifier.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene : `dict` or `None`</span>
+<span class="sd">            A dictionary containing scene metadata. If `None`, ``scene_id`` is</span>
+<span class="sd">            not a valid Landsat scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">parse_landsat_scene</span><span class="p">(</span><span class="n">scene_id</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ProSnowDataset"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowDataset">[docs]</a><span class="k">class</span> <span class="nc">ProSnowDataset</span><span class="p">(</span><span class="n">StandardEoDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow datasets.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class StandardEoDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProSnowDataset.get_sensor"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowDataset.get_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sentinel 2 bands of the ProSnow datasets.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sensor : `enum.Enum`</span>
+<span class="sd">            An enumeration of the bands of the sensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Sentinel2</span></div>
+
+<div class="viewcode-block" id="ProSnowDataset.get_labels"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowDataset.get_labels">[docs]</a>    <span class="k">def</span> <span class="nf">get_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Class labels of the ProSnow datasets.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        labels : `enum.Enum`</span>
+<span class="sd">            The class labels.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">ProSnowLabels</span></div>
+
+<div class="viewcode-block" id="ProSnowDataset.preprocess"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowDataset.preprocess">[docs]</a>    <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Preprocess ProSnow dataset images.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The sample input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The sample ground truth.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed ground truth data.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># if the preprocessing is not done externally, implement it here</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span></div>
+
+<div class="viewcode-block" id="ProSnowDataset.parse_scene_id"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowDataset.parse_scene_id">[docs]</a>    <span class="k">def</span> <span class="nf">parse_scene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse ProSnow scene identifiers (Sentinel 2).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scene_id : `str`</span>
+<span class="sd">            A scene identifier.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene : `dict` or `None`</span>
+<span class="sd">            A dictionary containing scene metadata. If `None`, ``scene_id`` is</span>
+<span class="sd">            not a valid Sentinel-2 scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">parse_sentinel2_scene</span><span class="p">(</span><span class="n">scene_id</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ProSnowGarmisch"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowGarmisch">[docs]</a><span class="k">class</span> <span class="nc">ProSnowGarmisch</span><span class="p">(</span><span class="n">ProSnowDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow Garmisch dataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class StandardEoDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProSnowGarmisch.get_size"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowGarmisch.get_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Image size of the ProSnow Garmisch dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        size : `tuple`</span>
+<span class="sd">            The image size (height, width).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">615</span><span class="p">,</span> <span class="mi">543</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ProSnowObergurgl"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowObergurgl">[docs]</a><span class="k">class</span> <span class="nc">ProSnowObergurgl</span><span class="p">(</span><span class="n">ProSnowDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow Obergurgl dataset.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class StandardEoDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ProSnowObergurgl.get_size"><a class="viewcode-back" href="../../source/core.html#core.dataset.ProSnowObergurgl.get_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Image size of the ProSnow Obergurgl dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        size : `tuple`</span>
+<span class="sd">            The image size (height, width).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">310</span><span class="p">,</span> <span class="mi">270</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Cloud95Dataset"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset">[docs]</a><span class="k">class</span> <span class="nc">Cloud95Dataset</span><span class="p">(</span><span class="n">ImageDataset</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the `Cloud-95`_ dataset by `Mohajerani et al. (2020)`_.</span>
+
+<span class="sd">    .. _Cloud95:</span>
+<span class="sd">        https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset</span>
+<span class="sd">    .. _`Mohajerani et al. (2020)`:</span>
+<span class="sd">        https://arxiv.org/abs/2001.08768</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    root_dir : `str`</span>
+<span class="sd">        The root directory, path to the dataset.</span>
+<span class="sd">    use_bands : `list` [`str`], optional</span>
+<span class="sd">        A list of the spectral bands to use. The default is [].</span>
+<span class="sd">    tile_size : `int` or `None`, optional</span>
+<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
+<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
+<span class="sd">    pad : `bool`, optional</span>
+<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
+<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
+<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
+<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
+<span class="sd">        The default is False.</span>
+<span class="sd">    gt_pattern : `str`, optional</span>
+<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
+<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
+<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
+<span class="sd">    sort : `bool`, optional</span>
+<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">        data. The default is False.</span>
+<span class="sd">    seed : `int`, optional</span>
+<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
+<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
+<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
+<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
+<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
+<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
+<span class="sd">        together with each transformed version of it.</span>
+<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
+<span class="sd">        The default is [].</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                 <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="c1"># initialize super class StandardEoDataset</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+
+        <span class="c1"># the csv file containing the names of the informative patches</span>
+        <span class="c1"># patches with more than 80% black pixels, i.e. patches resulting from</span>
+        <span class="c1"># the black margins around a Landsat 8 scene are excluded</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span> <span class="o">=</span> <span class="s1">&#39;training_patches_95-cloud_nonempty.csv&#39;</span>
+
+<div class="viewcode-block" id="Cloud95Dataset.get_size"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.get_size">[docs]</a>    <span class="k">def</span> <span class="nf">get_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Image size of the Cloud-95 dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        size : `tuple`</span>
+<span class="sd">            The image size (height, width).</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="mi">384</span><span class="p">,</span> <span class="mi">384</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Cloud95Dataset.get_sensor"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.get_sensor">[docs]</a>    <span class="k">def</span> <span class="nf">get_sensor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Landsat 8 bands of the Cloud-95 dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        sensor : `enum.Enum`</span>
+<span class="sd">            An enumeration of the bands of the sensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Landsat8</span></div>
+
+<div class="viewcode-block" id="Cloud95Dataset.get_labels"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.get_labels">[docs]</a>    <span class="k">def</span> <span class="nf">get_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Class labels of the Cloud-95 dataset.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        labels : `enum.Enum`</span>
+<span class="sd">            The class labels.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">Cloud95Labels</span></div>
+
+<div class="viewcode-block" id="Cloud95Dataset.preprocess"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.preprocess">[docs]</a>    <span class="k">def</span> <span class="nf">preprocess</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Preprocess Cloud-95 dataset images.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The sample input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The sample ground truth.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        data : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed input data.</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
+<span class="sd">            The preprocessed ground truth data.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># normalize the data</span>
+        <span class="c1"># here, we use the normalization of the authors of Cloud-95, i.e.</span>
+        <span class="c1"># Mohajerani and Saeedi (2019, 2020)</span>
+        <span class="n">data</span> <span class="o">/=</span> <span class="mi">65535</span>
+        <span class="n">gt</span><span class="p">[</span><span class="n">gt</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">cval</span><span class="p">]</span> <span class="o">/=</span> <span class="mi">255</span>
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">gt</span></div>
+
+<div class="viewcode-block" id="Cloud95Dataset.parse_scene_id"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.parse_scene_id">[docs]</a>    <span class="k">def</span> <span class="nf">parse_scene_id</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scene_id</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Parse Sparcs scene identifiers (Landsat 8).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        scene_id : `str`</span>
+<span class="sd">            A scene identifier.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scene : `dict` or `None`</span>
+<span class="sd">            A dictionary containing scene metadata. If `None`, ``scene_id`` is</span>
+<span class="sd">            not a valid Landsat scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">parse_landsat_scene</span><span class="p">(</span><span class="n">scene_id</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Cloud95Dataset.compose_scenes"><a class="viewcode-back" href="../../source/core.html#core.dataset.Cloud95Dataset.compose_scenes">[docs]</a>    <span class="k">def</span> <span class="nf">compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.</span>
+
+<span class="sd">        Each sample is represented by a dictionary.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        scenes : `list` [`dict`]</span>
+<span class="sd">            Each item in ``scenes`` is a `dict` with keys:</span>
+<span class="sd">                ``&#39;band_name_1&#39;``</span>
+<span class="sd">                    Path to the file of band_1.</span>
+<span class="sd">                ``&#39;band_name_2&#39;``</span>
+<span class="sd">                    Path to the file of band_2.</span>
+<span class="sd">                ``&#39;band_name_n&#39;``</span>
+<span class="sd">                    Path to the file of band_n.</span>
+<span class="sd">                ``&#39;gt&#39;``</span>
+<span class="sd">                    Path to the ground truth file.</span>
+<span class="sd">                ``&#39;date&#39;``</span>
+<span class="sd">                    The date of the sample.</span>
+<span class="sd">                ``&#39;tile&#39;``</span>
+<span class="sd">                    The tile id of the sample.</span>
+<span class="sd">                ``&#39;transform&#39;``</span>
+<span class="sd">                    The transformation to apply.</span>
+<span class="sd">                ``&#39;id&#39;``</span>
+<span class="sd">                    The scene identifier.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># whether to exclude patches with more than 80% black pixels</span>
+        <span class="n">ipatches</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span><span class="p">),</span> <span class="n">newline</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="c1"># list of informative patches</span>
+                <span class="n">ipatches</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="o">.</span><span class="n">from_iterable</span><span class="p">(</span><span class="n">reader</span><span class="p">))</span>
+
+        <span class="c1"># get the names of the directories containing the tif files of</span>
+        <span class="c1"># the bands of interest</span>
+        <span class="n">band_dirs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">dirpath</span><span class="p">,</span> <span class="n">dirname</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root</span><span class="p">):</span>
+            <span class="c1"># check if the current directory path includes the name of a band</span>
+            <span class="c1"># or the name of the ground truth mask</span>
+            <span class="n">cband</span> <span class="o">=</span> <span class="p">[</span><span class="n">band</span> <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_bands</span> <span class="o">+</span> <span class="p">[</span><span class="s1">&#39;gt&#39;</span><span class="p">]</span> <span class="k">if</span>
+                     <span class="n">dirpath</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="n">band</span><span class="p">)</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">dirpath</span><span class="p">)]</span>
+
+            <span class="c1"># add path to current band files to dictionary</span>
+            <span class="k">if</span> <span class="n">cband</span><span class="p">:</span>
+                <span class="n">band_dirs</span><span class="p">[</span><span class="n">cband</span><span class="o">.</span><span class="n">pop</span><span class="p">()]</span> <span class="o">=</span> <span class="n">dirpath</span>
+
+        <span class="c1"># create empty list to store all patches to</span>
+        <span class="n">scenes</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># iterate over all the patches of the following band</span>
+        <span class="n">biter</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">band_dirs</span><span class="o">.</span><span class="n">keys</span><span class="p">()][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">band_dirs</span><span class="p">[</span><span class="n">biter</span><span class="p">]):</span>
+
+            <span class="c1"># get name of the current patch</span>
+            <span class="n">patchname</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">biter</span> <span class="o">+</span> <span class="s1">&#39;_&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+            <span class="c1"># get the date of the current scene</span>
+            <span class="n">scene_meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_scene_id</span><span class="p">(</span><span class="n">patchname</span><span class="p">)</span>
+
+            <span class="c1"># check whether the current file is an informative patch</span>
+            <span class="k">if</span> <span class="n">ipatches</span> <span class="ow">and</span> <span class="n">patchname</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">ipatches</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># iterate over the tiles</span>
+            <span class="k">for</span> <span class="n">tile</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tiles</span><span class="p">):</span>
+
+                <span class="c1"># iterate over the transformations to apply</span>
+                <span class="k">for</span> <span class="n">transf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transforms</span><span class="p">:</span>
+
+                    <span class="c1"># initialize dictionary to store bands of current patch</span>
+                    <span class="n">scene</span> <span class="o">=</span> <span class="p">{}</span>
+
+                    <span class="c1"># iterate over the bands of interest</span>
+                    <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">band_dirs</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                        <span class="c1"># save path to current band tif file to dictionary</span>
+                        <span class="n">scene</span><span class="p">[</span><span class="n">band</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">band_dirs</span><span class="p">[</span><span class="n">band</span><span class="p">],</span>
+                                                   <span class="n">file</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">biter</span><span class="p">,</span> <span class="n">band</span><span class="p">))</span>
+
+                    <span class="c1"># the name of the scene the patch was extracted from</span>
+                    <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene_meta</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+                    <span class="c1"># store tile number</span>
+                    <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;tile&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tile</span>
+
+                    <span class="c1"># store date</span>
+                    <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">scene_meta</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">]</span>
+
+                    <span class="c1"># store optional transformation</span>
+                    <span class="n">scene</span><span class="p">[</span><span class="s1">&#39;transform&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">transf</span>
+
+                    <span class="c1"># append patch to list of all patches</span>
+                    <span class="n">scenes</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scene</span><span class="p">)</span>
+
+        <span class="c1"># sort list of scenes in chronological order</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sort</span><span class="p">:</span>
+            <span class="n">scenes</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">scenes</span></div></div>
+
+
+<div class="viewcode-block" id="SupportedDatasets"><a class="viewcode-back" href="../../source/core.html#core.dataset.SupportedDatasets">[docs]</a><span class="k">class</span> <span class="nc">SupportedDatasets</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Names and corresponding classes of the implemented datasets.&quot;&quot;&quot;</span>
+
+    <span class="n">Sparcs</span> <span class="o">=</span> <span class="n">SparcsDataset</span>
+    <span class="n">Cloud95</span> <span class="o">=</span> <span class="n">Cloud95Dataset</span>
+    <span class="n">Garmisch</span> <span class="o">=</span> <span class="n">ProSnowGarmisch</span>
+    <span class="n">Obergurgl</span> <span class="o">=</span> <span class="n">ProSnowObergurgl</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

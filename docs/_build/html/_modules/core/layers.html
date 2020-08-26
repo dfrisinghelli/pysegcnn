@@ -1,0 +1,954 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core.layers &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/requirements.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/api.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>core.layers</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core.layers</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Layers of a convolutional encoder-decoder network.</span>
+
+<span class="sd">License</span>
+<span class="sd">-------</span>
+
+<span class="sd">    Copyright (c) 2020 Daniel Frisinghelli</span>
+
+<span class="sd">    This source code is licensed under the GNU General Public License v3.</span>
+
+<span class="sd">    See the LICENSE file in the repository&#39;s root directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># !/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># externals</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">torch.nn</span> <span class="k">as</span> <span class="nn">nn</span>
+<span class="kn">import</span> <span class="nn">torch.nn.functional</span> <span class="k">as</span> <span class="nn">F</span>
+
+
+<div class="viewcode-block" id="Conv2dSame"><a class="viewcode-back" href="../../source/core.html#core.layers.Conv2dSame">[docs]</a><span class="k">class</span> <span class="nc">Conv2dSame</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A convolution preserving the shape of its input.</span>
+
+<span class="sd">    Given the kernel size, the dilation and a stride of 1, the padding is</span>
+<span class="sd">    calculated such that the output of the convolution has the same spatial</span>
+<span class="sd">    dimensions as the input.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    *args: `list` [`str`]</span>
+<span class="sd">        positional arguments passed to `torch.nn.Conv2d`:</span>
+<span class="sd">            ``&#39;in_channels&#39;``: `int`</span>
+<span class="sd">                Number of input channels.</span>
+<span class="sd">            ``&#39;out_channels&#39;``: `int`</span>
+<span class="sd">                Number of output channels.</span>
+<span class="sd">            ``&#39;kernel_size&#39;``: `int` or `tuple` [`int`]</span>
+<span class="sd">                Size of the convolving kernel.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional keyword arguments passed to `torch.nn.Conv2d`_.</span>
+
+<span class="sd">    .. _torch.nn.Conv2d:</span>
+<span class="sd">        https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html#torch.nn.Conv2d</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># define tensorflows &quot;SAME&quot; padding for stride = 1</span>
+        <span class="n">x_pad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">same_padding</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dilation</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">y_pad</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">same_padding</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dilation</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">kernel_size</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_pad</span><span class="p">,</span> <span class="n">x_pad</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Conv2dSame.same_padding"><a class="viewcode-back" href="../../source/core.html#core.layers.Conv2dSame.same_padding">[docs]</a>    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">same_padding</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Calculate the amount of padding.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        d : `int`</span>
+<span class="sd">            The dilation of the convolution.</span>
+<span class="sd">        k : `int`</span>
+<span class="sd">            The kernel size.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        p : `int`</span>
+<span class="sd">            the amount of padding.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># calculates the padding so that the convolution</span>
+        <span class="c1"># conserves the shape of its input when stride = 1</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">d</span> <span class="o">*</span> <span class="p">(</span><span class="n">k</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="conv_bn_relu"><a class="viewcode-back" href="../../source/core.html#core.layers.conv_bn_relu">[docs]</a><span class="k">def</span> <span class="nf">conv_bn_relu</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of convolution, batch normalization and rectified linear unit.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    block : `torch.nn.Sequential` [`torch.nn.Module`]</span>
+<span class="sd">        An instance of `torch.nn.Sequential` containing a sequence of</span>
+<span class="sd">        convolution, batch normalization and rectified linear unit layers.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">Conv2dSame</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="n">out_channels</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">Conv2dSame</span><span class="p">(</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm2d</span><span class="p">(</span><span class="n">out_channels</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">()</span>
+            <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Block"><a class="viewcode-back" href="../../source/core.html#core.layers.Block">[docs]</a><span class="k">class</span> <span class="nc">Block</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Basic convolutional block.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Raises</span>
+<span class="sd">    ------</span>
+<span class="sd">    TypeError</span>
+<span class="sd">        Raised if `~pysegcnn.core.layers.Block.layers` method does not return</span>
+<span class="sd">        an instance of `torch.nn.Sequential`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># number of input and output channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span> <span class="o">=</span> <span class="n">in_channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span> <span class="o">=</span> <span class="n">out_channels</span>
+
+        <span class="c1"># keyword arguments configuring convolutions</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
+
+        <span class="c1"># the layers of the block</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{}</span><span class="s1">.layers() should return an instance of </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+                                    <span class="nb">repr</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">)))</span>
+
+<div class="viewcode-block" id="Block.layers"><a class="viewcode-back" href="../../source/core.html#core.layers.Block.layers">[docs]</a>    <span class="k">def</span> <span class="nf">layers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define the layers of the block.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if `pysegcnn.core.layers.Block` is not inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        layers : `torch.nn.Sequential` [`torch.nn.Module`]</span>
+<span class="sd">            Return an instance of `torch.nn.Sequential` containing a sequence</span>
+<span class="sd">            of layer (`torch.nn.Module` ) instances.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Return an instance of </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                                  <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="Block.forward"><a class="viewcode-back" href="../../source/core.html#core.layers.Block.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Forward pass of the block.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if `pysegcnn.core.layers.Block` is not inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        None.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Implement the forward pass.&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="EncoderBlock"><a class="viewcode-back" href="../../source/core.html#core.layers.EncoderBlock">[docs]</a><span class="k">class</span> <span class="nc">EncoderBlock</span><span class="p">(</span><span class="n">Block</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of a convolutional encoder.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EncoderBlock.forward"><a class="viewcode-back" href="../../source/core.html#core.layers.EncoderBlock.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Forward pass of an encoder block.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`</span>
+<span class="sd">            Input tensor, e.g. output of the previous block/layer.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        y : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Output of the encoder block.</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Intermediate output before applying downsampling. Useful to</span>
+<span class="sd">            implement skip connections.</span>
+<span class="sd">        indices : `torch.Tensor` or `None`</span>
+<span class="sd">            Optional indices of the downsampling method, e.g. indices of the</span>
+<span class="sd">            maxima when using `torch.nn.functional.max_pool2d`. Useful for</span>
+<span class="sd">            upsampling later. If no indices are required to upsample, simply</span>
+<span class="sd">            return ``indices`` = `None`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># the forward pass of the layers of the block</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># the downsampling layer</span>
+        <span class="n">y</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">downsample</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="EncoderBlock.downsample"><a class="viewcode-back" href="../../source/core.html#core.layers.EncoderBlock.downsample">[docs]</a>    <span class="k">def</span> <span class="nf">downsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define the downsampling method.</span>
+
+<span class="sd">        The `~pysegcnn.core.layers.EncoderBlock.downsample` method should</span>
+<span class="sd">        implement the spatial pooling operation.</span>
+
+<span class="sd">        Use one of the following functions to downsample:</span>
+<span class="sd">            - `torch.nn.functional.max_pool2d`</span>
+<span class="sd">            - `torch.nn.functional.interpolate`</span>
+
+<span class="sd">        See `pysegcnn.core.layers.ConvBnReluMaxPool` for an example</span>
+<span class="sd">        implementation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor, e.g. output of a convolutional block.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if `pysegcnn.core.layers.EncoderBlock` is not inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            The spatially downsampled tensor.</span>
+<span class="sd">        indices : `torch.Tensor` or `None`</span>
+<span class="sd">            Optional indices of the downsampling method, e.g. indices of the</span>
+<span class="sd">            maxima when using `torch.nn.functional.max_pool2d`. Useful for</span>
+<span class="sd">            upsampling later. If no indices are required to upsample, simply</span>
+<span class="sd">            return ``indices`` = `None`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Implement the downsampling function.&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="DecoderBlock"><a class="viewcode-back" href="../../source/core.html#core.layers.DecoderBlock">[docs]</a><span class="k">class</span> <span class="nc">DecoderBlock</span><span class="p">(</span><span class="n">Block</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of a convolutional decoder.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DecoderBlock.forward"><a class="viewcode-back" href="../../source/core.html#core.layers.DecoderBlock.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">skip</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Forward pass of a decoder block.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor.</span>
+<span class="sd">        feature : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Intermediate output of a layer in the encoder.</span>
+<span class="sd">            If ``skip`` = True, ``feature`` is concatenated (along the channel</span>
+<span class="sd">            axis) to the output of the respective upsampling layer in the</span>
+<span class="sd">            decoder (skip connection).</span>
+<span class="sd">        indices : `torch.Tensor` or `None`</span>
+<span class="sd">            Indices of the encoder downsampling method.</span>
+<span class="sd">        skip : `bool`</span>
+<span class="sd">            Whether to apply the skip connection.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Output of the decoder block.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># upsample</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">upsample</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="p">)</span>
+
+        <span class="c1"># check whether to apply the skip connection</span>
+        <span class="c1"># skip connection: concatenate the output of a layer in the encoder to</span>
+        <span class="c1"># the corresponding layer in the decoder (along the channel axis)</span>
+        <span class="k">if</span> <span class="n">skip</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># output of the convolutional layer</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span></div>
+
+<div class="viewcode-block" id="DecoderBlock.upsample"><a class="viewcode-back" href="../../source/core.html#core.layers.DecoderBlock.upsample">[docs]</a>    <span class="k">def</span> <span class="nf">upsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define the upsampling method.</span>
+
+<span class="sd">        The `~pysegcnn.core.layers.DecoderBlock.upsample` method should</span>
+<span class="sd">        implement the spatial upsampling operation.</span>
+
+<span class="sd">        Use one of the following functions to upsample:</span>
+<span class="sd">            - `torch.nn.functional.max_unpool2d`</span>
+<span class="sd">            - `torch.nn.functional.interpolate`</span>
+
+<span class="sd">        See `pysegcnn.core.layers.ConvBnReluMaxUnpool` or</span>
+<span class="sd">        `pysegcnn.core.layers.ConvBnReluUpsample` for an example</span>
+<span class="sd">        implementation.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor, e.g. output of a convolutional block.</span>
+<span class="sd">        feature : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Intermediate output of a layer in the encoder. Used to implement</span>
+<span class="sd">            skip connections.</span>
+<span class="sd">        indices : `torch.Tensor` or `None`</span>
+<span class="sd">            Indices of the encoder downsampling method.</span>
+
+<span class="sd">        Raises</span>
+<span class="sd">        ------</span>
+<span class="sd">        NotImplementedError</span>
+<span class="sd">            Raised if `pysegcnn.core.layers.DecoderBlock` is not inherited.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            The spatially upsampled tensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s1">&#39;Implement the upsampling function&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="Encoder"><a class="viewcode-back" href="../../source/core.html#core.layers.Encoder">[docs]</a><span class="k">class</span> <span class="nc">Encoder</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generic convolutional encoder.</span>
+
+<span class="sd">    When instanciating an encoder-decoder architechure, ``filters`` should be</span>
+<span class="sd">    the same for `pysegcnn.core.layers.Encoder` and</span>
+<span class="sd">    `pysegcnn.core.layers.Decoder`.</span>
+
+<span class="sd">    See `pysegcnn.core.models.UNet` for an example implementation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filters : `list` [`int`]</span>
+<span class="sd">        List of input channels to each convolutional block. The length of</span>
+<span class="sd">        ``filters`` determines the depth of the encoder. The first element of</span>
+<span class="sd">        ``filters`` has to be the number of channels of the input images.</span>
+<span class="sd">    block : `pysegcnn.core.layers.EncoderBlock`</span>
+<span class="sd">        The convolutional block defining a layer in the encoder.</span>
+<span class="sd">        A subclass of `pysegcnn.core.layers.EncoderBlock`, e.g.</span>
+<span class="sd">        `pysegcnn.core.layers.ConvBnReluMaxPool`.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filters</span><span class="p">,</span> <span class="n">block</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># the number of filters for each block: the first element of filters</span>
+        <span class="c1"># has to be the number of input channels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">filters</span><span class="p">)</span>
+
+        <span class="c1"># the block of operations defining a layer in the encoder</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">EncoderBlock</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;&quot;block&quot; expected to be a subclass of </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">EncoderBlock</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span>
+
+        <span class="c1"># construct the encoder layers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">lyr</span><span class="p">,</span> <span class="n">lyrp1</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="c1"># append blocks to the encoder layers</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">block</span><span class="p">(</span><span class="n">lyr</span><span class="p">,</span> <span class="n">lyrp1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="c1"># convert list of layers to ModuleList</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">])</span>
+
+<div class="viewcode-block" id="Encoder.forward"><a class="viewcode-back" href="../../source/core.html#core.layers.Encoder.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Forward pass of the encoder.</span>
+
+<span class="sd">        Stores intermediate outputs in a dictionary. The keys of the dictionary</span>
+<span class="sd">        are the number of the network layers and the values are dictionaries</span>
+<span class="sd">        with the following (key, value) pairs:</span>
+<span class="sd">            ``&quot;feature&quot;``</span>
+<span class="sd">                The intermediate encoder outputs (`torch.Tensor`).</span>
+<span class="sd">            ``&quot;indices&quot;``</span>
+<span class="sd">                The indices of the max pooling layer, if required</span>
+<span class="sd">                (`torch.Tensor`).</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input image.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Output of the encoder.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># initialize a dictionary that caches the intermediate outputs, i.e.</span>
+        <span class="c1"># features and pooling indices of each block in the encoder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cache</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">):</span>
+            <span class="c1"># apply current encoder layer forward pass</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">ind</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+            <span class="c1"># store intermediate outputs for optional skip connections</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">cache</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;feature&#39;</span><span class="p">:</span>  <span class="n">y</span><span class="p">,</span> <span class="s1">&#39;indices&#39;</span><span class="p">:</span> <span class="n">ind</span><span class="p">}</span>
+
+        <span class="k">return</span> <span class="n">x</span></div></div>
+
+
+<div class="viewcode-block" id="Decoder"><a class="viewcode-back" href="../../source/core.html#core.layers.Decoder">[docs]</a><span class="k">class</span> <span class="nc">Decoder</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generic convolutional decoder.</span>
+
+<span class="sd">    When instanciating an encoder-decoder architechure, ``filters`` should be</span>
+<span class="sd">    the same for `pysegcnn.core.layers.Encoder` and</span>
+<span class="sd">    `pysegcnn.core.layers.Decoder`.</span>
+
+<span class="sd">    See `pysegcnn.core.models.UNet` for an example implementation.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    filters : `list` [`int`]</span>
+<span class="sd">        List of input channels to each convolutional block. The length of</span>
+<span class="sd">        ``filters`` determines the depth of the decoder. The first element of</span>
+<span class="sd">        ``filters`` has to be the number of channels of the input images.</span>
+<span class="sd">    block : `pysegcnn.core.layers.DecoderBlock`</span>
+<span class="sd">        The convolutional block defining a layer in the decoder.</span>
+<span class="sd">        A subclass of `pysegcnn.core.layers.DecoderBlock`, e.g.</span>
+<span class="sd">        `pysegcnn.core.layers.ConvBnReluMaxUnpool`.</span>
+<span class="sd">    skip : `bool`</span>
+<span class="sd">        Whether to apply skip connections from the encoder to the decoder.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filters</span><span class="p">,</span> <span class="n">block</span><span class="p">,</span> <span class="n">skip</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># the block of operations defining a layer in the decoder</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">issubclass</span><span class="p">(</span><span class="n">block</span><span class="p">,</span> <span class="n">DecoderBlock</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;&quot;block&quot; expected to be a subclass of </span><span class="si">{}</span><span class="s1">.&#39;</span>
+                            <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">repr</span><span class="p">(</span><span class="n">DecoderBlock</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">block</span> <span class="o">=</span> <span class="n">block</span>
+
+        <span class="c1"># the number of filters for each block is symmetric to the encoder:</span>
+        <span class="c1"># the last two element of filters have to be equal in order to apply</span>
+        <span class="c1"># last skip connection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">filters</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+
+        <span class="c1"># whether to apply skip connections</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="o">=</span> <span class="n">skip</span>
+
+        <span class="c1"># in case of skip connections, the number of input channels to</span>
+        <span class="c1"># each block of the decoder is doubled</span>
+        <span class="n">n_in</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span> <span class="k">else</span> <span class="mi">1</span>
+
+        <span class="c1"># construct decoder layers</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">lyr</span><span class="p">,</span> <span class="n">lyrp1</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">n_in</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">features</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">block</span><span class="p">(</span><span class="n">lyr</span><span class="p">,</span> <span class="n">lyrp1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="c1"># convert list of layers to ModuleList</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">])</span>
+
+<div class="viewcode-block" id="Decoder.forward"><a class="viewcode-back" href="../../source/core.html#core.layers.Decoder.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">enc_cache</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Forward pass of the decoder.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Output of the encoder.</span>
+<span class="sd">        enc_cache : `dict` [`dict`]</span>
+<span class="sd">            Cache dictionary. The keys of the dictionary are the number of the</span>
+<span class="sd">            network layers and the values are dictionaries with the following</span>
+<span class="sd">            (key, value) pairs:</span>
+<span class="sd">                ``&quot;feature&quot;``</span>
+<span class="sd">                    The intermediate encoder outputs (`torch.Tensor`).</span>
+<span class="sd">                ``&quot;indices&quot;``</span>
+<span class="sd">                    The indices of the max pooling layer (`torch.Tensor`).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Output of the decoder.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># for each layer, upsample input and apply optional skip connection</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">):</span>
+
+            <span class="c1"># get intermediate outputs from encoder: iterate the encoder cache</span>
+            <span class="c1"># in reversed direction, i.e. from last to first encoder layer</span>
+            <span class="n">cache</span> <span class="o">=</span> <span class="n">enc_cache</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="p">)]</span>
+            <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;feature&#39;</span><span class="p">],</span> <span class="n">cache</span><span class="p">[</span><span class="s1">&#39;indices&#39;</span><span class="p">]</span>
+
+            <span class="c1"># apply current decoder layer forward pass</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">layer</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">skip</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span></div></div>
+
+
+<div class="viewcode-block" id="ConvBnReluMaxPool"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxPool">[docs]</a><span class="k">class</span> <span class="nc">ConvBnReluMaxPool</span><span class="p">(</span><span class="n">EncoderBlock</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of convolution, batchnorm, relu and 2x2 max pool.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels.</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional keyword arguments passed to</span>
+<span class="sd">        `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ConvBnReluMaxPool.layers"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxPool.layers">[docs]</a>    <span class="k">def</span> <span class="nf">layers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sequence of convolution, batchnorm and relu layers.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        layers : `torch.nn.Sequential` [`torch.nn.Module`]</span>
+<span class="sd">            An instance of `torch.nn.Sequential` containing the sequence</span>
+<span class="sd">            of convolution, batchnorm and relu layer (`torch.nn.Module`)</span>
+<span class="sd">            instances.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">conv_bn_relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConvBnReluMaxPool.downsample"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxPool.downsample">[docs]</a>    <span class="k">def</span> <span class="nf">downsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;2x2 max pooling layer, `torch.nn.functional.max_pool2d`.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height // 2, width // 2)</span>
+<span class="sd">            The 2x2 max pooled tensor.</span>
+<span class="sd">        indices : `torch.Tensor` or `None`</span>
+<span class="sd">            The indices of the maxima. Useful for upsampling with</span>
+<span class="sd">            `torch.nn.functional.max_unpool2d`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">max_pool2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">return_indices</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">indices</span></div>
+
+<div class="viewcode-block" id="ConvBnReluMaxPool.extra_repr"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxPool.extra_repr">[docs]</a>    <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define optional extra information about this module.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `str`</span>
+<span class="sd">            Extra representation string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;(pool): MaxPool2d(kernel_size=2, stride=2, padding=0, &#39;</span>
+                <span class="s1">&#39;dilation=1, ceil_mode=False)&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ConvBnReluMaxUnpool"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxUnpool">[docs]</a><span class="k">class</span> <span class="nc">ConvBnReluMaxUnpool</span><span class="p">(</span><span class="n">DecoderBlock</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of convolution, batchnorm, relu and 2x2 max unpool.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional keyword arguments passed to</span>
+<span class="sd">        `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ConvBnReluMaxUnpool.layers"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxUnpool.layers">[docs]</a>    <span class="k">def</span> <span class="nf">layers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sequence of convolution, batchnorm and relu layers.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        layers : `torch.nn.Sequential` [`torch.nn.Module`]</span>
+<span class="sd">            An instance of `torch.nn.Sequential` containing the sequence</span>
+<span class="sd">            of convolution, batchnorm and relu layer (`torch.nn.Module`)</span>
+<span class="sd">            instances.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">conv_bn_relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConvBnReluMaxUnpool.upsample"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxUnpool.upsample">[docs]</a>    <span class="k">def</span> <span class="nf">upsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;2x2 max unpooling layer.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor.</span>
+<span class="sd">        feature : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Intermediate output of a layer in the encoder. Used to determine</span>
+<span class="sd">            the output shape of the upsampling operation.</span>
+<span class="sd">        indices : `torch.Tensor`</span>
+<span class="sd">            The indices of the maxima of the max pooling operation</span>
+<span class="sd">            (as returned by `torch.nn.functional.max_pool2d`).</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height * 2, width * 2)</span>
+<span class="sd">            The 2x2 max unpooled tensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">max_unpool2d</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">indices</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                              <span class="n">output_size</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span></div>
+
+<div class="viewcode-block" id="ConvBnReluMaxUnpool.extra_repr"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluMaxUnpool.extra_repr">[docs]</a>    <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define optional extra information about this module.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `str`</span>
+<span class="sd">            Extra representation string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s1">&#39;(pool): MaxUnpool2d(kernel_size=(2, 2), stride=(2, 2), &#39;</span>
+                <span class="s1">&#39;padding=(0, 0))&#39;</span><span class="p">)</span></div></div>
+
+
+<div class="viewcode-block" id="ConvBnReluUpsample"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluUpsample">[docs]</a><span class="k">class</span> <span class="nc">ConvBnReluUpsample</span><span class="p">(</span><span class="n">DecoderBlock</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Block of convolution, batchnorm, relu and nearest neighbor upsampling.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    in_channels : `int`</span>
+<span class="sd">        Number of input channels.</span>
+<span class="sd">    out_channels : `int`</span>
+<span class="sd">        Number of output channels</span>
+<span class="sd">    **kwargs: &#39;dict&#39; [`str`]</span>
+<span class="sd">        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    None.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ConvBnReluUpsample.layers"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluUpsample.layers">[docs]</a>    <span class="k">def</span> <span class="nf">layers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Sequence of convolution, batchnorm and relu layers.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        layers : `torch.nn.Sequential` [`torch.nn.Module`]</span>
+<span class="sd">            An instance of `torch.nn.Sequential` containing the sequence</span>
+<span class="sd">            of convolution, batchnorm and relu layer (`torch.nn.Module`)</span>
+<span class="sd">            instances.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">conv_bn_relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConvBnReluUpsample.upsample"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluUpsample.upsample">[docs]</a>    <span class="k">def</span> <span class="nf">upsample</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">feature</span><span class="p">,</span> <span class="n">indices</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Nearest neighbor upsampling.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Input tensor.</span>
+<span class="sd">        feature : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            Intermediate output of a layer in the encoder. Used to determine</span>
+<span class="sd">            the output shape of the upsampling operation.</span>
+<span class="sd">        indices : `None`, optional</span>
+<span class="sd">            The indices of the maxima of the max pooling operation</span>
+<span class="sd">            (as returned by `torch.nn.functional.max_pool2d`). Not required by</span>
+<span class="sd">            this upsampling method.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        x : `torch.Tensor`, shape=(batch, channel, height, width)</span>
+<span class="sd">            The 2x2 upsampled tensor.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">F</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">feature</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">:],</span> <span class="n">mode</span><span class="o">=</span><span class="s1">&#39;nearest&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ConvBnReluUpsample.extra_repr"><a class="viewcode-back" href="../../source/core.html#core.layers.ConvBnReluUpsample.extra_repr">[docs]</a>    <span class="k">def</span> <span class="nf">extra_repr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Define optional extra information about this module.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        `str`</span>
+<span class="sd">            Extra representation string.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="s1">&#39;(pool): Upsample(mode=&quot;nearest&quot;)&#39;</span></div></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

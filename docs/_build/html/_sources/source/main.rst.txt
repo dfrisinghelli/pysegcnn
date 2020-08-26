@@ -1,0 +1,37 @@
+main package
+============
+
+Submodules
+----------
+
+main.config module
+------------------
+
+.. automodule:: main.config
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+main.eval module
+----------------
+
+.. automodule:: main.eval
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+main.train module
+-----------------
+
+.. automodule:: main.train
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: main
+   :members:
+   :undoc-members:
+   :show-inheritance:

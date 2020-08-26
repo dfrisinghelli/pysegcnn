@@ -1,0 +1,33 @@
+pysegcnn.core.models
+====================
+
+.. automodule:: pysegcnn.core.models
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Network
+      SupportedLossFunctions
+      SupportedModels
+      SupportedOptimizers
+      UNet
+   
+   
+
+   
+   
+   
+
+
+

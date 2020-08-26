@@ -1,0 +1,314 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core.constants &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/requirements.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/api.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>core.constants</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core.constants</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;A collection of constant values.</span>
+
+<span class="sd">License</span>
+<span class="sd">-------</span>
+
+<span class="sd">    Copyright (c) 2020 Daniel Frisinghelli</span>
+
+<span class="sd">    This source code is licensed under the GNU General Public License v3.</span>
+
+<span class="sd">    See the LICENSE file in the repository&#39;s root directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># !/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># builtins</span>
+<span class="kn">import</span> <span class="nn">enum</span>
+
+
+<span class="c1"># Landsat 8 bands</span>
+<div class="viewcode-block" id="Landsat8"><a class="viewcode-back" href="../../source/core.html#core.constants.Landsat8">[docs]</a><span class="k">class</span> <span class="nc">Landsat8</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The spectral bands of the Landsat 8 sensors.</span>
+
+<span class="sd">    sensors:</span>
+<span class="sd">        - Operational Land Imager (OLI), (bands 1-9)</span>
+<span class="sd">        - Thermal Infrared Sensor (TIRS), (bands 10, 11)</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">violet</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">blue</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">green</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">red</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">nir</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">swir1</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">swir2</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">pan</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">cirrus</span> <span class="o">=</span> <span class="mi">9</span>
+    <span class="n">tir1</span> <span class="o">=</span> <span class="mi">10</span></div>
+    <span class="c1"># tir2 = 11</span>
+
+
+<span class="c1"># Sentinel 2 bands</span>
+<div class="viewcode-block" id="Sentinel2"><a class="viewcode-back" href="../../source/core.html#core.constants.Sentinel2">[docs]</a><span class="k">class</span> <span class="nc">Sentinel2</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;The spectral bands of the Sentinel-2 MultiSpectral Instrument (MSI).&quot;&quot;&quot;</span>
+
+    <span class="n">aerosol</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">blue</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">green</span> <span class="o">=</span> <span class="mi">3</span>
+    <span class="n">red</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">vnir1</span> <span class="o">=</span> <span class="mi">5</span>
+    <span class="n">vnir2</span> <span class="o">=</span> <span class="mi">6</span>
+    <span class="n">vnir3</span> <span class="o">=</span> <span class="mi">7</span>
+    <span class="n">nir</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="n">nnir</span> <span class="o">=</span> <span class="s1">&#39;8A&#39;</span>
+    <span class="n">vapor</span> <span class="o">=</span> <span class="mi">9</span>
+    <span class="n">cirrus</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">swir1</span> <span class="o">=</span> <span class="mi">11</span>
+    <span class="n">swir2</span> <span class="o">=</span> <span class="mi">12</span></div>
+
+
+<span class="c1"># generic class label enumeration class</span>
+<div class="viewcode-block" id="Label"><a class="viewcode-back" href="../../source/core.html#core.constants.Label">[docs]</a><span class="k">class</span> <span class="nc">Label</span><span class="p">(</span><span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Generic enumeration for class labels.&quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">id</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the value of a class in the ground truth.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">color</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Return the color to plot a class.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span></div>
+
+
+<span class="c1"># labels of the Sparcs dataset</span>
+<div class="viewcode-block" id="SparcsLabels"><a class="viewcode-back" href="../../source/core.html#core.constants.SparcsLabels">[docs]</a><span class="k">class</span> <span class="nc">SparcsLabels</span><span class="p">(</span><span class="n">Label</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class labels of the `Sparcs`_ dataset.</span>
+
+<span class="sd">    .. _Sparcs:</span>
+<span class="sd">        https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">Shadow</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;grey&#39;</span>
+    <span class="n">Shadow_over_water</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;darkblue&#39;</span>
+    <span class="n">Water</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;blue&#39;</span>
+    <span class="n">Snow</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;lightblue&#39;</span>
+    <span class="n">Land</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span> <span class="s1">&#39;sienna&#39;</span>
+    <span class="n">Cloud</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="s1">&#39;white&#39;</span>
+    <span class="n">Flooded</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span> <span class="s1">&#39;yellow&#39;</span></div>
+
+
+<span class="c1"># labels of the Cloud95 dataset</span>
+<div class="viewcode-block" id="Cloud95Labels"><a class="viewcode-back" href="../../source/core.html#core.constants.Cloud95Labels">[docs]</a><span class="k">class</span> <span class="nc">Cloud95Labels</span><span class="p">(</span><span class="n">Label</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class labels of the `Cloud-95`_ dataset.</span>
+
+<span class="sd">    .. _Cloud-95:</span>
+<span class="sd">        https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">Clear</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;skyblue&#39;</span>
+    <span class="n">Cloud</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;white&#39;</span></div>
+
+
+<span class="c1"># labels of the ProSnow dataset</span>
+<div class="viewcode-block" id="ProSnowLabels"><a class="viewcode-back" href="../../source/core.html#core.constants.ProSnowLabels">[docs]</a><span class="k">class</span> <span class="nc">ProSnowLabels</span><span class="p">(</span><span class="n">Label</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Class labels of the ProSnow datasets.&quot;&quot;&quot;</span>
+
+    <span class="n">Cloud</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;white&#39;</span>
+    <span class="n">Snow</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;lightblue&#39;</span>
+    <span class="n">Snow_free</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span> <span class="s1">&#39;sienna&#39;</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

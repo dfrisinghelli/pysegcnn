@@ -1,0 +1,9 @@
+pysegcnn
+========
+
+.. toctree::
+   :maxdepth: 4
+
+   core
+   main
+   preprocessing

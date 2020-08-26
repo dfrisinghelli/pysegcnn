@@ -1,0 +1,34 @@
+pysegcnn.core.constants
+=======================
+
+.. automodule:: pysegcnn.core.constants
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Cloud95Labels
+      Label
+      Landsat8
+      ProSnowLabels
+      Sentinel2
+      SparcsLabels
+   
+   
+
+   
+   
+   
+
+
+

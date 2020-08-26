@@ -1,0 +1,592 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>core.graphics &mdash; PySegCNN  documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+
+  
+  
+  
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script src="../../_static/language_data.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home" alt="Documentation Home"> PySegCNN
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../../source/requirements.html">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../source/api.html">API Reference</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">PySegCNN</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>core.graphics</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for core.graphics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Functions to plot multispectral image data and model output.</span>
+
+<span class="sd">License</span>
+<span class="sd">-------</span>
+
+<span class="sd">    Copyright (c) 2020 Daniel Frisinghelli</span>
+
+<span class="sd">    This source code is licensed under the GNU General Public License v3.</span>
+
+<span class="sd">    See the LICENSE file in the repository&#39;s root directory.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="c1"># !/usr/bin/env python</span>
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="c1"># builtins</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">itertools</span>
+
+<span class="c1"># externals</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">mpatches</span>
+<span class="kn">import</span> <span class="nn">matplotlib.lines</span> <span class="k">as</span> <span class="nn">mlines</span>
+<span class="kn">from</span> <span class="nn">matplotlib.colors</span> <span class="kn">import</span> <span class="n">ListedColormap</span><span class="p">,</span> <span class="n">BoundaryNorm</span>
+<span class="kn">from</span> <span class="nn">matplotlib</span> <span class="kn">import</span> <span class="n">cm</span> <span class="k">as</span> <span class="n">colormap</span>
+
+<span class="c1"># locals</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.core.trainer</span> <span class="kn">import</span> <span class="n">accuracy_function</span>
+<span class="kn">from</span> <span class="nn">pysegcnn.main.config</span> <span class="kn">import</span> <span class="n">HERE</span>
+
+
+<div class="viewcode-block" id="contrast_stretching"><a class="viewcode-back" href="../../source/core.html#core.graphics.contrast_stretching">[docs]</a><span class="k">def</span> <span class="nf">contrast_stretching</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">5</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Apply percentile stretching to an image to increase constrast.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    image : `numpy.ndarray`</span>
+<span class="sd">        the input image.</span>
+<span class="sd">    alpha : `int`, optional</span>
+<span class="sd">        The level of the percentiles. The default is 5.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    norm : `numpy.ndarray`</span>
+<span class="sd">        the stretched image.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># compute upper and lower percentiles defining the range of the stretch</span>
+    <span class="n">inf</span><span class="p">,</span> <span class="n">sup</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="mi">100</span> <span class="o">-</span> <span class="n">alpha</span><span class="p">))</span>
+
+    <span class="c1"># normalize image intensity distribution to</span>
+    <span class="c1"># (alpha, 100 - alpha) percentiles</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="p">((</span><span class="n">image</span> <span class="o">-</span> <span class="n">inf</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">-</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">/</span>
+            <span class="p">(</span><span class="n">sup</span> <span class="o">-</span> <span class="n">inf</span><span class="p">))</span> <span class="o">+</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+
+    <span class="c1"># clip: values &lt; min = min, values &gt; max = max</span>
+    <span class="n">norm</span><span class="p">[</span><span class="n">norm</span> <span class="o">&lt;=</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()]</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+    <span class="n">norm</span><span class="p">[</span><span class="n">norm</span> <span class="o">&gt;=</span> <span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()]</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">norm</span></div>
+
+
+<div class="viewcode-block" id="running_mean"><a class="viewcode-back" href="../../source/core.html#core.graphics.running_mean">[docs]</a><span class="k">def</span> <span class="nf">running_mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">w</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Compute a running mean of the input sequence.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : array_like</span>
+<span class="sd">        The sequence to compute a running mean on.</span>
+<span class="sd">    w : `int`</span>
+<span class="sd">        The window length of the running mean.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    rm : `numpy.ndarray`</span>
+<span class="sd">        The running mean of the sequence ``x``.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">cumsum</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">cumsum</span><span class="p">[</span><span class="n">w</span><span class="p">:]</span> <span class="o">-</span> <span class="n">cumsum</span><span class="p">[:</span><span class="o">-</span><span class="n">w</span><span class="p">])</span> <span class="o">/</span> <span class="n">w</span></div>
+
+
+<div class="viewcode-block" id="plot_sample"><a class="viewcode-back" href="../../source/core.html#core.graphics.plot_sample">[docs]</a><span class="k">def</span> <span class="nf">plot_sample</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y_pred</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+                <span class="n">bands</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;nir&#39;</span><span class="p">,</span> <span class="s1">&#39;red&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">],</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">outpath</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s1">&#39;_samples/&#39;</span><span class="p">),</span> <span class="n">alpha</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Plot false color composite (FCC), ground truth and model prediction.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    x : `numpy.ndarray` or `torch.Tensor`, (b, h, w)</span>
+<span class="sd">        Array containing the raw data of the tile, shape=(bands, height, width)</span>
+<span class="sd">    use_bands : `list` of `str`</span>
+<span class="sd">        List describing the order of the bands in ``x``.</span>
+<span class="sd">    labels : `dict` [`int`, `dict`]</span>
+<span class="sd">        The label dictionary. The keys are the values of the class labels</span>
+<span class="sd">        in the ground truth ``y``. Each nested `dict` should have keys:</span>
+<span class="sd">            ``&#39;color&#39;``</span>
+<span class="sd">                A named color (`str`).</span>
+<span class="sd">            ``&#39;label&#39;``</span>
+<span class="sd">                The name of the class label (`str`).</span>
+<span class="sd">    y : `numpy.ndarray` or `torch.Tensor` or `None`, optional</span>
+<span class="sd">        Array containing the ground truth of tile ``x``, shape=(height, width).</span>
+<span class="sd">        The default is None.</span>
+<span class="sd">    y_pred : `numpy.ndarray` or `torch.Tensor` or `None`, optional</span>
+<span class="sd">        Array containing the prediction for tile ``x``, shape=(height, width).</span>
+<span class="sd">        The default is None.</span>
+<span class="sd">    figsize : `tuple`, optional</span>
+<span class="sd">        The figure size in centimeters. The default is (10, 10).</span>
+<span class="sd">    bands : `list` [`str`], optional</span>
+<span class="sd">        The bands to build the FCC. The default is [&#39;nir&#39;, &#39;red&#39;, &#39;green&#39;].</span>
+<span class="sd">    state : `str` or `None`, optional</span>
+<span class="sd">        Filename to save the plot to. ``state`` should be an existing model</span>
+<span class="sd">        state file ending with &#39;.pt&#39;. The default is None, i.e. plot is not</span>
+<span class="sd">        saved to disk.</span>
+<span class="sd">    outpath : `str` or `pathlib.Path`, optional</span>
+<span class="sd">        Output path. The default is &#39;pysegcnn/main/_samples&#39;.</span>
+<span class="sd">    alpha : `int`, optional</span>
+<span class="sd">        The level of the percentiles to increase constrast in the FCC.</span>
+<span class="sd">        The default is 0, i.e. no stretching.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig : `matplotlib.figure.Figure`</span>
+<span class="sd">        The figure handle.</span>
+<span class="sd">    ax : `numpy.ndarray` [`matplotlib.axes._subplots.AxesSubplot`]</span>
+<span class="sd">        An array of the axes handles.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># check whether to apply constrast stretching</span>
+    <span class="n">rgb</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">dstack</span><span class="p">([</span><span class="n">contrast_stretching</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">use_bands</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">band</span><span class="p">)],</span> <span class="n">alpha</span><span class="p">)</span>
+                     <span class="k">for</span> <span class="n">band</span> <span class="ow">in</span> <span class="n">bands</span><span class="p">])</span>
+
+    <span class="c1"># get labels and corresponding colors</span>
+    <span class="n">ulabels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+    <span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">label</span><span class="p">[</span><span class="s1">&#39;color&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+
+    <span class="c1"># create a ListedColormap</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">ListedColormap</span><span class="p">(</span><span class="n">colors</span><span class="p">)</span>
+    <span class="n">boundaries</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">labels</span><span class="o">.</span><span class="n">keys</span><span class="p">(),</span> <span class="n">cmap</span><span class="o">.</span><span class="n">N</span><span class="p">]</span>
+    <span class="n">norm</span> <span class="o">=</span> <span class="n">BoundaryNorm</span><span class="p">(</span><span class="n">boundaries</span><span class="p">,</span> <span class="n">cmap</span><span class="o">.</span><span class="n">N</span><span class="p">)</span>
+
+    <span class="c1"># create a patch (proxy artist) for every color</span>
+    <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span>
+               <span class="nb">zip</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">ulabels</span><span class="p">)]</span>
+
+    <span class="c1"># initialize figure</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+
+    <span class="c1"># plot false color composite</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">rgb</span><span class="p">)</span>
+    <span class="n">ax</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;R = </span><span class="si">{}</span><span class="s1">, G = </span><span class="si">{}</span><span class="s1">, B = </span><span class="si">{}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="o">*</span><span class="n">bands</span><span class="p">),</span> <span class="n">pad</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="c1"># check whether to plot ground truth</span>
+    <span class="n">acc</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove axis to plot ground truth from figure</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">delaxes</span><span class="p">(</span><span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># plot ground thruth mask</span>
+        <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;nearest&#39;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+        <span class="n">ax</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Ground truth&#39;</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="c1"># check whether to plot model prediction</span>
+    <span class="k">if</span> <span class="n">y_pred</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># remove axis to plot model prediction from figure</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">delaxes</span><span class="p">(</span><span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># plot model prediction</span>
+        <span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">interpolation</span><span class="o">=</span><span class="s1">&#39;nearest&#39;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">)</span>
+
+        <span class="c1"># set title</span>
+        <span class="n">title</span> <span class="o">=</span> <span class="s1">&#39;Prediction&#39;</span>
+        <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">acc</span> <span class="o">=</span> <span class="n">accuracy_function</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="n">title</span> <span class="o">+=</span> <span class="s1">&#39; (</span><span class="si">{:.2f}</span><span class="s1">%)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">acc</span> <span class="o">*</span> <span class="mi">100</span><span class="p">)</span>
+        <span class="n">ax</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="n">title</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="mi">15</span><span class="p">)</span>
+
+    <span class="c1"># if a ground truth or a model prediction is plotted, add legend</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fig</span><span class="o">.</span><span class="n">axes</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">plt</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">patches</span><span class="p">,</span> <span class="n">bbox_to_anchor</span><span class="o">=</span><span class="p">(</span><span class="mf">1.05</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">loc</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                   <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># save figure</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outpath</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outpath</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.pt&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">)),</span>
+                    <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
+
+
+<div class="viewcode-block" id="plot_confusion_matrix"><a class="viewcode-back" href="../../source/core.html#core.graphics.plot_confusion_matrix">[docs]</a><span class="k">def</span> <span class="nf">plot_confusion_matrix</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">normalize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                          <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">cmap</span><span class="o">=</span><span class="s1">&#39;Blues&#39;</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                          <span class="n">outpath</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s1">&#39;_graphics/&#39;</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;Plot the confusion matrix ``cm``.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    cm : `numpy.ndarray`</span>
+<span class="sd">        The confusion matrix.</span>
+<span class="sd">    labels : `dict` [`int`, `dict`]</span>
+<span class="sd">        The label dictionary. The keys are the values of the class labels</span>
+<span class="sd">        in the ground truth ``y``. Each nested `dict` should have keys:</span>
+<span class="sd">            ``&#39;color&#39;``</span>
+<span class="sd">                A named color (`str`).</span>
+<span class="sd">            ``&#39;label&#39;``</span>
+<span class="sd">                The name of the class label (`str`).</span>
+<span class="sd">    normalize : `bool`, optional</span>
+<span class="sd">        Whether to normalize the confusion matrix. The default is True.</span>
+<span class="sd">    figsize : `tuple`, optional</span>
+<span class="sd">        The figure size in centimeters. The default is (10, 10).</span>
+<span class="sd">    cmap : `str`, optional</span>
+<span class="sd">        A colormap in `matplotlib.pyplot.colormaps()`. The default is &#39;Blues&#39;.</span>
+<span class="sd">    state : `str` or `None`, optional</span>
+<span class="sd">        Filename to save the plot to. ``state`` should be an existing model</span>
+<span class="sd">        state file ending with &#39;.pt&#39;. The default is None, i.e. plot is not</span>
+<span class="sd">        saved to disk.</span>
+<span class="sd">    outpath : `str` or `pathlib.Path`, optional</span>
+<span class="sd">        Output path. The default is &#39;pysegcnn/main/_graphics/&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig : `matplotlib.figure.Figure`</span>
+<span class="sd">        The figure handle.</span>
+<span class="sd">    ax : `matplotlib.axes._subplots.AxesSubplot`</span>
+<span class="sd">        The axes handle.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># number of classes</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span><span class="n">label</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">labels</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span>
+    <span class="n">nclasses</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+
+    <span class="c1"># string format to plot values of confusion matrix</span>
+    <span class="n">fmt</span> <span class="o">=</span> <span class="s1">&#39;.0f&#39;</span>
+
+    <span class="c1"># minimum and maximum values of the colorbar</span>
+    <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">cm</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+
+    <span class="c1"># check whether to normalize the confusion matrix</span>
+    <span class="k">if</span> <span class="n">normalize</span><span class="p">:</span>
+        <span class="c1"># normalize</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">cm</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># check for division by zero</span>
+        <span class="n">norm</span><span class="p">[</span><span class="n">norm</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="n">cm</span> <span class="o">=</span> <span class="n">cm</span> <span class="o">/</span> <span class="n">norm</span>
+
+        <span class="c1"># change string format to floating point</span>
+        <span class="n">fmt</span> <span class="o">=</span> <span class="s1">&#39;.2f&#39;</span>
+        <span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span>
+
+    <span class="c1"># create figure</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+
+    <span class="c1"># get colormap</span>
+    <span class="n">cmap</span> <span class="o">=</span> <span class="n">colormap</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="n">cmap</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
+
+    <span class="c1"># plot confusion matrix</span>
+    <span class="n">im</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">cm</span><span class="p">,</span> <span class="n">cmap</span><span class="o">=</span><span class="n">cmap</span><span class="p">,</span> <span class="n">vmin</span><span class="o">=</span><span class="n">vmin</span><span class="p">,</span> <span class="n">vmax</span><span class="o">=</span><span class="n">vmax</span><span class="p">)</span>
+
+    <span class="c1"># threshold determining the color of the values</span>
+    <span class="n">thresh</span> <span class="o">=</span> <span class="p">(</span><span class="n">cm</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">+</span> <span class="n">cm</span><span class="o">.</span><span class="n">min</span><span class="p">())</span> <span class="o">/</span> <span class="mi">2</span>
+
+    <span class="c1"># brightest/darkest color of current colormap</span>
+    <span class="n">cmap_min</span><span class="p">,</span> <span class="n">cmap_max</span> <span class="o">=</span> <span class="n">cmap</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">cmap</span><span class="p">(</span><span class="mi">256</span><span class="p">)</span>
+
+    <span class="c1"># plot values of confusion matrix</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">itertools</span><span class="o">.</span><span class="n">product</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">nclasses</span><span class="p">),</span> <span class="nb">range</span><span class="p">(</span><span class="n">nclasses</span><span class="p">)):</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="nb">format</span><span class="p">(</span><span class="n">cm</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">],</span> <span class="n">fmt</span><span class="p">),</span> <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s1">&#39;center&#39;</span><span class="p">,</span>
+                <span class="n">color</span><span class="o">=</span><span class="n">cmap_max</span> <span class="k">if</span> <span class="n">cm</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">thresh</span> <span class="k">else</span> <span class="n">cmap_min</span><span class="p">)</span>
+
+    <span class="c1"># axes properties and labels</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xticks</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclasses</span><span class="p">),</span>
+           <span class="n">yticks</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">nclasses</span><span class="p">),</span>
+           <span class="n">xticklabels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+           <span class="n">yticklabels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+           <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;True&#39;</span><span class="p">,</span>
+           <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Predicted&#39;</span><span class="p">)</span>
+
+    <span class="c1"># add colorbar axes</span>
+    <span class="n">cax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_axes</span><span class="p">([</span><span class="n">ax</span><span class="o">.</span><span class="n">get_position</span><span class="p">()</span><span class="o">.</span><span class="n">x1</span> <span class="o">+</span> <span class="mf">0.025</span><span class="p">,</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_position</span><span class="p">()</span><span class="o">.</span><span class="n">y0</span><span class="p">,</span>
+                        <span class="mf">0.05</span><span class="p">,</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_position</span><span class="p">()</span><span class="o">.</span><span class="n">y1</span> <span class="o">-</span> <span class="n">ax</span><span class="o">.</span><span class="n">get_position</span><span class="p">()</span><span class="o">.</span><span class="n">y0</span><span class="p">])</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">colorbar</span><span class="p">(</span><span class="n">im</span><span class="p">,</span> <span class="n">cax</span><span class="o">=</span><span class="n">cax</span><span class="p">)</span>
+
+    <span class="c1"># save figure</span>
+    <span class="k">if</span> <span class="n">state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outpath</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">outpath</span><span class="p">,</span> <span class="n">state</span><span class="p">),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span></div>
+
+
+<div class="viewcode-block" id="plot_loss"><a class="viewcode-back" href="../../source/core.html#core.graphics.plot_loss">[docs]</a><span class="k">def</span> <span class="nf">plot_loss</span><span class="p">(</span><span class="n">state_file</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span> <span class="n">step</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+              <span class="n">colors</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;lightgreen&#39;</span><span class="p">,</span> <span class="s1">&#39;green&#39;</span><span class="p">,</span> <span class="s1">&#39;skyblue&#39;</span><span class="p">,</span> <span class="s1">&#39;steelblue&#39;</span><span class="p">],</span>
+              <span class="n">outpath</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">HERE</span><span class="p">,</span> <span class="s1">&#39;_graphics/&#39;</span><span class="p">)):</span>
+    <span class="sd">&quot;&quot;&quot;Plot the observed loss and accuracy of a model run.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    state_file : `str` or `pathlib.Path`</span>
+<span class="sd">        The model state file. Model state files are stored in</span>
+<span class="sd">        pysegcnn/main/_models.</span>
+<span class="sd">    figsize : `tuple`, optional</span>
+<span class="sd">        The figure size in centimeters. The default is (10, 10).</span>
+<span class="sd">    step : `int`, optional</span>
+<span class="sd">        The step of epochs for the x-axis labels. The default is 5, i.e. label</span>
+<span class="sd">        each fifth epoch.</span>
+<span class="sd">    colors : `list` [`str`], optional</span>
+<span class="sd">        A list of four named colors supported by `matplotlib`.</span>
+<span class="sd">        The default is [&#39;lightgreen&#39;, &#39;green&#39;, &#39;skyblue&#39;, &#39;steelblue&#39;].</span>
+<span class="sd">    outpath : `str` or `pathlib.Path`, optional</span>
+<span class="sd">        Output path. The default is &#39;pysegcnn/main/_graphics/&#39;.</span>
+
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    fig : `matplotlib.figure.Figure`</span>
+<span class="sd">        The figure handle.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># load the model state</span>
+    <span class="n">model_state</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">state_file</span><span class="p">)</span>
+
+    <span class="c1"># get all non-zero elements, i.e. get number of epochs trained before</span>
+    <span class="c1"># early stop</span>
+    <span class="n">loss</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">nonzero</span><span class="p">(</span><span class="n">v</span><span class="p">)]</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span>
+            <span class="n">model_state</span><span class="p">[</span><span class="s1">&#39;state&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># compute running mean with a window equal to the number of batches in</span>
+    <span class="c1"># an epoch</span>
+    <span class="n">rm</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">running_mean</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">flatten</span><span class="p">(</span><span class="s1">&#39;F&#39;</span><span class="p">),</span> <span class="n">v</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">loss</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+
+    <span class="c1"># sort the keys of the dictionary alphabetically</span>
+    <span class="n">rm</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">rm</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">rm</span><span class="p">)}</span>
+
+    <span class="c1"># number of epochs trained</span>
+    <span class="n">epochs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">loss</span><span class="p">[</span><span class="s1">&#39;tl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="c1"># instanciate figure</span>
+    <span class="n">fig</span><span class="p">,</span> <span class="n">ax1</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
+
+    <span class="c1"># create axes for each parameter to plot</span>
+    <span class="n">ax2</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">twinx</span><span class="p">()</span>
+    <span class="n">ax3</span> <span class="o">=</span> <span class="n">ax1</span><span class="o">.</span><span class="n">twiny</span><span class="p">()</span>
+    <span class="n">ax4</span> <span class="o">=</span> <span class="n">ax2</span><span class="o">.</span><span class="n">twiny</span><span class="p">()</span>
+
+    <span class="c1"># list of axes</span>
+    <span class="n">axes</span> <span class="o">=</span> <span class="p">[</span><span class="n">ax2</span><span class="p">,</span> <span class="n">ax1</span><span class="p">,</span> <span class="n">ax4</span><span class="p">,</span> <span class="n">ax3</span><span class="p">]</span>
+
+    <span class="c1"># plot running mean loss and accuracy of the training dataset</span>
+    <span class="p">[</span><span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">),</span> <span class="n">ax</span><span class="p">,</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">rm</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">axes</span><span class="p">,</span> <span class="n">colors</span><span class="p">)</span>
+     <span class="k">if</span> <span class="n">v</span><span class="o">.</span><span class="n">any</span><span class="p">()]</span>
+
+    <span class="c1"># axes properties and labels</span>
+    <span class="n">nbatches</span> <span class="o">=</span> <span class="n">loss</span><span class="p">[</span><span class="s1">&#39;tl&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">ax3</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xticks</span><span class="o">=</span><span class="p">[],</span> <span class="n">xticklabels</span><span class="o">=</span><span class="p">[])</span>
+    <span class="n">ax4</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xticks</span><span class="o">=</span><span class="p">[],</span> <span class="n">xticklabels</span><span class="o">=</span><span class="p">[])</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xticks</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">nbatches</span> <span class="o">*</span> <span class="n">epochs</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="n">nbatches</span> <span class="o">*</span> <span class="n">step</span><span class="p">),</span>
+            <span class="n">xticklabels</span><span class="o">=</span><span class="n">epochs</span><span class="p">[::</span><span class="n">step</span><span class="p">],</span>
+            <span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;Epoch&#39;</span><span class="p">,</span>
+            <span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Loss&#39;</span><span class="p">,</span>
+            <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+    <span class="n">ax2</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;Accuracy&#39;</span><span class="p">,</span>
+            <span class="n">ylim</span><span class="o">=</span><span class="p">(</span><span class="mf">0.5</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+
+    <span class="c1"># compute early stopping point</span>
+    <span class="k">if</span> <span class="n">loss</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+        <span class="n">esepoch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">loss</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span> <span class="o">*</span> <span class="n">nbatches</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="n">esacc</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">loss</span><span class="p">[</span><span class="s1">&#39;va&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">vlines</span><span class="p">(</span><span class="n">esepoch</span><span class="p">,</span> <span class="n">ymin</span><span class="o">=</span><span class="n">ax1</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ymax</span><span class="o">=</span><span class="n">ax1</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">1</span><span class="p">],</span>
+                   <span class="n">ls</span><span class="o">=</span><span class="s1">&#39;--&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">)</span>
+        <span class="n">ax1</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">esepoch</span> <span class="o">-</span> <span class="n">nbatches</span><span class="p">,</span> <span class="n">ax1</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="mf">0.01</span><span class="p">,</span>
+                 <span class="s1">&#39;epoch = </span><span class="si">{}</span><span class="s1">, accuracy = </span><span class="si">{:.1f}</span><span class="s1">%&#39;</span>
+                 <span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">esepoch</span> <span class="o">/</span> <span class="n">nbatches</span><span class="p">),</span> <span class="n">esacc</span> <span class="o">*</span> <span class="mi">100</span><span class="p">),</span>
+                 <span class="n">ha</span><span class="o">=</span><span class="s1">&#39;right&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s1">&#39;grey&#39;</span><span class="p">)</span>
+
+    <span class="c1"># create a patch (proxy artist) for every color</span>
+    <span class="n">ulabels</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;Training accuracy&#39;</span><span class="p">,</span> <span class="s1">&#39;Training loss&#39;</span><span class="p">,</span>
+               <span class="s1">&#39;Validation accuracy&#39;</span><span class="p">,</span> <span class="s1">&#39;Validation loss&#39;</span><span class="p">]</span>
+    <span class="n">patches</span> <span class="o">=</span> <span class="p">[</span><span class="n">mlines</span><span class="o">.</span><span class="n">Line2D</span><span class="p">([],</span> <span class="p">[],</span> <span class="n">color</span><span class="o">=</span><span class="n">c</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span>
+               <span class="nb">zip</span><span class="p">(</span><span class="n">colors</span><span class="p">,</span> <span class="n">ulabels</span><span class="p">)]</span>
+    <span class="c1"># plot patches as legend</span>
+    <span class="n">ax1</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span><span class="n">handles</span><span class="o">=</span><span class="n">patches</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s1">&#39;lower left&#39;</span><span class="p">,</span> <span class="n">frameon</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># save figure</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">outpath</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">outpath</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">state_file</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;.pt&#39;</span><span class="p">,</span> <span class="s1">&#39;.png&#39;</span><span class="p">)),</span>
+                <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s1">&#39;tight&#39;</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        
+        &copy; Copyright 2020, Daniel Frisinghelli
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -1,0 +1,29 @@
+pysegcnn.core.cli
+=================
+
+.. automodule:: pysegcnn.core.cli
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+   
+      structure_parser
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

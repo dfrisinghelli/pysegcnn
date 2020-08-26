@@ -1,0 +1,36 @@
+pysegcnn.core.dataset
+=====================
+
+.. automodule:: pysegcnn.core.dataset
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Classes
+
+   .. autosummary::
+   
+      Cloud95Dataset
+      ImageDataset
+      ProSnowDataset
+      ProSnowGarmisch
+      ProSnowObergurgl
+      SparcsDataset
+      StandardEoDataset
+      SupportedDatasets
+   
+   
+
+   
+   
+   
+
+
+

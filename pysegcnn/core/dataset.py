@@ -1152,11 +1152,11 @@ class ProSnowObergurgl(ProSnowDataset):
 
 
 class Cloud95Dataset(ImageDataset):
-    r"""Class for the `Cloud-95`_ dataset by `Mohajerani et al. (2020)`_.
+    r"""Class for the `Cloud-95`_ dataset by `Mohajerani & Saeedi (2020)`_.
 
-    .. _Cloud95:
+    .. _Cloud-95:
         https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset
-    .. _`Mohajerani et al. (2020)`:
+    .. _Mohajerani & Saeedi (2020):
         https://arxiv.org/abs/2001.08768
 
     Parameters

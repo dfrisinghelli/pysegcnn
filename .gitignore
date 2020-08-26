@@ -9,4 +9,5 @@ _scenes/
 _logs/
 .spyproject/
 *.log
-docs/_build
+docs/_build/
+docs/source/generated/

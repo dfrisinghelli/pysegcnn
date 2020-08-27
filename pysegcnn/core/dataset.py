@@ -754,7 +754,7 @@ class StandardEoDataset(ImageDataset):
 
                 # list the spectral bands of the scene
                 bands = [os.path.join(dirpath, f) for f in files
-                         if re.search('B\\dA|B\\d{1,2}', f)]
+                         if re.search('B\\dA|B\\d{1,2}(.*).tif$', f)]
 
                 # get the ground truth mask
                 try:

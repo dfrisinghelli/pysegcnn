@@ -174,7 +174,8 @@
 <dl class="py class">
 <dt id="pysegcnn.core.layers.Conv2dSame">
 <em class="property">class </em><code class="sig-prename descclassname">pysegcnn.core.layers.</code><code class="sig-name descname">Conv2dSame</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwargs</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/layers.html#Conv2dSame"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.layers.Conv2dSame" title="Permalink to this definition">¶</a></dt>
-<dd><p>A convolution preserving the shape of its input.</p>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.modules.conv.Conv2d</span></code></p>
+<p>A convolution preserving the shape of its input.</p>
 <p>Given the kernel size, the dilation and a stride of 1, the padding is
 calculated such that the output of the convolution has the same spatial
 dimensions as the input.</p>

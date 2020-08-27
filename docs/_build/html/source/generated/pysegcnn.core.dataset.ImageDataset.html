@@ -169,14 +169,76 @@
 <h1>pysegcnn.core.dataset.ImageDataset<a class="headerlink" href="#pysegcnn-core-dataset-imagedataset" title="Permalink to this headline">¶</a></h1>
 <dl class="py class">
 <dt id="pysegcnn.core.dataset.ImageDataset">
-<em class="property">class </em><code class="sig-prename descclassname">pysegcnn.core.dataset.</code><code class="sig-name descname">ImageDataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#ImageDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.ImageDataset" title="Permalink to this definition">¶</a></dt>
-<dd><p>Base class for multispectral image data.</p>
+<em class="property">class </em><code class="sig-prename descclassname">pysegcnn.core.dataset.</code><code class="sig-name descname">ImageDataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt\\.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#ImageDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.ImageDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.dataset.Dataset</span></code></p>
+<p>Base class for multispectral image data.</p>
 <p>Inheriting from <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> to be compliant to the
 PyTorch standard. This enables the use of the handy
 <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.DataLoader</span></code> class during model training.</p>
+<dl class="field-list">
+<dt class="field-odd">Attributes</dt>
+<dd class="field-odd"><dl>
+<dt><strong>root_dir</strong><span class="classifier"><cite>str</cite></span></dt><dd><p>The root directory, path to the dataset.</p>
+</dd>
+<dt><strong>use_bands</strong><span class="classifier"><cite>list</cite> [<cite>str</cite>]</span></dt><dd><p>List of the spectral bands to use during model training.</p>
+</dd>
+<dt><strong>tile_size</strong><span class="classifier"><cite>int</cite> or <cite>None</cite></span></dt><dd><p>The size of the tiles.</p>
+</dd>
+<dt><strong>pad</strong><span class="classifier"><cite>bool</cite></span></dt><dd><p>Whether to center pad the input image.</p>
+</dd>
+<dt><strong>gt_pattern</strong><span class="classifier"><cite>str</cite></span></dt><dd><p>A regural expression to match the ground truth naming convention.</p>
+</dd>
+<dt><strong>sort</strong><span class="classifier"><cite>bool</cite></span></dt><dd><p>Whether to chronologically sort the samples.</p>
+</dd>
+<dt><strong>seed</strong><span class="classifier"><cite>int</cite></span></dt><dd><p>The random seed.</p>
+</dd>
+<dt><strong>transforms</strong><span class="classifier"><cite>list</cite></span></dt><dd><p>List of <a class="reference internal" href="pysegcnn.core.transforms.Augment.html#pysegcnn.core.transforms.Augment" title="pysegcnn.core.transforms.Augment"><code class="xref py py-class docutils literal notranslate"><span class="pre">pysegcnn.core.transforms.Augment</span></code></a> instances.</p>
+</dd>
+<dt><strong>size</strong><span class="classifier"><cite>tuple</cite> [<cite>int</cite>]</span></dt><dd><p>The size of an image of the dataset.</p>
+</dd>
+<dt><strong>sensor</strong><span class="classifier"><code class="xref py py-class docutils literal notranslate"><span class="pre">enum.Enum</span></code></span></dt><dd><p>An enumeration of the bands of sensor the dataset is derived from,
+see e.g. <code class="xref py py-class docutils literal notranslate"><span class="pre">pysegcnn.core.constants.Landsat8</span></code>.</p>
+</dd>
+<dt><strong>bands</strong><span class="classifier"><cite>dict</cite> [<cite>int</cite>, <cite>str</cite>]</span></dt><dd><p>The spectral bands of <code class="docutils literal notranslate"><span class="pre">sensor</span></code>. The keys are the number and the
+values are the name of the spectral bands.</p>
+</dd>
+<dt><strong>labels</strong><span class="classifier"><cite>dict</cite> [<cite>int</cite>, <cite>dict</cite>]</span></dt><dd><p>The label dictionary. The keys are the values of the class labels
+in the ground truth. Each nested <cite>dict</cite> has keys:</p>
+<blockquote>
+<div><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">'color'</span></code></dt><dd><p>A named color (<cite>str</cite>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">'label'</span></code></dt><dd><p>The name of the class label (<cite>str</cite>).</p>
+</dd>
+</dl>
+</div></blockquote>
+</dd>
+<dt><strong>tiles</strong><span class="classifier"><cite>int</cite></span></dt><dd><p>Number of tiles with size <code class="docutils literal notranslate"><span class="pre">(tile_size,</span> <span class="pre">tile_size)</span></code> within an image.</p>
+</dd>
+<dt><strong>padding</strong><span class="classifier"><cite>tuple</cite> [<cite>int</cite>]</span></dt><dd><p>The amount of padding, (bottom, left, top, right).</p>
+</dd>
+<dt><strong>height</strong><span class="classifier"><cite>int</cite></span></dt><dd><p>The height of a padded image.</p>
+</dd>
+<dt><strong>width</strong><span class="classifier"><cite>int</cite></span></dt><dd><p>The width of a padded image.</p>
+</dd>
+<dt><strong>topleft</strong><span class="classifier"><cite>dict</cite> [<cite>int</cite>, <cite>tuple</cite>]</span></dt><dd><p>The topleft corners of the tiles. The keys of are the tile ids (<cite>int</cite>)
+and the values are the topleft corners (y, x) of the tiles.</p>
+</dd>
+<dt><strong>cval</strong><span class="classifier"><cite>int</cite></span></dt><dd><p>When padding, <code class="docutils literal notranslate"><span class="pre">cval</span></code> is the value of the “no data” label in the
+ground truth. Otherwise, <code class="docutils literal notranslate"><span class="pre">cval=0</span></code>.</p>
+</dd>
+<dt><strong>gt</strong><span class="classifier"><cite>list</cite> [<cite>str</cite> or <code class="xref py py-class docutils literal notranslate"><span class="pre">pathlib.Path</span></code>]</span></dt><dd><p>List of the ground truth images.</p>
+</dd>
+<dt><strong>keys</strong><span class="classifier"><cite>list</cite></span></dt><dd><p>List of required keys for each dictionary in <code class="docutils literal notranslate"><span class="pre">scenes</span></code>.</p>
+</dd>
+<dt><strong>scenes</strong><span class="classifier"><cite>list</cite> [<cite>dict</cite>]</span></dt><dd><p>List of dictionaries representing the samples of the dataset.</p>
+</dd>
+</dl>
+</dd>
+</dl>
 <dl class="py method">
 <dt id="pysegcnn.core.dataset.ImageDataset.__init__">
-<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#ImageDataset.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.ImageDataset.__init__" title="Permalink to this definition">¶</a></dt>
+<code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt\\.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#ImageDataset.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.ImageDataset.__init__" title="Permalink to this definition">¶</a></dt>
 <dd><p>Initialize.</p>
 <dl class="field-list">
 <dt class="field-odd">Parameters</dt>

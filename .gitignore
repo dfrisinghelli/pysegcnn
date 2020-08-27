@@ -1,13 +1,24 @@
+# python
 *.pyc
 *egg-info
 *.swp
 __pycache__/
+
+# models
 _models/
+
+# plots
 _graphics/
 _samples/
 _scenes/
+
+# log files
 _logs/
-.spyproject/
 *.log
-_build/
-generated/
+
+# spyder
+.spyproject/
+
+# sphinx documentation
+docs/_build/
+docs/source/generated/

@@ -34,15 +34,23 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
     'numpydoc',
 ]
 
 # numpydoc options
 numpydoc_show_class_members = False
 numpydoc_show_inherited_class_members = False
+numpydoc_attributes_as_param_list = True
+# numpydoc_xref_param_type = True
+# numpydoc_xref_ignore = {'type', 'optional', 'default'}
 
 # autosummary options
 autosummary_generate = True
+autodoc_default_options = {
+    'inherited-members': False,
+    'show-inheritance': True,
+    }
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

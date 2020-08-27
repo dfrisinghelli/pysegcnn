@@ -37,15 +37,17 @@ class Network(nn.Module):
     """Generic Network class.
 
     The base class for each model. If you want to implement a new model,
-    inherit the ``~pysegcnn.core.models.Network`` class.
+    inherit the :py:class:`pysegcnn.core.models.Network` class.
 
-    Returns
-    -------
-    None.
+    Attributes
+    ----------
+    state_file : `str` or `None` or :py:class:`pathlib.Path`
+        The model state file, where the model parameters are saved.
 
     """
 
     def __init__(self):
+        """Initialize."""
         super().__init__()
 
         # initialize state file
@@ -89,9 +91,9 @@ class Network(nn.Module):
 
         Parameters
         ----------
-        state_file : `str` or `pathlib.Path`
+        state_file : `str` or :py:class:`pathlib.Path`
             Path to save the model state.
-        optimizer : `torch.optim.Optimizer`
+        optimizer : :py:class:`torch.optim.Optimizer`
             The optimizer used to train the model.
         bands : `list` [`str`] or `None`, optional
             List of bands the model is trained with. The default is None.
@@ -102,7 +104,7 @@ class Network(nn.Module):
         Returns
         -------
         model_state : `dict`
-            A dictionary containing the model and optimizer state
+            A dictionary containing the model and optimizer state.
 
         """
         # check if the output path exists and if not, create it
@@ -156,7 +158,7 @@ class Network(nn.Module):
 
         Parameters
         ----------
-        state_file : `str` or `pathlib.Path`
+        state_file : `str` or :py:class:`pathlib.Path`
            The model state file. Model state files are stored in
            pysegcnn/main/_models.
 
@@ -167,13 +169,13 @@ class Network(nn.Module):
 
         Returns
         -------
-        model : `pysegcnn.core.models.Network`
+        model : :py:class:`pysegcnn.core.models.Network`
             The pretrained model.
-        optimizer : `torch.optim.Optimizer`
+        optimizer : :py:class:`torch.optim.Optimizer`
            The optimizer used to train the model.
-        model_state : '`dict`
+        model_state : `dict`
             A dictionary containing the model and optimizer state, as
-            constructed by `~pysegcnn.core.Network.save`.
+            constructed by :py:meth:`~pysegcnn.core.Network.save`.
 
         """
         # load the pretrained model
@@ -216,7 +218,7 @@ class Network(nn.Module):
 
         Returns
         -------
-        state_file : `pathlib.Path` or `None`
+        state_file : :py:class:`pathlib.Path` or `None`
             The model state file.
 
         """
@@ -224,36 +226,58 @@ class Network(nn.Module):
 
 
 class UNet(Network):
-    """A PyTorch implementation of `U-Net`_.
+    """A slightly modified implementation of `U-Net`_ in PyTorch.
 
-    Slightly modified version of U-Net:
-        - each convolution is followed by a batch normalization layer
-        - the upsampling is implemented by a 2x2 max unpooling operation
+    .. important::
+
+        - Each convolution is followed by a batch normalization layer
+        - Upsampling is implemented by a 2x2 max unpooling operation
 
     .. _U-Net:
         https://arxiv.org/abs/1505.04597
 
-    Parameters
+    Attributes
     ----------
     in_channels : `int`
         Number of channels of the input images.
     nclasses : `int`
         Number of classes.
-    filters : `list` [`int`]
+    kwargs : `dict` [`str`]
+        Additional keyword arguments passed to
+        :py:class:`pysegcnn.core.layers.Conv2dSame`.
+    nfilters : `list` [`int`]
         List of input channels to each convolutional block.
     skip : `bool`
         Whether to apply skip connections from the encoder to the decoder.
-    **kwargs: 'dict' [`str`]
-        Additional keyword arguments passed to
-        `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
+    epoch : `int`
+        Number of epochs the model was trained.
+    encoder : :py:class:`pysegcnn.core.layers.Encoder`
+        The convolutional encoder.
+    decoder : :py:class:`pysegcnn.core.layers.Decoder`
+        The convolutional decoder.
+    classifier : :py:class:`pysegcnn.core.layers.Conv2dSame`
+        The classification layer, a 1x1 convolution.
 
     """
 
     def __init__(self, in_channels, nclasses, filters, skip, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        in_channels : `int`
+            Number of channels of the input images.
+        nclasses : `int`
+            Number of classes.
+        filters : `list` [`int`]
+            List of input channels to each convolutional block.
+        skip : `bool`
+            Whether to apply skip connections from the encoder to the decoder.
+        **kwargs: `dict` [`str`]
+            Additional keyword arguments passed to
+            :py:class:`pysegcnn.core.layers.Conv2dSame`.
+
+        """
         super().__init__()
 
         # number of input channels

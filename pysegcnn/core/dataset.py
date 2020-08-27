@@ -45,54 +45,108 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ImageDataset(Dataset):
-    r"""Base class for multispectral image data.
+    """Base class for multispectral image data.
 
-    Inheriting from `torch.utils.data.Dataset` to be compliant to the PyTorch
-    standard. Furthermore, using instances of `torch.utils.data.Dataset`
-    enables the use of the handy `torch.utils.data.DataLoader` class during
-    model training.
+    Inheriting from :py:class:`torch.utils.data.Dataset` to be compliant to the
+    PyTorch standard. This enables the use of the handy
+    :py:class:`torch.utils.data.DataLoader` class during model training.
 
-    Parameters
+    Attributes
     ----------
     root_dir : `str`
         The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
+    use_bands : `list` [`str`]
+        List of the spectral bands to use during model training.
+    tile_size : `int` or `None`
+        The size of the tiles.
+    pad : `bool`
+        Whether to center pad the input image.
+    gt_pattern : `str`
         A regural expression to match the ground truth naming convention.
-        All directories and subdirectories in ``root_dir`` are searched for
-        files matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
+    sort : `bool`
+        Whether to chronologically sort the samples.
+    seed : `int`
+        The random seed.
+    transforms : `list`
+        List of :py:class:`pysegcnn.core.transforms.Augment` instances.
+    size : `tuple` [`int`]
+        The size of an image of the dataset.
+    sensor : :py:class:`enum.Enum`
+        An enumeration of the bands of sensor the dataset is derived from,
+        see e.g. :py:class:`pysegcnn.core.constants.Landsat8`.
+    bands : `dict` [`int`, `str`]
+        The spectral bands of ``sensor``. The keys are the number and the
+        values are the name of the spectral bands.
+    labels : `dict` [`int`, `dict`]
+        The label dictionary. The keys are the values of the class labels
+        in the ground truth. Each nested `dict` has keys:
+            ``'color'``
+                A named color (`str`).
+            ``'label'``
+                The name of the class label (`str`).
+    tiles : `int`
+        Number of tiles with size ``(tile_size, tile_size)`` within an image.
+    padding : `tuple` [`int`]
+        The amount of padding, (bottom, left, top, right).
+    height : `int`
+        The height of a padded image.
+    width : `int`
+        The width of a padded image.
+    topleft : `dict` [`int`, `tuple`]
+        The topleft corners of the tiles. The keys of are the tile ids (`int`)
+        and the values are the topleft corners (y, x) of the tiles.
+    cval : `int`
+        When padding, ``cval`` is the value of the "no data" label in the
+        ground truth. Otherwise, ``cval=0``.
+    gt : `list` [`str` or :py:class:`pathlib.Path`]
+        List of the ground truth images.
+    keys : `list`
+        List of required keys for each dictionary in ``scenes``.
+    scenes : `list` [`dict`]
+        List of dictionaries representing the samples of the dataset.
 
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+        r"""Initialize.
+
+        Parameters
+        ----------
+        root_dir : `str`
+            The root directory, path to the dataset.
+        use_bands : `list` [`str`], optional
+            A list of the spectral bands to use. The default is `[]`.
+        tile_size : `int` or `None`, optional
+            The size of the tiles. If not `None`, each scene is divided into
+            square tiles of shape ``(tile_size, tile_size)``. The default is
+            `None`.
+        pad : `bool`, optional
+            Whether to center pad the input image. Set ``pad=True``, if the
+            images are not evenly divisible by the ``tile_size``. The image
+            data is padded with a constant padding value of zero. For each
+            image, the corresponding ground truth image is padded with a
+            "no data" label. The default is `False`.
+        gt_pattern : `str`, optional
+            A regural expression to match the ground truth naming convention.
+            All directories and subdirectories in ``root_dir`` are searched for
+            files matching ``gt_pattern``. The default is `(.*)gt\\.tif`.
+        sort : `bool`, optional
+            Whether to chronologically sort the samples. Useful for time series
+            data. The default is `False`.
+        seed : `int`, optional
+            The random seed. Used to split the dataset into training,
+            validation and test set. Useful for reproducibility. The default is
+            `0`.
+        transforms : `list`, optional
+            List of :py:class:`pysegcnn.core.transforms.Augment` instances.
+            Each item in ``transforms`` generates a distinct transformed
+            version of the dataset. The total dataset is composed of the
+            original untransformed dataset together with each transformed
+            version of it. If ``transforms=[]``, only the original dataset is
+            used. The default is `[]`.
+
+        """
         super().__init__()
 
         # dataset configuration
@@ -159,6 +213,9 @@ class ImageDataset(Dataset):
             LOGGER.info('Adding label "No data" with value={} to ground truth.'
                         .format(self.cval))
 
+        # list of ground truth images
+        self.gt = []
+
     def _build_labels(self):
         """Build the label dictionary.
 
@@ -166,7 +223,7 @@ class ImageDataset(Dataset):
         -------
         labels : `dict` [`int`, `dict`]
             The label dictionary. The keys are the values of the class labels
-            in the ground truth ``y``. Each nested `dict` should have keys:
+            in the ground truth. Each nested `dict` should have keys:
                 ``'color'``
                     A named color (`str`).
                 ``'label'``
@@ -492,7 +549,7 @@ class ImageDataset(Dataset):
         -------
         stack : `numpy.ndarray`
             The input data of the sample.
-        gt : TYPE
+        gt : `numpy.ndarray`
             The ground truth of the sample.
 
         """
@@ -503,7 +560,7 @@ class ImageDataset(Dataset):
         return stack, gt
 
     def to_tensor(self, x, dtype):
-        """Convert ``x`` to `torch.Tensor`.
+        """Convert ``x`` to :py:class:`torch.Tensor`.
 
         Parameters
         ----------
@@ -565,75 +622,32 @@ class ImageDataset(Dataset):
 class StandardEoDataset(ImageDataset):
     r"""Base class for standard Earth Observation style datasets.
 
-    `pysegcnn.core.dataset.StandardEoDataset` implements the
-    `~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method for
-    datasets with the following directory structure:
+    :py:class:`pysegcnn.core.dataset.StandardEoDataset` implements the
+    :py:meth:`~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method
+    for datasets with the following directory structure:
 
     root_dir/
-        scene_id_1/
-            scene_id_1_B1.tif
-            scene_id_1_B2.tif
-            .
-            .
-            .
-            scene_id_1_BN.tif
-        scene_id_2/
-            scene_id_2_B1.tif
-            scene_id_2_B2.tif
-            .
-            .
-            .
-            scene_id_2_BN.tif
-        .
-        .
-        .
-        scene_id_N/
-            .
-            .
-            .
+        - scene_id_1/
+             - scene_id_1_B1.tif
+             - scene_id_1_B2.tif
+             - ...
+             - scene_id_1_BN.tif
+        - scene_id_2/
+             - scene_id_2_B1.tif
+             - scene_id_2_B2.tif
+             - ...
+             - scene_id_2_BN.tif
+        - ...
+        - scene_id_N/
+            - ...
 
     If your dataset shares this directory structure, you can directly inherit
-    `pysegcnn.core.dataset.StandardEoDataset` and implement the remaining
-    methods.
+    :py:class:`pysegcnn.core.dataset.StandardEoDataset` and implement the
+    remaining methods. If not, you can use
+    :py:func:`pysegcnn.core.utils.standard_eo_structure` to transfer your
+    dataset to the above directory structure.
 
-    See `pysegcnn.core.dataset.SparcsDataset` for an example.
-
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
+    See :py:class:`pysegcnn.core.dataset.SparcsDataset` for an example.
 
     """
 
@@ -709,35 +723,9 @@ class StandardEoDataset(ImageDataset):
         return scene_data
 
     def compose_scenes(self):
-        """Build the list of samples of the dataset.
-
-        Each sample is represented by a dictionary.
-
-        Returns
-        -------
-        scenes : `list` [`dict`]
-            Each item in ``scenes`` is a `dict` with keys:
-                ``'band_name_1'``
-                    Path to the file of band_1.
-                ``'band_name_2'``
-                    Path to the file of band_2.
-                ``'band_name_n'``
-                    Path to the file of band_n.
-                ``'gt'``
-                    Path to the ground truth file.
-                ``'date'``
-                    The date of the sample.
-                ``'tile'``
-                    The tile id of the sample.
-                ``'transform'``
-                    The transformation to apply.
-                ``'id'``
-                    The scene identifier.
-
-        """
+        """Build the list of samples of the dataset."""
         # search the root directory
         scenes = []
-        self.gt = []
         for dirpath, dirname, files in os.walk(self.root):
 
             # search for a ground truth in the current directory
@@ -800,47 +788,13 @@ class StandardEoDataset(ImageDataset):
 
 
 class SparcsDataset(StandardEoDataset):
-    r"""Class for the `Sparcs`_ dataset.
+    """Class for the `Sparcs`_ dataset by `Hughes & Hayes (2014)`_.
 
     .. _Sparcs:
         https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation
 
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
+    .. _Hughes & Hayes (2014):
+        https://www.mdpi.com/2072-4292/6/6/4907
 
     """
 
@@ -923,46 +877,7 @@ class SparcsDataset(StandardEoDataset):
 
 
 class ProSnowDataset(StandardEoDataset):
-    r"""Class for the ProSnow datasets.
-
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
-
-    """
+    """Class for the ProSnow datasets."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
                  gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
@@ -1032,46 +947,7 @@ class ProSnowDataset(StandardEoDataset):
 
 
 class ProSnowGarmisch(ProSnowDataset):
-    r"""Class for the ProSnow Garmisch dataset.
-
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
-
-    """
+    """Class for the ProSnow Garmisch dataset."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
                  gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
@@ -1092,46 +968,7 @@ class ProSnowGarmisch(ProSnowDataset):
 
 
 class ProSnowObergurgl(ProSnowDataset):
-    r"""Class for the ProSnow Obergurgl dataset.
-
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
-
-    """
+    """Class for the ProSnow Obergurgl dataset."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
                  gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
@@ -1152,49 +989,12 @@ class ProSnowObergurgl(ProSnowDataset):
 
 
 class Cloud95Dataset(ImageDataset):
-    r"""Class for the `Cloud-95`_ dataset by `Mohajerani & Saeedi (2020)`_.
+    """Class for the `Cloud-95`_ dataset by `Mohajerani & Saeedi (2020)`_.
 
     .. _Cloud-95:
         https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset
     .. _Mohajerani & Saeedi (2020):
         https://arxiv.org/abs/2001.08768
-
-    Parameters
-    ----------
-    root_dir : `str`
-        The root directory, path to the dataset.
-    use_bands : `list` [`str`], optional
-        A list of the spectral bands to use. The default is [].
-    tile_size : `int` or `None`, optional
-        The size of the tiles. If not `None`, each scene is divided into square
-        tiles of shape (tile_size, tile_size). The default is None.
-    pad : `bool`, optional
-        Whether to center pad the input image. Set ``pad`` = True, if the
-        images are not evenly divisible by the ``tile_size``. The image data is
-        padded with a constant padding value of zero. For each image, the
-        corresponding ground truth image is padded with a "no data" label.
-        The default is False.
-    gt_pattern : `str`, optional
-        A regural expression to match the ground truth naming convention. All
-        directories and subdirectories in ``root_dir`` are searched for files
-        matching ``gt_pattern``. The default is '(.*)gt\\.tif'.
-    sort : `bool`, optional
-        Whether to chronologically sort the samples. Useful for time series
-        data. The default is False.
-    seed : `int`, optional
-        The random seed. Used to split the dataset into training, validation
-        and test set. Useful for reproducibility. The default is 0.
-    transforms : `list` [`pysegcnn.core.split.Augment`], optional
-        List of `pysegcnn.core.split.Augment` instances. Each item in
-        ``transforms`` generates a distinct transformed version of the dataset.
-        The total dataset is composed of the original untransformed dataset
-        together with each transformed version of it.
-        If ``transforms`` = [], only the original dataset is used.
-        The default is [].
-
-    Returns
-    -------
-    None.
 
     """
 
@@ -1285,32 +1085,7 @@ class Cloud95Dataset(ImageDataset):
         return parse_landsat_scene(scene_id)
 
     def compose_scenes(self):
-        """Build the list of samples of the dataset.
-
-        Each sample is represented by a dictionary.
-
-        Returns
-        -------
-        scenes : `list` [`dict`]
-            Each item in ``scenes`` is a `dict` with keys:
-                ``'band_name_1'``
-                    Path to the file of band_1.
-                ``'band_name_2'``
-                    Path to the file of band_2.
-                ``'band_name_n'``
-                    Path to the file of band_n.
-                ``'gt'``
-                    Path to the ground truth file.
-                ``'date'``
-                    The date of the sample.
-                ``'tile'``
-                    The tile id of the sample.
-                ``'transform'``
-                    The transformation to apply.
-                ``'id'``
-                    The scene identifier.
-
-        """
+        """Build the list of samples of the dataset."""
         # whether to exclude patches with more than 80% black pixels
         ipatches = []
         if self.exclude is not None:

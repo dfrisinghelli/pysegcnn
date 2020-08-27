@@ -1,4 +1,4 @@
-"""A collection of constant values.
+"""A collection of constants.
 
 License
 -------
@@ -20,11 +20,14 @@ import enum
 
 # Landsat 8 bands
 class Landsat8(enum.Enum):
-    """The spectral bands of the Landsat 8 sensors.
+    """The spectral bands of the `Landsat-8`_ sensors.
 
     sensors:
         - Operational Land Imager (OLI), (bands 1-9)
         - Thermal Infrared Sensor (TIRS), (bands 10, 11)
+
+    .. _Landsat-8:
+        https://www.usgs.gov/land-resources/nli/landsat/landsat-8?qt-science_support_page_related_con=0#qt-science_support_page_related_con
 
     """
 
@@ -43,7 +46,12 @@ class Landsat8(enum.Enum):
 
 # Sentinel 2 bands
 class Sentinel2(enum.Enum):
-    """The spectral bands of the Sentinel-2 MultiSpectral Instrument (MSI)."""
+    """The spectral bands of the `Sentinel-2`_ MultiSpectral Instrument (MSI).
+
+    .. _Sentinel-2:
+        https://sentinel.esa.int/web/sentinel/missions/sentinel-2
+
+    """
 
     aerosol = 1
     blue = 2

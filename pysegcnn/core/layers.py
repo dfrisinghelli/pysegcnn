@@ -28,29 +28,30 @@ class Conv2dSame(nn.Conv2d):
     calculated such that the output of the convolution has the same spatial
     dimensions as the input.
 
-    Parameters
+    Attributes
     ----------
-    *args: `list` [`str`]
-        positional arguments passed to `torch.nn.Conv2d`:
-            ``'in_channels'``: `int`
-                Number of input channels.
-            ``'out_channels'``: `int`
-                Number of output channels.
-            ``'kernel_size'``: `int` or `tuple` [`int`]
-                Size of the convolving kernel.
-    **kwargs: 'dict' [`str`]
-        Additional keyword arguments passed to `torch.nn.Conv2d`_.
-
-    .. _torch.nn.Conv2d:
-        https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html#torch.nn.Conv2d
-
-    Returns
-    -------
-    None.
+    padding : `tuple` [`int`]
+        The amount of padding, (pad_height, pad_width).
 
     """
 
     def __init__(self, *args, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        *args: `list` [`str`]
+            positional arguments passed to :py:class:`torch.nn.Conv2d`:
+                ``'in_channels'``: `int`
+                    Number of input channels.
+                ``'out_channels'``: `int`
+                    Number of output channels.
+                ``'kernel_size'``: `int` or `tuple` [`int`]
+                    Size of the convolving kernel.
+        **kwargs: `dict` [`str`]
+            Additional keyword arguments passed to :py:class:`torch.nn.Conv2d`.
+
+        """
         super().__init__(*args, **kwargs)
 
         # define tensorflows "SAME" padding for stride = 1
@@ -73,7 +74,7 @@ class Conv2dSame(nn.Conv2d):
         Returns
         -------
         p : `int`
-            the amount of padding.
+            The amount of padding.
 
         """
         # calculates the padding so that the convolution
@@ -90,7 +91,7 @@ def conv_bn_relu(in_channels, out_channels, **kwargs):
         Number of input channels.
     out_channels : `int`
         Number of output channels.
-    **kwargs: 'dict' [`str`]
+    **kwargs: `dict` [`str`]
         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
 
     Returns
@@ -113,28 +114,39 @@ def conv_bn_relu(in_channels, out_channels, **kwargs):
 class Block(nn.Module):
     """Basic convolutional block.
 
-    Parameters
+    Attributes
     ----------
     in_channels : `int`
         Number of input channels.
     out_channels : `int`
         Number of output channels.
-    **kwargs: 'dict' [`str`]
-         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Raises
-    ------
-    TypeError
-        Raised if `~pysegcnn.core.layers.Block.layers` method does not return
-        an instance of `torch.nn.Sequential`.
-
-    Returns
-    -------
-    None.
+    kwargs: `dict` [`str`]
+        Additional arguments passed to
+        :py:class:`pysegcnn.core.layers.Conv2dSame`.
+    conv : :py:class:`torch.nn.Sequential`
+        The convolutional layers of the block.
 
     """
 
     def __init__(self, in_channels, out_channels, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        in_channels : `int`
+            Number of input channels.
+        out_channels : `int`
+            Number of output channels.
+        **kwargs: `dict` [`str`]
+             Additional arguments passed to
+             :py:class:`pysegcnn.core.layers.Conv2dSame`.
+
+        Raises
+        ------
+        TypeError
+            Raised if :py:meth:`~pysegcnn.core.layers.Block.layers` method does
+            not return an instance of :py:class:`torch.nn.Sequential`.
+        """
         super().__init__()
 
         # number of input and output channels
@@ -157,13 +169,13 @@ class Block(nn.Module):
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.layers.Block` is not inherited.
+            Raised if :py:class:`pysegcnn.core.layers.Block` is not inherited.
 
         Returns
         -------
-        layers : `torch.nn.Sequential` [`torch.nn.Module`]
-            Return an instance of `torch.nn.Sequential` containing a sequence
-            of layer (`torch.nn.Module` ) instances.
+        layers : :py:class:`torch.nn.Sequential` [:py:class:`torch.nn.Module`]
+            Return an instance of :py:class:`torch.nn.Sequential` containing a
+            sequence of layer (:py:class:`torch.nn.Module` ) instances.
 
         """
         raise NotImplementedError('Return an instance of {}.'
@@ -175,33 +187,14 @@ class Block(nn.Module):
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.layers.Block` is not inherited.
-
-        Returns
-        -------
-        None.
+            Raised if :py:class:`pysegcnn.core.layers.Block` is not inherited.
 
         """
         raise NotImplementedError('Implement the forward pass.')
 
 
 class EncoderBlock(Block):
-    """Block of a convolutional encoder.
-
-    Parameters
-    ----------
-    in_channels : `int`
-        Number of input channels.
-    out_channels : `int`
-        Number of output channels.
-    **kwargs: 'dict' [`str`]
-         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Block of a convolutional encoder."""
 
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__(in_channels, out_channels, **kwargs)
@@ -211,21 +204,21 @@ class EncoderBlock(Block):
 
         Parameters
         ----------
-        x : `torch.Tensor`
+        x : :py:class:`torch.Tensor`
             Input tensor, e.g. output of the previous block/layer.
 
         Returns
         -------
-        y : `torch.Tensor`, shape=(batch, channel, height, width)
+        y : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Output of the encoder block.
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Intermediate output before applying downsampling. Useful to
             implement skip connections.
-        indices : `torch.Tensor` or `None`
+        indices : :py:class:`torch.Tensor` or `None`
             Optional indices of the downsampling method, e.g. indices of the
-            maxima when using `torch.nn.functional.max_pool2d`. Useful for
-            upsampling later. If no indices are required to upsample, simply
-            return ``indices`` = `None`.
+            maxima when using :py:func:`torch.nn.functional.max_pool2d`. Useful
+            for upsampling later. If no indices are required to upsample,
+            simply return ``indices=None``.
 
         """
         # the forward pass of the layers of the block
@@ -239,57 +232,43 @@ class EncoderBlock(Block):
     def downsample(self, x):
         """Define the downsampling method.
 
-        The `~pysegcnn.core.layers.EncoderBlock.downsample` method should
-        implement the spatial pooling operation.
+        The :py:meth:`~pysegcnn.core.layers.EncoderBlock.downsample` method
+        should implement the spatial pooling operation.
 
         Use one of the following functions to downsample:
-            - `torch.nn.functional.max_pool2d`
-            - `torch.nn.functional.interpolate`
+            - :py:func:`torch.nn.functional.max_pool2d`
+            - :py:func:`torch.nn.functional.interpolate`
 
-        See `pysegcnn.core.layers.ConvBnReluMaxPool` for an example
+        See :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool` for an example
         implementation.
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor, e.g. output of a convolutional block.
 
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.layers.EncoderBlock` is not inherited.
+            Raised if :py:class:`pysegcnn.core.layers.EncoderBlock` is not
+            inherited.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             The spatially downsampled tensor.
-        indices : `torch.Tensor` or `None`
+        indices : :py:class:`torch.Tensor` or `None`
             Optional indices of the downsampling method, e.g. indices of the
-            maxima when using `torch.nn.functional.max_pool2d`. Useful for
-            upsampling later. If no indices are required to upsample, simply
-            return ``indices`` = `None`.
+            maxima when using :py:func:`torch.nn.functional.max_pool2d`. Useful
+            for upsampling later. If no indices are required to upsample,
+            simply return ``indices=None``.
 
         """
         raise NotImplementedError('Implement the downsampling function.')
 
 
 class DecoderBlock(Block):
-    """Block of a convolutional decoder.
-
-    Parameters
-    ----------
-    in_channels : `int`
-        Number of input channels.
-    out_channels : `int`
-        Number of output channels.
-    **kwargs: 'dict' [`str`]
-         Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Block of a convolutional decoder."""
 
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__(in_channels, out_channels, **kwargs)
@@ -299,21 +278,21 @@ class DecoderBlock(Block):
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor.
-        feature : `torch.Tensor`, shape=(batch, channel, height, width)
-            Intermediate output of a layer in the encoder.
-            If ``skip`` = True, ``feature`` is concatenated (along the channel
-            axis) to the output of the respective upsampling layer in the
-            decoder (skip connection).
-        indices : `torch.Tensor` or `None`
+        feature : :py:class:`torch.Tensor`, shape=(b, c, h, w)
+            Intermediate output of a layer in the encoder. If ``skip=True``,
+            ``feature`` is concatenated (along the channel axis) to the output
+            of the respective upsampling layer in the decoder (skip connection)
+            .
+        indices : :py:class:`torch.Tensor` or `None`
             Indices of the encoder downsampling method.
         skip : `bool`
             Whether to apply the skip connection.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Output of the decoder block.
 
         """
@@ -334,35 +313,36 @@ class DecoderBlock(Block):
     def upsample(self, x, feature, indices):
         """Define the upsampling method.
 
-        The `~pysegcnn.core.layers.DecoderBlock.upsample` method should
-        implement the spatial upsampling operation.
+        The :py:meth:`~pysegcnn.core.layers.DecoderBlock.upsample` method
+        should implement the spatial upsampling operation.
 
         Use one of the following functions to upsample:
-            - `torch.nn.functional.max_unpool2d`
-            - `torch.nn.functional.interpolate`
+            - :py:func:`torch.nn.functional.max_unpool2d`
+            - :py:func:`torch.nn.functional.interpolate`
 
-        See `pysegcnn.core.layers.ConvBnReluMaxUnpool` or
-        `pysegcnn.core.layers.ConvBnReluUpsample` for an example
+        See :py:class:`pysegcnn.core.layers.ConvBnReluMaxUnpool` or
+        :py:class:`pysegcnn.core.layers.ConvBnReluUpsample` for an example
         implementation.
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor, e.g. output of a convolutional block.
-        feature : `torch.Tensor`, shape=(batch, channel, height, width)
+        feature : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Intermediate output of a layer in the encoder. Used to implement
             skip connections.
-        indices : `torch.Tensor` or `None`
+        indices : :py:class:`torch.Tensor` or `None`
             Indices of the encoder downsampling method.
 
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.layers.DecoderBlock` is not inherited.
+            Raised if :py:class:`pysegcnn.core.layers.DecoderBlock` is not
+            inherited.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             The spatially upsampled tensor.
 
         """
@@ -373,31 +353,50 @@ class Encoder(nn.Module):
     """Generic convolutional encoder.
 
     When instanciating an encoder-decoder architechure, ``filters`` should be
-    the same for `pysegcnn.core.layers.Encoder` and
-    `pysegcnn.core.layers.Decoder`.
+    the same for :py:class:`pysegcnn.core.layers.Encoder` and
+    :py:class:`pysegcnn.core.layers.Decoder`.
 
-    See `pysegcnn.core.models.UNet` for an example implementation.
+    See :py:class:`pysegcnn.core.models.UNet` for an example implementation.
 
-    Parameters
+    Attributes
     ----------
-    filters : `list` [`int`]
-        List of input channels to each convolutional block. The length of
-        ``filters`` determines the depth of the encoder. The first element of
-        ``filters`` has to be the number of channels of the input images.
-    block : `pysegcnn.core.layers.EncoderBlock`
+    features : :py:class:`numpy.ndarray`
+        Input channels to each convolutional block, i.e. ``filters``.
+    block : :py:class:`pysegcnn.core.layers.EncoderBlock`
         The convolutional block defining a layer in the encoder.
-        A subclass of `pysegcnn.core.layers.EncoderBlock`, e.g.
-        `pysegcnn.core.layers.ConvBnReluMaxPool`.
-    **kwargs: 'dict' [`str`]
-        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
+        A subclass of :py:class:`pysegcnn.core.layers.EncoderBlock`, e.g.
+        :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool`.
+    layers : :py:class:`torch.nn.ModuleList`
+        List of blocks in the encoder.
+    cache : `dict`
+        Intermediate encoder outputs. Dictionary with keys:
+            ``'feature'``
+                The intermediate encoder outputs (:py:class:`torch.Tensor`).
+            ``'indices'``
+                The indices of the max pooling layer, if required
+                (:py:class:`torch.Tensor`).
 
     """
 
     def __init__(self, filters, block, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        filters : `list` [`int`]
+            List of input channels to each convolutional block. The length of
+            ``filters`` determines the depth of the encoder. The first element
+            of ``filters`` has to be the number of channels of the input
+            images.
+        block : :py:class:`pysegcnn.core.layers.EncoderBlock`
+            The convolutional block defining a layer in the encoder.
+            A subclass of :py:class:`pysegcnn.core.layers.EncoderBlock`, e.g.
+            :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool`.
+        **kwargs: `dict` [`str`]
+            Additional arguments passed to
+            :py:class:`pysegcnn.core.layers.Conv2dSame`.
+
+        """
         super().__init__()
 
         # the number of filters for each block: the first element of filters
@@ -423,22 +422,22 @@ class Encoder(nn.Module):
         """Forward pass of the encoder.
 
         Stores intermediate outputs in a dictionary. The keys of the dictionary
-        are the number of the network layers and the values are dictionaries
+        are the numbers of the network layers and the values are dictionaries
         with the following (key, value) pairs:
-            ``"feature"``
-                The intermediate encoder outputs (`torch.Tensor`).
-            ``"indices"``
+            ``'feature'``
+                The intermediate encoder outputs (:py:class:`torch.Tensor`).
+            ``'indices'``
                 The indices of the max pooling layer, if required
-                (`torch.Tensor`).
+                (:py:class:`torch.Tensor`).
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input image.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Output of the encoder.
 
         """
@@ -459,33 +458,47 @@ class Decoder(nn.Module):
     """Generic convolutional decoder.
 
     When instanciating an encoder-decoder architechure, ``filters`` should be
-    the same for `pysegcnn.core.layers.Encoder` and
-    `pysegcnn.core.layers.Decoder`.
+    the same for :py:class:`pysegcnn.core.layers.Encoder` and
+    :py:class:`pysegcnn.core.layers.Decoder`.
 
-    See `pysegcnn.core.models.UNet` for an example implementation.
+    See :py:class:`pysegcnn.core.models.UNet` for an example implementation.
 
-    Parameters
+    Attributes
     ----------
-    filters : `list` [`int`]
-        List of input channels to each convolutional block. The length of
-        ``filters`` determines the depth of the decoder. The first element of
-        ``filters`` has to be the number of channels of the input images.
-    block : `pysegcnn.core.layers.DecoderBlock`
+    features : :py:class:`numpy.ndarray`
+        Input channels to each convolutional block, i.e. ``filters``.
+    block : :py:class:`pysegcnn.core.layers.EncoderBlock`
         The convolutional block defining a layer in the decoder.
-        A subclass of `pysegcnn.core.layers.DecoderBlock`, e.g.
-        `pysegcnn.core.layers.ConvBnReluMaxUnpool`.
+        A subclass of :py:class:`pysegcnn.core.layers.EncoderBlock`, e.g.
+        :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool`.
     skip : `bool`
         Whether to apply skip connections from the encoder to the decoder.
-    **kwargs: 'dict' [`str`]
-        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
+    layers : :py:class:`torch.nn.ModuleList`
+        List of blocks in the decoder.
 
     """
 
     def __init__(self, filters, block, skip=True, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        filters : `list` [`int`]
+            List of input channels to each convolutional block. The length of
+            ``filters`` determines the depth of the decoder. The first element
+            of ``filters`` has to be the number of channels of the input
+            images.
+        block : :py:class:`pysegcnn.core.layers.DecoderBlock`
+            The convolutional block defining a layer in the decoder.
+            A subclass of :py:class:`pysegcnn.core.layers.DecoderBlock`, e.g.
+            :py:class:`pysegcnn.core.layers.ConvBnReluMaxUnpool`.
+        skip : `bool`, optional
+            Whether to apply skip connections from the encoder to the decoder.
+        **kwargs: `dict` [`str`]
+            Additional arguments passed to
+            :py:class:`pysegcnn.core.layers.Conv2dSame`.
+
+        """
         super().__init__()
 
         # the block of operations defining a layer in the decoder
@@ -520,20 +533,22 @@ class Decoder(nn.Module):
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Output of the encoder.
         enc_cache : `dict` [`dict`]
             Cache dictionary. The keys of the dictionary are the number of the
             network layers and the values are dictionaries with the following
             (key, value) pairs:
-                ``"feature"``
-                    The intermediate encoder outputs (`torch.Tensor`).
-                ``"indices"``
-                    The indices of the max pooling layer (`torch.Tensor`).
+                ``'feature'``
+                    The intermediate encoder outputs
+                    (:py:class:`torch.Tensor`).
+                ``'indices'``
+                    The indices of the max pooling layer
+                    (:py:class:`torch.Tensor`).
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Output of the decoder.
 
         """
@@ -552,23 +567,7 @@ class Decoder(nn.Module):
 
 
 class ConvBnReluMaxPool(EncoderBlock):
-    """Block of convolution, batchnorm, relu and 2x2 max pool.
-
-    Parameters
-    ----------
-    in_channels : `int`
-        Number of input channels.
-    out_channels : `int`
-        Number of output channels.
-    **kwargs: 'dict' [`str`]
-        Additional keyword arguments passed to
-        `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Block of convolution, batchnorm, relu and 2x2 max pool."""
 
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__(in_channels, out_channels, **kwargs)
@@ -578,29 +577,30 @@ class ConvBnReluMaxPool(EncoderBlock):
 
         Returns
         -------
-        layers : `torch.nn.Sequential` [`torch.nn.Module`]
-            An instance of `torch.nn.Sequential` containing the sequence
-            of convolution, batchnorm and relu layer (`torch.nn.Module`)
-            instances.
+        layers : :py:class:`torch.nn.Sequential` [:py:class:`torch.nn.Module`]
+            An instance of :py:class:`torch.nn.Sequential` containing the
+            sequence of convolution, batchnorm and relu layer
+            (:py:class:`torch.nn.Module`) instances.
 
         """
         return conv_bn_relu(self.in_channels, self.out_channels, **self.kwargs)
 
     def downsample(self, x):
-        """2x2 max pooling layer, `torch.nn.functional.max_pool2d`.
+        """2x2 max pooling layer.
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height // 2, width // 2)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h // 2, w // 2)
             The 2x2 max pooled tensor.
-        indices : `torch.Tensor` or `None`
+        indices : :py:class:`torch.Tensor` or `None`
             The indices of the maxima. Useful for upsampling with
-            `torch.nn.functional.max_unpool2d`.
+            :py:func:`torch.nn.functional.max_unpool2d`.
+
         """
         x, indices = F.max_pool2d(x, kernel_size=2, return_indices=True)
         return x, indices
@@ -618,23 +618,7 @@ class ConvBnReluMaxPool(EncoderBlock):
 
 
 class ConvBnReluMaxUnpool(DecoderBlock):
-    """Block of convolution, batchnorm, relu and 2x2 max unpool.
-
-    Parameters
-    ----------
-    in_channels : `int`
-        Number of input channels.
-    out_channels : `int`
-        Number of output channels
-    **kwargs: 'dict' [`str`]
-        Additional keyword arguments passed to
-        `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Block of convolution, batchnorm, relu and 2x2 max unpool."""
 
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__(in_channels, out_channels, **kwargs)
@@ -644,10 +628,10 @@ class ConvBnReluMaxUnpool(DecoderBlock):
 
         Returns
         -------
-        layers : `torch.nn.Sequential` [`torch.nn.Module`]
-            An instance of `torch.nn.Sequential` containing the sequence
-            of convolution, batchnorm and relu layer (`torch.nn.Module`)
-            instances.
+        layers : :py:class:`torch.nn.Sequential` [:py:class:`torch.nn.Module`]
+            An instance of :py:class:`torch.nn.Sequential` containing the
+            sequence of convolution, batchnorm and relu layer
+            (:py:class:`torch.nn.Module`) instances.
 
         """
         return conv_bn_relu(self.in_channels, self.out_channels, **self.kwargs)
@@ -657,18 +641,18 @@ class ConvBnReluMaxUnpool(DecoderBlock):
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor.
-        feature : `torch.Tensor`, shape=(batch, channel, height, width)
+        feature : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Intermediate output of a layer in the encoder. Used to determine
             the output shape of the upsampling operation.
-        indices : `torch.Tensor`
+        indices : :py:class:`torch.Tensor`
             The indices of the maxima of the max pooling operation
-            (as returned by `torch.nn.functional.max_pool2d`).
+            (as returned by :py:func:`torch.nn.functional.max_pool2d`).
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height * 2, width * 2)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h * 2, w * 2)
             The 2x2 max unpooled tensor.
 
         """
@@ -688,22 +672,7 @@ class ConvBnReluMaxUnpool(DecoderBlock):
 
 
 class ConvBnReluUpsample(DecoderBlock):
-    """Block of convolution, batchnorm, relu and nearest neighbor upsampling.
-
-    Parameters
-    ----------
-    in_channels : `int`
-        Number of input channels.
-    out_channels : `int`
-        Number of output channels
-    **kwargs: 'dict' [`str`]
-        Additional arguments passed to `pysegcnn.core.layers.Conv2dSame`.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Block of convolution, batchnorm, relu and nearest neighbor upsample."""
 
     def __init__(self, in_channels, out_channels, **kwargs):
         super().__init__(in_channels, out_channels, **kwargs)
@@ -713,10 +682,10 @@ class ConvBnReluUpsample(DecoderBlock):
 
         Returns
         -------
-        layers : `torch.nn.Sequential` [`torch.nn.Module`]
-            An instance of `torch.nn.Sequential` containing the sequence
-            of convolution, batchnorm and relu layer (`torch.nn.Module`)
-            instances.
+        layers : :py:class:`torch.nn.Sequential` [:py:class:`torch.nn.Module`]
+            An instance of :py:class:`torch.nn.Sequential` containing the
+            sequence of convolution, batchnorm and relu layer
+            (:py:class:`torch.nn.Module`) instances.
 
         """
         return conv_bn_relu(self.in_channels, self.out_channels, **self.kwargs)
@@ -726,19 +695,19 @@ class ConvBnReluUpsample(DecoderBlock):
 
         Parameters
         ----------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Input tensor.
-        feature : `torch.Tensor`, shape=(batch, channel, height, width)
+        feature : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             Intermediate output of a layer in the encoder. Used to determine
             the output shape of the upsampling operation.
         indices : `None`, optional
             The indices of the maxima of the max pooling operation
-            (as returned by `torch.nn.functional.max_pool2d`). Not required by
-            this upsampling method.
+            (as returned by :py:func:`torch.nn.functional.max_pool2d`).
+            Not required by this upsampling method.
 
         Returns
         -------
-        x : `torch.Tensor`, shape=(batch, channel, height, width)
+        x : :py:class:`torch.Tensor`, shape=(b, c, h, w)
             The 2x2 upsampled tensor.
 
         """

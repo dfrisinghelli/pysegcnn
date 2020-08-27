@@ -18,19 +18,12 @@ License
 import pathlib
 import argparse
 
-
 # epilogue to display at the end of each parser
 EPILOGUE = 'Author: Daniel Frisinghelli, daniel.frisinghelli@gmail.com'
 
 
 def structure_parser():
-    """Command line argument parser to standardize dataset structure.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Command line argument parser to standardize dataset structure."""
     parser = argparse.ArgumentParser(
         description='Standardize the dataset directory structure.',
         epilog=EPILOGUE,

@@ -77,5 +77,5 @@ if __name__ == '__main__':
     # whether to plot the confusion matrix
     if ec.cm:
         plot_confusion_matrix(cm, ds.dataset.labels,
-                              state=ec.state_file.name.replace('.pt', '.png'),
+                              state_file=ec.state_file,
                               outpath=ec.perfmc_path)

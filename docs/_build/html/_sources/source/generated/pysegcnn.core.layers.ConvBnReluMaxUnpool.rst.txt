@@ -1,4 +1,4 @@
-pysegcnn.core.layers.ConvBnReluMaxUnpool
+﻿pysegcnn.core.layers.ConvBnReluMaxUnpool
 ========================================
 
 .. currentmodule:: pysegcnn.core.layers

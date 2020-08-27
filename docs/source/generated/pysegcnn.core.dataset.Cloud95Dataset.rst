@@ -1,4 +1,4 @@
-pysegcnn.core.dataset.Cloud95Dataset
+﻿pysegcnn.core.dataset.Cloud95Dataset
 ====================================
 
 .. currentmodule:: pysegcnn.core.dataset

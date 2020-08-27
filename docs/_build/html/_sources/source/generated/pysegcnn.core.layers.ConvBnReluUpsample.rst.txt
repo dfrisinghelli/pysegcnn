@@ -1,4 +1,4 @@
-pysegcnn.core.layers.ConvBnReluUpsample
+﻿pysegcnn.core.layers.ConvBnReluUpsample
 =======================================
 
 .. currentmodule:: pysegcnn.core.layers

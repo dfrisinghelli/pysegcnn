@@ -1,4 +1,4 @@
-pysegcnn.core.layers.Block
+﻿pysegcnn.core.layers.Block
 ==========================
 
 .. currentmodule:: pysegcnn.core.layers

@@ -87,8 +87,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="reference internal" href="../api.html">API Reference</a><ul class="current">
 <li class="toctree-l2 current"><a class="reference internal" href="../api.html#dataset">Dataset</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="pysegcnn.core.dataset.ImageDataset.html">pysegcnn.core.dataset.ImageDataset</a></li>
-<li class="toctree-l3 current"><a class="reference internal" href="../api.html#supported-datasets">Supported datasets</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../api.html#generic-classes">Generic classes</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="../api.html#specific-classes">Specific classes</a><ul class="current">
 <li class="toctree-l4"><a class="reference internal" href="pysegcnn.core.dataset.SparcsDataset.html">pysegcnn.core.dataset.SparcsDataset</a></li>
 <li class="toctree-l4 current"><a class="current reference internal" href="#">pysegcnn.core.dataset.Cloud95Dataset</a></li>
 </ul>
@@ -171,80 +171,48 @@
 <dt id="pysegcnn.core.dataset.Cloud95Dataset">
 <em class="property">class </em><code class="sig-prename descclassname">pysegcnn.core.dataset.</code><code class="sig-name descname">Cloud95Dataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt\\.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#Cloud95Dataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.Cloud95Dataset" title="Permalink to this definition">¶</a></dt>
 <dd><p>Class for the <a class="reference external" href="https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset">Cloud-95</a> dataset by <a class="reference external" href="https://arxiv.org/abs/2001.08768">Mohajerani &amp; Saeedi (2020)</a>.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>root_dir</strong> (<cite>str</cite>) – The root directory, path to the dataset.</p></li>
-<li><p><strong>use_bands</strong> (<cite>list</cite> [<cite>str</cite>], optional) – A list of the spectral bands to use. The default is [].</p></li>
-<li><p><strong>tile_size</strong> (<cite>int</cite> or <cite>None</cite>, optional) – The size of the tiles. If not <cite>None</cite>, each scene is divided into square
-tiles of shape (tile_size, tile_size). The default is None.</p></li>
-<li><p><strong>pad</strong> (<cite>bool</cite>, optional) – Whether to center pad the input image. Set <code class="docutils literal notranslate"><span class="pre">pad</span></code> = True, if the
-images are not evenly divisible by the <code class="docutils literal notranslate"><span class="pre">tile_size</span></code>. The image data is
-padded with a constant padding value of zero. For each image, the
-corresponding ground truth image is padded with a “no data” label.
-The default is False.</p></li>
-<li><p><strong>gt_pattern</strong> (<cite>str</cite>, optional) – A regural expression to match the ground truth naming convention. All
-directories and subdirectories in <code class="docutils literal notranslate"><span class="pre">root_dir</span></code> are searched for files
-matching <code class="docutils literal notranslate"><span class="pre">gt_pattern</span></code>. The default is ‘(.*)gt\.tif’.</p></li>
-<li><p><strong>sort</strong> (<cite>bool</cite>, optional) – Whether to chronologically sort the samples. Useful for time series
-data. The default is False.</p></li>
-<li><p><strong>seed</strong> (<cite>int</cite>, optional) – The random seed. Used to split the dataset into training, validation
-and test set. Useful for reproducibility. The default is 0.</p></li>
-<li><p><strong>transforms</strong> (<cite>list</cite> [<cite>pysegcnn.core.split.Augment</cite>], optional) – List of <cite>pysegcnn.core.split.Augment</cite> instances. Each item in
-<code class="docutils literal notranslate"><span class="pre">transforms</span></code> generates a distinct transformed version of the dataset.
-The total dataset is composed of the original untransformed dataset
-together with each transformed version of it.
-If <code class="docutils literal notranslate"><span class="pre">transforms</span></code> = [], only the original dataset is used.
-The default is [].</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns</dt>
-<dd class="field-even"><p></p>
-</dd>
-<dt class="field-odd">Return type</dt>
-<dd class="field-odd"><p>None.</p>
-</dd>
-</dl>
-<p class="rubric">Methods</p>
-<table class="longtable docutils align-default">
-<colgroup>
-<col style="width: 10%" />
-<col style="width: 90%" />
-</colgroup>
-<tbody>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_samples</span></code>(scene)</p></td>
-<td><p>Stack the bands of a sample in a single array.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compose_scenes</span></code>()</p></td>
-<td><p>Build the list of samples of the dataset.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_labels</span></code>()</p></td>
-<td><p>Class labels of the Cloud-95 dataset.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_sensor</span></code>()</p></td>
-<td><p>Landsat 8 bands of the Cloud-95 dataset.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_size</span></code>()</p></td>
-<td><p>Image size of the Cloud-95 dataset.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_scene_id</span></code>(scene_id)</p></td>
-<td><p>Parse Sparcs scene identifiers (Landsat 8).</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">preprocess</span></code>(data, gt)</p></td>
-<td><p>Preprocess Cloud-95 dataset images.</p></td>
-</tr>
-<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">read_scene</span></code>(idx)</p></td>
-<td><p>Read the data of the sample with index <code class="docutils literal notranslate"><span class="pre">idx</span></code>.</p></td>
-</tr>
-<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_tensor</span></code>(x, dtype)</p></td>
-<td><p>Convert <code class="docutils literal notranslate"><span class="pre">x</span></code> to <cite>torch.Tensor</cite>.</p></td>
-</tr>
-</tbody>
-</table>
 <dl class="py method">
 <dt id="pysegcnn.core.dataset.Cloud95Dataset.__init__">
 <code class="sig-name descname">__init__</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">root_dir</span></em>, <em class="sig-param"><span class="n">use_bands</span><span class="o">=</span><span class="default_value">[]</span></em>, <em class="sig-param"><span class="n">tile_size</span><span class="o">=</span><span class="default_value">None</span></em>, <em class="sig-param"><span class="n">pad</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">gt_pattern</span><span class="o">=</span><span class="default_value">'(.*)gt\\.tif'</span></em>, <em class="sig-param"><span class="n">sort</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">seed</span><span class="o">=</span><span class="default_value">0</span></em>, <em class="sig-param"><span class="n">transforms</span><span class="o">=</span><span class="default_value">[]</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/pysegcnn/core/dataset.html#Cloud95Dataset.__init__"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#pysegcnn.core.dataset.Cloud95Dataset.__init__" title="Permalink to this definition">¶</a></dt>
-<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+<dd><p>Initialize.</p>
+<dl class="field-list">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><dl>
+<dt><strong>root_dir</strong><span class="classifier"><cite>str</cite></span></dt><dd><p>The root directory, path to the dataset.</p>
+</dd>
+<dt><strong>use_bands</strong><span class="classifier"><cite>list</cite> [<cite>str</cite>], optional</span></dt><dd><p>A list of the spectral bands to use. The default is <cite>[]</cite>.</p>
+</dd>
+<dt><strong>tile_size</strong><span class="classifier"><cite>int</cite> or <cite>None</cite>, optional</span></dt><dd><p>The size of the tiles. If not <cite>None</cite>, each scene is divided into
+square tiles of shape <code class="docutils literal notranslate"><span class="pre">(tile_size,</span> <span class="pre">tile_size)</span></code>. The default is
+<cite>None</cite>.</p>
+</dd>
+<dt><strong>pad</strong><span class="classifier"><cite>bool</cite>, optional</span></dt><dd><p>Whether to center pad the input image. Set <code class="docutils literal notranslate"><span class="pre">pad=True</span></code>, if the
+images are not evenly divisible by the <code class="docutils literal notranslate"><span class="pre">tile_size</span></code>. The image
+data is padded with a constant padding value of zero. For each
+image, the corresponding ground truth image is padded with a
+“no data” label. The default is <cite>False</cite>.</p>
+</dd>
+<dt><strong>gt_pattern</strong><span class="classifier"><cite>str</cite>, optional</span></dt><dd><p>A regural expression to match the ground truth naming convention.
+All directories and subdirectories in <code class="docutils literal notranslate"><span class="pre">root_dir</span></code> are searched for
+files matching <code class="docutils literal notranslate"><span class="pre">gt_pattern</span></code>. The default is <cite>(.*)gt\.tif</cite>.</p>
+</dd>
+<dt><strong>sort</strong><span class="classifier"><cite>bool</cite>, optional</span></dt><dd><p>Whether to chronologically sort the samples. Useful for time series
+data. The default is <cite>False</cite>.</p>
+</dd>
+<dt><strong>seed</strong><span class="classifier"><cite>int</cite>, optional</span></dt><dd><p>The random seed. Used to split the dataset into training,
+validation and test set. Useful for reproducibility. The default is
+<cite>0</cite>.</p>
+</dd>
+<dt><strong>transforms</strong><span class="classifier"><cite>list</cite>, optional</span></dt><dd><p>List of <a class="reference internal" href="pysegcnn.core.transforms.Augment.html#pysegcnn.core.transforms.Augment" title="pysegcnn.core.transforms.Augment"><code class="xref py py-class docutils literal notranslate"><span class="pre">pysegcnn.core.transforms.Augment</span></code></a> instances.
+Each item in <code class="docutils literal notranslate"><span class="pre">transforms</span></code> generates a distinct transformed
+version of the dataset. The total dataset is composed of the
+original untransformed dataset together with each transformed
+version of it. If <code class="docutils literal notranslate"><span class="pre">transforms=[]</span></code>, only the original dataset is
+used. The default is <cite>[]</cite>.</p>
+</dd>
+</dl>
+</dd>
+</dl>
 </dd></dl>
 
 <p class="rubric">Methods</p>
@@ -255,7 +223,7 @@ The default is [].</p></li>
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#pysegcnn.core.dataset.Cloud95Dataset.__init__" title="pysegcnn.core.dataset.Cloud95Dataset.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(root_dir[, use_bands, tile_size, …])</p></td>
-<td><p>Initialize self.</p></td>
+<td><p>Initialize.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_samples</span></code>(scene)</p></td>
 <td><p>Stack the bands of a sample in a single array.</p></td>
@@ -282,7 +250,7 @@ The default is [].</p></li>
 <td><p>Read the data of the sample with index <code class="docutils literal notranslate"><span class="pre">idx</span></code>.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_tensor</span></code>(x, dtype)</p></td>
-<td><p>Convert <code class="docutils literal notranslate"><span class="pre">x</span></code> to <cite>torch.Tensor</cite>.</p></td>
+<td><p>Convert <code class="docutils literal notranslate"><span class="pre">x</span></code> to <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.Tensor</span></code>.</p></td>
 </tr>
 </tbody>
 </table>

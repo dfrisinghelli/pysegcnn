@@ -1,4 +1,4 @@
-pysegcnn.core.layers.ConvBnReluMaxPool
+﻿pysegcnn.core.layers.ConvBnReluMaxPool
 ======================================
 
 .. currentmodule:: pysegcnn.core.layers

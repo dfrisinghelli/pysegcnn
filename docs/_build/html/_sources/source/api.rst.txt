@@ -13,9 +13,9 @@ Dataset
 
 Custom dataset classes compliant to the PyTorch `standard <https://pytorch.org/docs/stable/data.html>`_.
 
-Image Dataset
-^^^^^^^^^^^^^
-Generic class to implement `custom datasets <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_.
+Generic classes
+^^^^^^^^^^^^^^^
+Generic class to implement a `custom dataset <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_.
 
 .. autosummary::
     :toctree: generated/
@@ -23,11 +23,21 @@ Generic class to implement `custom datasets <https://pytorch.org/tutorials/begin
 
     core.dataset.ImageDataset
 
-Supported datasets
-^^^^^^^^^^^^^^^^^^
+Generic class to implement a custom dataset following a standard directory
+structure.
 
-The following open-source spaceborne multispectral image datasets are supported
-out-of-the-box:
+.. autosummary::
+    :toctree: generated/
+    :nosignatures:
+
+    core.dataset.StandardEoDataset
+
+
+Specific classes
+^^^^^^^^^^^^^^^^
+
+Specific classes for some open-source image datasets. Currently, the following
+spaceborne multispectral image datasets are supported out-of-the-box:
 
 .. autosummary::
     :toctree: generated/
@@ -35,7 +45,6 @@ out-of-the-box:
 
     core.dataset.SparcsDataset
     core.dataset.Cloud95Dataset
-
 
 Models
 ------
@@ -81,6 +90,9 @@ Neural Networks
     core.models.UNet
 
 
+..
+    Links:
+
 .. _Sparcs:
     https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation
 
@@ -92,3 +104,12 @@ Neural Networks
 
 .. _U-Net:
     https://arxiv.org/abs/1505.04597
+
+.. _Landsat-8:
+    https://www.usgs.gov/land-resources/nli/landsat/landsat-8?qt-science_support_page_related_con=0#qt-science_support_page_related_con
+
+.. _Sentinel-2:
+    https://sentinel.esa.int/web/sentinel/missions/sentinel-2
+
+.. _Hughes & Hayes (2014):
+    https://www.mdpi.com/2072-4292/6/6/4907

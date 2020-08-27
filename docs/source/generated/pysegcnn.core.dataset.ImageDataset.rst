@@ -1,4 +1,4 @@
-pysegcnn.core.dataset.ImageDataset
+﻿pysegcnn.core.dataset.ImageDataset
 ==================================
 
 .. currentmodule:: pysegcnn.core.dataset

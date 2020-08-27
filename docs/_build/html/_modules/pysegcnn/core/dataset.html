@@ -195,54 +195,54 @@
 
 
 <div class="viewcode-block" id="ImageDataset"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.ImageDataset.html#pysegcnn.core.dataset.ImageDataset">[docs]</a><span class="k">class</span> <span class="nc">ImageDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Base class for multispectral image data.</span>
+    <span class="sd">&quot;&quot;&quot;Base class for multispectral image data.</span>
 
-<span class="sd">    Inheriting from `torch.utils.data.Dataset` to be compliant to the PyTorch</span>
-<span class="sd">    standard. Furthermore, using instances of `torch.utils.data.Dataset`</span>
-<span class="sd">    enables the use of the handy `torch.utils.data.DataLoader` class during</span>
-<span class="sd">    model training.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention.</span>
-<span class="sd">        All directories and subdirectories in ``root_dir`` are searched for</span>
-<span class="sd">        files matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
+<span class="sd">    Inheriting from :py:class:`torch.utils.data.Dataset` to be compliant to the</span>
+<span class="sd">    PyTorch standard. This enables the use of the handy</span>
+<span class="sd">    :py:class:`torch.utils.data.DataLoader` class during model training.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
 <div class="viewcode-block" id="ImageDataset.__init__"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.ImageDataset.html#pysegcnn.core.dataset.ImageDataset.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Initialize.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        root_dir : `str`</span>
+<span class="sd">            The root directory, path to the dataset.</span>
+<span class="sd">        use_bands : `list` [`str`], optional</span>
+<span class="sd">            A list of the spectral bands to use. The default is `[]`.</span>
+<span class="sd">        tile_size : `int` or `None`, optional</span>
+<span class="sd">            The size of the tiles. If not `None`, each scene is divided into</span>
+<span class="sd">            square tiles of shape ``(tile_size, tile_size)``. The default is</span>
+<span class="sd">            `None`.</span>
+<span class="sd">        pad : `bool`, optional</span>
+<span class="sd">            Whether to center pad the input image. Set ``pad=True``, if the</span>
+<span class="sd">            images are not evenly divisible by the ``tile_size``. The image</span>
+<span class="sd">            data is padded with a constant padding value of zero. For each</span>
+<span class="sd">            image, the corresponding ground truth image is padded with a</span>
+<span class="sd">            &quot;no data&quot; label. The default is `False`.</span>
+<span class="sd">        gt_pattern : `str`, optional</span>
+<span class="sd">            A regural expression to match the ground truth naming convention.</span>
+<span class="sd">            All directories and subdirectories in ``root_dir`` are searched for</span>
+<span class="sd">            files matching ``gt_pattern``. The default is `(.*)gt\\.tif`.</span>
+<span class="sd">        sort : `bool`, optional</span>
+<span class="sd">            Whether to chronologically sort the samples. Useful for time series</span>
+<span class="sd">            data. The default is `False`.</span>
+<span class="sd">        seed : `int`, optional</span>
+<span class="sd">            The random seed. Used to split the dataset into training,</span>
+<span class="sd">            validation and test set. Useful for reproducibility. The default is</span>
+<span class="sd">            `0`.</span>
+<span class="sd">        transforms : `list`, optional</span>
+<span class="sd">            List of :py:class:`pysegcnn.core.transforms.Augment` instances.</span>
+<span class="sd">            Each item in ``transforms`` generates a distinct transformed</span>
+<span class="sd">            version of the dataset. The total dataset is composed of the</span>
+<span class="sd">            original untransformed dataset together with each transformed</span>
+<span class="sd">            version of it. If ``transforms=[]``, only the original dataset is</span>
+<span class="sd">            used. The default is `[]`.</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
         <span class="c1"># dataset configuration</span>
@@ -642,7 +642,7 @@
 <span class="sd">        -------</span>
 <span class="sd">        stack : `numpy.ndarray`</span>
 <span class="sd">            The input data of the sample.</span>
-<span class="sd">        gt : TYPE</span>
+<span class="sd">        gt : `numpy.ndarray`</span>
 <span class="sd">            The ground truth of the sample.</span>
 
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -653,7 +653,7 @@
         <span class="k">return</span> <span class="n">stack</span><span class="p">,</span> <span class="n">gt</span>
 
     <span class="k">def</span> <span class="nf">to_tensor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Convert ``x`` to `torch.Tensor`.</span>
+        <span class="sd">&quot;&quot;&quot;Convert ``x`` to :py:class:`torch.Tensor`.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -712,86 +712,43 @@
         <span class="k">return</span> <span class="n">fs</span></div>
 
 
-<span class="k">class</span> <span class="nc">StandardEoDataset</span><span class="p">(</span><span class="n">ImageDataset</span><span class="p">):</span>
+<div class="viewcode-block" id="StandardEoDataset"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.StandardEoDataset.html#pysegcnn.core.dataset.StandardEoDataset">[docs]</a><span class="k">class</span> <span class="nc">StandardEoDataset</span><span class="p">(</span><span class="n">ImageDataset</span><span class="p">):</span>
     <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Base class for standard Earth Observation style datasets.</span>
 
-<span class="sd">    `pysegcnn.core.dataset.StandardEoDataset` implements the</span>
-<span class="sd">    `~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method for</span>
-<span class="sd">    datasets with the following directory structure:</span>
+<span class="sd">    :py:class:`pysegcnn.core.dataset.StandardEoDataset` implements the</span>
+<span class="sd">    :py:meth:`~pysegcnn.core.dataset.StandardEoDataset.compose_scenes` method</span>
+<span class="sd">    for datasets with the following directory structure:</span>
 
 <span class="sd">    root_dir/</span>
-<span class="sd">        scene_id_1/</span>
-<span class="sd">            scene_id_1_B1.tif</span>
-<span class="sd">            scene_id_1_B2.tif</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
-<span class="sd">            scene_id_1_BN.tif</span>
-<span class="sd">        scene_id_2/</span>
-<span class="sd">            scene_id_2_B1.tif</span>
-<span class="sd">            scene_id_2_B2.tif</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
-<span class="sd">            scene_id_2_BN.tif</span>
-<span class="sd">        .</span>
-<span class="sd">        .</span>
-<span class="sd">        .</span>
-<span class="sd">        scene_id_N/</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
-<span class="sd">            .</span>
+<span class="sd">        - scene_id_1/</span>
+<span class="sd">             - scene_id_1_B1.tif</span>
+<span class="sd">             - scene_id_1_B2.tif</span>
+<span class="sd">             - ...</span>
+<span class="sd">             - scene_id_1_BN.tif</span>
+<span class="sd">        - scene_id_2/</span>
+<span class="sd">             - scene_id_2_B1.tif</span>
+<span class="sd">             - scene_id_2_B2.tif</span>
+<span class="sd">             - ...</span>
+<span class="sd">             - scene_id_2_BN.tif</span>
+<span class="sd">        - ...</span>
+<span class="sd">        - scene_id_N/</span>
+<span class="sd">            - ...</span>
 
 <span class="sd">    If your dataset shares this directory structure, you can directly inherit</span>
-<span class="sd">    `pysegcnn.core.dataset.StandardEoDataset` and implement the remaining</span>
-<span class="sd">    methods.</span>
+<span class="sd">    :py:class:`pysegcnn.core.dataset.StandardEoDataset` and implement the</span>
+<span class="sd">    remaining methods. If not, you can use</span>
+<span class="sd">    :py:func:`pysegcnn.core.utils.standard_eo_structure` to transfer your</span>
+<span class="sd">    dataset to the above directory structure.</span>
 
-<span class="sd">    See `pysegcnn.core.dataset.SparcsDataset` for an example.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
+<span class="sd">    See :py:class:`pysegcnn.core.dataset.SparcsDataset` for an example.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<div class="viewcode-block" id="StandardEoDataset.__init__"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.StandardEoDataset.html#pysegcnn.core.dataset.StandardEoDataset.__init__">[docs]</a>    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
         <span class="c1"># initialize super class ImageDataset</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="p">,</span> <span class="n">tile_size</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">gt_pattern</span><span class="p">,</span>
-                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span>
+                         <span class="n">sort</span><span class="p">,</span> <span class="n">seed</span><span class="p">,</span> <span class="n">transforms</span><span class="p">)</span></div>
 
     <span class="k">def</span> <span class="nf">_get_band_number</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;Return the band number of a scene .tif file.</span>
@@ -859,32 +816,7 @@
         <span class="k">return</span> <span class="n">scene_data</span>
 
     <span class="k">def</span> <span class="nf">compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.</span>
-
-<span class="sd">        Each sample is represented by a dictionary.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        scenes : `list` [`dict`]</span>
-<span class="sd">            Each item in ``scenes`` is a `dict` with keys:</span>
-<span class="sd">                ``&#39;band_name_1&#39;``</span>
-<span class="sd">                    Path to the file of band_1.</span>
-<span class="sd">                ``&#39;band_name_2&#39;``</span>
-<span class="sd">                    Path to the file of band_2.</span>
-<span class="sd">                ``&#39;band_name_n&#39;``</span>
-<span class="sd">                    Path to the file of band_n.</span>
-<span class="sd">                ``&#39;gt&#39;``</span>
-<span class="sd">                    Path to the ground truth file.</span>
-<span class="sd">                ``&#39;date&#39;``</span>
-<span class="sd">                    The date of the sample.</span>
-<span class="sd">                ``&#39;tile&#39;``</span>
-<span class="sd">                    The tile id of the sample.</span>
-<span class="sd">                ``&#39;transform&#39;``</span>
-<span class="sd">                    The transformation to apply.</span>
-<span class="sd">                ``&#39;id&#39;``</span>
-<span class="sd">                    The scene identifier.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.&quot;&quot;&quot;</span>
         <span class="c1"># search the root directory</span>
         <span class="n">scenes</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">gt</span> <span class="o">=</span> <span class="p">[]</span>
@@ -904,7 +836,7 @@
 
                 <span class="c1"># list the spectral bands of the scene</span>
                 <span class="n">bands</span> <span class="o">=</span> <span class="p">[</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">dirpath</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">files</span>
-                         <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;B</span><span class="se">\\</span><span class="s1">dA|B</span><span class="se">\\</span><span class="s1">d{1,2}&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">)]</span>
+                         <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="s1">&#39;B</span><span class="se">\\</span><span class="s1">dA|B</span><span class="se">\\</span><span class="s1">d{1,2}(.*).tif$&#39;</span><span class="p">,</span> <span class="n">f</span><span class="p">)]</span>
 
                 <span class="c1"># get the ground truth mask</span>
                 <span class="k">try</span><span class="p">:</span>
@@ -946,51 +878,17 @@
             <span class="n">scenes</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="n">k</span><span class="p">[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">gt</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">k</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">parse_scene_id</span><span class="p">(</span><span class="n">k</span><span class="p">)[</span><span class="s1">&#39;date&#39;</span><span class="p">])</span>
 
-        <span class="k">return</span> <span class="n">scenes</span>
+        <span class="k">return</span> <span class="n">scenes</span></div>
 
 
 <div class="viewcode-block" id="SparcsDataset"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.SparcsDataset.html#pysegcnn.core.dataset.SparcsDataset">[docs]</a><span class="k">class</span> <span class="nc">SparcsDataset</span><span class="p">(</span><span class="n">StandardEoDataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the `Sparcs`_ dataset.</span>
+    <span class="sd">&quot;&quot;&quot;Class for the `Sparcs`_ dataset by `Hughes &amp; Hayes (2014)`_.</span>
 
 <span class="sd">    .. _Sparcs:</span>
 <span class="sd">        https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation</span>
 
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
+<span class="sd">    .. _Hughes &amp; Hayes (2014):</span>
+<span class="sd">        https://www.mdpi.com/2072-4292/6/6/4907</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -1073,46 +971,7 @@
 
 
 <span class="k">class</span> <span class="nc">ProSnowDataset</span><span class="p">(</span><span class="n">StandardEoDataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow datasets.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;Class for the ProSnow datasets.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
@@ -1182,46 +1041,7 @@
 
 
 <span class="k">class</span> <span class="nc">ProSnowGarmisch</span><span class="p">(</span><span class="n">ProSnowDataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow Garmisch dataset.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;Class for the ProSnow Garmisch dataset.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
@@ -1242,46 +1062,7 @@
 
 
 <span class="k">class</span> <span class="nc">ProSnowObergurgl</span><span class="p">(</span><span class="n">ProSnowDataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the ProSnow Obergurgl dataset.</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
-
-<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="sd">&quot;&quot;&quot;Class for the ProSnow Obergurgl dataset.&quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root_dir</span><span class="p">,</span> <span class="n">use_bands</span><span class="o">=</span><span class="p">[],</span> <span class="n">tile_size</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                  <span class="n">gt_pattern</span><span class="o">=</span><span class="s1">&#39;(.*)gt</span><span class="se">\\</span><span class="s1">.tif&#39;</span><span class="p">,</span> <span class="n">sort</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">transforms</span><span class="o">=</span><span class="p">[]):</span>
@@ -1302,49 +1083,12 @@
 
 
 <div class="viewcode-block" id="Cloud95Dataset"><a class="viewcode-back" href="../../../source/generated/pysegcnn.core.dataset.Cloud95Dataset.html#pysegcnn.core.dataset.Cloud95Dataset">[docs]</a><span class="k">class</span> <span class="nc">Cloud95Dataset</span><span class="p">(</span><span class="n">ImageDataset</span><span class="p">):</span>
-    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Class for the `Cloud-95`_ dataset by `Mohajerani &amp; Saeedi (2020)`_.</span>
+    <span class="sd">&quot;&quot;&quot;Class for the `Cloud-95`_ dataset by `Mohajerani &amp; Saeedi (2020)`_.</span>
 
 <span class="sd">    .. _Cloud-95:</span>
 <span class="sd">        https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset</span>
 <span class="sd">    .. _Mohajerani &amp; Saeedi (2020):</span>
 <span class="sd">        https://arxiv.org/abs/2001.08768</span>
-
-<span class="sd">    Parameters</span>
-<span class="sd">    ----------</span>
-<span class="sd">    root_dir : `str`</span>
-<span class="sd">        The root directory, path to the dataset.</span>
-<span class="sd">    use_bands : `list` [`str`], optional</span>
-<span class="sd">        A list of the spectral bands to use. The default is [].</span>
-<span class="sd">    tile_size : `int` or `None`, optional</span>
-<span class="sd">        The size of the tiles. If not `None`, each scene is divided into square</span>
-<span class="sd">        tiles of shape (tile_size, tile_size). The default is None.</span>
-<span class="sd">    pad : `bool`, optional</span>
-<span class="sd">        Whether to center pad the input image. Set ``pad`` = True, if the</span>
-<span class="sd">        images are not evenly divisible by the ``tile_size``. The image data is</span>
-<span class="sd">        padded with a constant padding value of zero. For each image, the</span>
-<span class="sd">        corresponding ground truth image is padded with a &quot;no data&quot; label.</span>
-<span class="sd">        The default is False.</span>
-<span class="sd">    gt_pattern : `str`, optional</span>
-<span class="sd">        A regural expression to match the ground truth naming convention. All</span>
-<span class="sd">        directories and subdirectories in ``root_dir`` are searched for files</span>
-<span class="sd">        matching ``gt_pattern``. The default is &#39;(.*)gt\\.tif&#39;.</span>
-<span class="sd">    sort : `bool`, optional</span>
-<span class="sd">        Whether to chronologically sort the samples. Useful for time series</span>
-<span class="sd">        data. The default is False.</span>
-<span class="sd">    seed : `int`, optional</span>
-<span class="sd">        The random seed. Used to split the dataset into training, validation</span>
-<span class="sd">        and test set. Useful for reproducibility. The default is 0.</span>
-<span class="sd">    transforms : `list` [`pysegcnn.core.split.Augment`], optional</span>
-<span class="sd">        List of `pysegcnn.core.split.Augment` instances. Each item in</span>
-<span class="sd">        ``transforms`` generates a distinct transformed version of the dataset.</span>
-<span class="sd">        The total dataset is composed of the original untransformed dataset</span>
-<span class="sd">        together with each transformed version of it.</span>
-<span class="sd">        If ``transforms`` = [], only the original dataset is used.</span>
-<span class="sd">        The default is [].</span>
-
-<span class="sd">    Returns</span>
-<span class="sd">    -------</span>
-<span class="sd">    None.</span>
 
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -1435,32 +1179,7 @@
         <span class="k">return</span> <span class="n">parse_landsat_scene</span><span class="p">(</span><span class="n">scene_id</span><span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">compose_scenes</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.</span>
-
-<span class="sd">        Each sample is represented by a dictionary.</span>
-
-<span class="sd">        Returns</span>
-<span class="sd">        -------</span>
-<span class="sd">        scenes : `list` [`dict`]</span>
-<span class="sd">            Each item in ``scenes`` is a `dict` with keys:</span>
-<span class="sd">                ``&#39;band_name_1&#39;``</span>
-<span class="sd">                    Path to the file of band_1.</span>
-<span class="sd">                ``&#39;band_name_2&#39;``</span>
-<span class="sd">                    Path to the file of band_2.</span>
-<span class="sd">                ``&#39;band_name_n&#39;``</span>
-<span class="sd">                    Path to the file of band_n.</span>
-<span class="sd">                ``&#39;gt&#39;``</span>
-<span class="sd">                    Path to the ground truth file.</span>
-<span class="sd">                ``&#39;date&#39;``</span>
-<span class="sd">                    The date of the sample.</span>
-<span class="sd">                ``&#39;tile&#39;``</span>
-<span class="sd">                    The tile id of the sample.</span>
-<span class="sd">                ``&#39;transform&#39;``</span>
-<span class="sd">                    The transformation to apply.</span>
-<span class="sd">                ``&#39;id&#39;``</span>
-<span class="sd">                    The scene identifier.</span>
-
-<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="sd">&quot;&quot;&quot;Build the list of samples of the dataset.&quot;&quot;&quot;</span>
         <span class="c1"># whether to exclude patches with more than 80% black pixels</span>
         <span class="n">ipatches</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">exclude</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

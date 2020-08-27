@@ -1,4 +1,4 @@
-pysegcnn.core.models.UNet
+﻿pysegcnn.core.models.UNet
 =========================
 
 .. currentmodule:: pysegcnn.core.models

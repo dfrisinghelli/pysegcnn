@@ -87,11 +87,12 @@
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API Reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#dataset">Dataset</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#image-dataset">Image Dataset</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#generic-classes">Generic classes</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="generated/pysegcnn.core.dataset.ImageDataset.html">pysegcnn.core.dataset.ImageDataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="generated/pysegcnn.core.dataset.StandardEoDataset.html">pysegcnn.core.dataset.StandardEoDataset</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#supported-datasets">Supported datasets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#specific-classes">Specific classes</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="generated/pysegcnn.core.dataset.SparcsDataset.html">pysegcnn.core.dataset.SparcsDataset</a></li>
 <li class="toctree-l4"><a class="reference internal" href="generated/pysegcnn.core.dataset.Cloud95Dataset.html">pysegcnn.core.dataset.Cloud95Dataset</a></li>
 </ul>
@@ -194,9 +195,9 @@
 <div class="section" id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Permalink to this headline">¶</a></h2>
 <p>Custom dataset classes compliant to the PyTorch <a class="reference external" href="https://pytorch.org/docs/stable/data.html">standard</a>.</p>
-<div class="section" id="image-dataset">
-<h3>Image Dataset<a class="headerlink" href="#image-dataset" title="Permalink to this headline">¶</a></h3>
-<p>Generic class to implement <a class="reference external" href="https://pytorch.org/tutorials/beginner/data_loading_tutorial.html">custom datasets</a>.</p>
+<div class="section" id="generic-classes">
+<h3>Generic classes<a class="headerlink" href="#generic-classes" title="Permalink to this headline">¶</a></h3>
+<p>Generic class to implement a <a class="reference external" href="https://pytorch.org/tutorials/beginner/data_loading_tutorial.html">custom dataset</a>.</p>
 <table class="longtable docutils align-default">
 <colgroup>
 <col style="width: 10%" />
@@ -208,11 +209,24 @@
 </tr>
 </tbody>
 </table>
+<p>Generic class to implement a custom dataset following a standard directory
+structure.</p>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="generated/pysegcnn.core.dataset.StandardEoDataset.html#pysegcnn.core.dataset.StandardEoDataset" title="pysegcnn.core.dataset.StandardEoDataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core.dataset.StandardEoDataset</span></code></a></p></td>
+<td><p>Base class for standard Earth Observation style datasets.</p></td>
+</tr>
+</tbody>
+</table>
 </div>
-<div class="section" id="supported-datasets">
-<h3>Supported datasets<a class="headerlink" href="#supported-datasets" title="Permalink to this headline">¶</a></h3>
-<p>The following open-source spaceborne multispectral image datasets are supported
-out-of-the-box:</p>
+<div class="section" id="specific-classes">
+<h3>Specific classes<a class="headerlink" href="#specific-classes" title="Permalink to this headline">¶</a></h3>
+<p>Specific classes for some open-source image datasets. Currently, the following
+spaceborne multispectral image datasets are supported out-of-the-box:</p>
 <table class="longtable docutils align-default">
 <colgroup>
 <col style="width: 10%" />
@@ -220,7 +234,7 @@ out-of-the-box:</p>
 </colgroup>
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/pysegcnn.core.dataset.SparcsDataset.html#pysegcnn.core.dataset.SparcsDataset" title="pysegcnn.core.dataset.SparcsDataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core.dataset.SparcsDataset</span></code></a></p></td>
-<td><p>Class for the <a class="reference external" href="https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation">Sparcs</a> dataset.</p></td>
+<td><p>Class for the <a class="reference external" href="https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation">Sparcs</a> dataset by <a class="reference external" href="https://www.mdpi.com/2072-4292/6/6/4907">Hughes &amp; Hayes (2014)</a>.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/pysegcnn.core.dataset.Cloud95Dataset.html#pysegcnn.core.dataset.Cloud95Dataset" title="pysegcnn.core.dataset.Cloud95Dataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core.dataset.Cloud95Dataset</span></code></a></p></td>
 <td><p>Class for the <a class="reference external" href="https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset">Cloud-95</a> dataset by <a class="reference external" href="https://arxiv.org/abs/2001.08768">Mohajerani &amp; Saeedi (2020)</a>.</p></td>
@@ -253,7 +267,7 @@ out-of-the-box:</p>
 <td><p>Block of convolution, batchnorm, relu and 2x2 max unpool.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="generated/pysegcnn.core.layers.ConvBnReluUpsample.html#pysegcnn.core.layers.ConvBnReluUpsample" title="pysegcnn.core.layers.ConvBnReluUpsample"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core.layers.ConvBnReluUpsample</span></code></a></p></td>
-<td><p>Block of convolution, batchnorm, relu and nearest neighbor upsampling.</p></td>
+<td><p>Block of convolution, batchnorm, relu and nearest neighbor upsample.</p></td>
 </tr>
 </tbody>
 </table>
@@ -295,7 +309,7 @@ architecture.</p>
 <td><p>Generic Network class.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="generated/pysegcnn.core.models.UNet.html#pysegcnn.core.models.UNet" title="pysegcnn.core.models.UNet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">core.models.UNet</span></code></a></p></td>
-<td><p>A PyTorch implementation of <a class="reference external" href="https://arxiv.org/abs/1505.04597">U-Net</a>.</p></td>
+<td><p>A slightly modified implementation of <a class="reference external" href="https://arxiv.org/abs/1505.04597">U-Net</a> in PyTorch.</p></td>
 </tr>
 </tbody>
 </table>

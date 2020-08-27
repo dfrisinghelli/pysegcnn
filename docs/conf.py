@@ -32,15 +32,17 @@ author = 'Daniel Frisinghelli'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
+    'sphinx.ext.autosummary',
     'sphinx.ext.viewcode',
-    'sphinx.ext.napoleon',
-    'recommonmark',
-    'numpydoc'
+    'numpydoc',
 ]
 
-# napoleon options
-napoleon_google_docstring = False
+# numpydoc options
+numpydoc_show_class_members = False
+numpydoc_show_inherited_class_members = False
 
+# autosummary options
+autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -1,4 +1,4 @@
-pysegcnn.core.layers.Conv2dSame
+﻿pysegcnn.core.layers.Conv2dSame
 ===============================
 
 .. currentmodule:: pysegcnn.core.layers

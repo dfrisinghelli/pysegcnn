@@ -1,4 +1,4 @@
-pysegcnn.core.layers.EncoderBlock
+﻿pysegcnn.core.layers.EncoderBlock
 =================================
 
 .. currentmodule:: pysegcnn.core.layers

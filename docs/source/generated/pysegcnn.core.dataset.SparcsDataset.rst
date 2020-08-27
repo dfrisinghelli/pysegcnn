@@ -1,4 +1,4 @@
-pysegcnn.core.dataset.SparcsDataset
+﻿pysegcnn.core.dataset.SparcsDataset
 ===================================
 
 .. currentmodule:: pysegcnn.core.dataset

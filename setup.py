@@ -128,6 +128,7 @@ CLASSIFIERS = [
     # Specify the Python versions you support here. In particular, ensure
     # that you indicate whether you support Python 2, Python 3 or both.
     'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.7',
 
     # License
     'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
@@ -193,7 +194,9 @@ PYTHON_REQUIRES = '>=3.7'
 #
 # Similar to `install_requires` above, these must be valid existing
 # projects.
-EXTRAS_REQUIRE = {}
+EXTRAS_REQUIRE = {
+    'tests': 'pytest',
+    }
 
 
 # If there are data files included in your packages that need to be

@@ -31,15 +31,15 @@ def _ds_len(ds, ratio):
 
     Parameters
     ----------
-    ds : `collections.Sized`
-        An object with a __len__ attribute.
+    ds : :py:class:`collections.Sized`
+        An object with a :py:meth:__len__ method.
     ratio : `float`
         A ratio to multiply with the length of ``ds``.
 
     Returns
     -------
     n_samples: `int`
-        Length of ``ds`` * ``ratio``.
+        Length of ``ds * ratio``.
 
     """
     return int(np.round(len(ds) * ratio))
@@ -54,23 +54,23 @@ def random_tile_split(ds, tvratio, ttratio=1, seed=0):
     The parameters ``ttratio`` and ``tvratio`` control the size of the
     training, validation and test datasets.
 
-    Test dataset size      : (1 - ``ttratio``) * len(``ds``)
-    Train dataset size     : ``ttratio`` * ``tvratio`` * len(``ds``)
-    Validation dataset size: ``ttratio`` * (1 - ``tvratio``) * len(``ds``)
+    Test dataset size      : ``(1 - ttratio) * len(ds)``
+    Train dataset size     : ``ttratio * tvratio * len(ds)``
+    Validation dataset size: ``ttratio * (1 - tvratio) * len(ds)``
 
     Parameters
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
     tvratio : `float`
-        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
+        The ratio of training data to validation data, e.g. ``tvratio=0.8``
         means 80% training, 20% validation.
     ttratio : `float`, optional
         The ratio of training and validation data to test data, e.g.
-        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
-        testing. The default is 1.
+        ``ttratio=0.6`` means 60% for training and validation, 40% for
+        testing. The default is `1`.
     seed : `int`, optional
-        The random seed for reproducibility. The default is 0.
+        The random seed for reproducibility. The default is `0`.
 
     Raises
     ------
@@ -82,11 +82,11 @@ def random_tile_split(ds, tvratio, ttratio=1, seed=0):
     subsets : `dict`
         Subset dictionary with keys:
             ``'train'``
-                dictionary containing the training scenes.
+                The training scenes (`dict`).
             ``'valid'``
-                dictionary containing the validation scenes.
+                The validation scenes (`dict`).
             ``'test'``
-                dictionary containing the test scenes.
+                The test scenes (`dict`).
 
     """
     # set the random seed for reproducibility
@@ -128,7 +128,7 @@ def random_tile_split(ds, tvratio, ttratio=1, seed=0):
 
 
 def random_scene_split(ds, tvratio, ttratio=1, seed=0):
-    """Randomly split the tiles of a dataset.
+    """Semi-randomly split the tiles of a dataset.
 
     For each scene, all the tiles of the scene are included in either the
     training, validation or test set, respectively.
@@ -136,23 +136,23 @@ def random_scene_split(ds, tvratio, ttratio=1, seed=0):
     The parameters ``ttratio`` and ``tvratio`` control the size of the
     training, validation and test datasets.
 
-    Test dataset size      : (1 - ``ttratio``) * len(``ds``)
-    Train dataset size     : ``ttratio`` * ``tvratio`` * len(``ds``)
-    Validation dataset size: ``ttratio`` * (1 - ``tvratio``) * len(``ds``)
+    Test dataset size      : ``(1 - ttratio) * len(ds)``
+    Train dataset size     : ``ttratio * tvratio * len(ds)``
+    Validation dataset size: ``ttratio * (1 - tvratio) * len(ds)``
 
     Parameters
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
     tvratio : `float`
-        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
+        The ratio of training data to validation data, e.g. ``tvratio=0.8``
         means 80% training, 20% validation.
     ttratio : `float`, optional
         The ratio of training and validation data to test data, e.g.
-        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
-        testing. The default is 1.
+        ``ttratio=0.6`` means 60% for training and validation, 40% for
+        testing. The default is `1`.
     seed : `int`, optional
-        The random seed for reproducibility. The default is 0.
+        The random seed for reproducibility. The default is `0`.
 
     Raises
     ------
@@ -164,11 +164,11 @@ def random_scene_split(ds, tvratio, ttratio=1, seed=0):
     subsets : `dict`
         Subset dictionary with keys:
             ``'train'``
-                dictionary containing the training scenes.
+                The training scenes (`dict`).
             ``'valid'``
-                dictionary containing the validation scenes.
+                The validation scenes (`dict`).
             ``'test'``
-                dictionary containing the test scenes.
+                The test scenes (`dict`).
 
     """
     # set the random seed for reproducibility
@@ -210,27 +210,24 @@ def random_scene_split(ds, tvratio, ttratio=1, seed=0):
     return subsets
 
 
-# split the scenes of a dataset based on a date, useful for time series data
-# scenes before date build the training set, scenes after the date build the
-# validation set, the test set is empty
 def date_scene_split(ds, date, dateformat='%Y%m%d'):
     """Split the dataset based on a date.
 
-    Scenes before ``date`` build the training set, scenes after ``date`` build
-    the validation set, the test set is empty.
+    Scenes before ``date`` build the training dataset, scenes after ``date``
+    the validation dataset. The test set is empty.
 
     Useful for time series data.
 
     Parameters
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
     date : `str`
-        A date.
+        A date in the format ``dateformat``.
     dateformat : `str`, optional
         The format of ``date``. ``dateformat`` is used by
-        `datetime.datetime.strptime' to parse ``date`` to a `datetime.datetime`
-        object. The default is '%Y%m%d'.
+        :py:func:`datetime.datetime.strptime' to parse ``date`` to a
+        :py:class:`datetime.datetime` object. The default is `'%Y%m%d'`.
 
     Raises
     ------
@@ -242,11 +239,11 @@ def date_scene_split(ds, date, dateformat='%Y%m%d'):
     subsets : `dict`
         Subset dictionary with keys:
             ``'train'``
-                dictionary containing the training scenes.
+                The training scenes (`dict`).
             ``'valid'``
-                dictionary containing the validation scenes.
+                The validation scenes (`dict`).
             ``'test'``
-                dictionary containing the test scenes, empty.
+                The test scenes (`dict`).
 
     """
     # convert date to datetime object
@@ -279,7 +276,7 @@ def pairwise_disjoint(sets):
 
     Parameters
     ----------
-    sets : `list` [`collections.Sized`]
+    sets : `list` [:py:class:`collections.Sized`]
         A list of sized objects.
 
     Returns
@@ -294,41 +291,50 @@ def pairwise_disjoint(sets):
 
 
 class CustomSubset(Subset):
-    """Custom subset inheriting `torch.utils.data.Subset`."""
+    """Generic custom subset inheriting :py:class:`torch.utils.data.Subset`.
 
-    def __repr__(self):
-        """Representation of ``~pysegcnn.core.split.CustomSubset``."""
-        # representation string
-        fs = '- {}: {:d} tiles ({:.2f}%)'.format(
-            self.name, len(self.scenes), 100 * len(self.scenes) /
-            len(self.dataset))
+    .. important::
 
-        return fs
+        The training, validation and test datasets should be subclasses of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
 
+    See :py:class:`pysegcnn.core.split.RandomTileSplit` for an example
+    implementing the :py:class:`pysegcnn.core.split.RandomSubset` subset
+    class.
 
-class SceneSubset(CustomSubset):
-    """A custom subset for dataset splits where the scenes are preserved.
-
-    Parameters
+    Attributes
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    dataset : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        The dataset to split into subsets.
     indices : `list` [`int`]
-        List of the subset indices to access ``ds``.
+        List of indices to access the dataset.
     name : `str`
         Name of the subset.
     scenes : `list` [`dict`]
         List of the subset tiles.
-    scene_ids : `list` or `numpy.ndarray`
-        Container of the scene ids.
-
-    Returns
-    -------
-    None.
+    ids : `list` or :py:class:`numpy.ndarray`
+        Container of the scene identifiers.
 
     """
 
     def __init__(self, ds, indices, name, scenes, scene_ids):
+        """Initialize.
+
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        indices : `list` [`int`]
+            List of indices to access ``ds``. ``indices`` must be pairwise
+            disjoint for each subset derived from the same dataset ``ds``.
+        name : `str`
+            Name of the subset.
+        scenes : `list` [`dict`]
+            List of the subset tiles.
+        scene_ids : `list` or :py:class:`numpy.ndarray`
+            Container of the scene identifiers.
+
+        """
         super().__init__(dataset=ds, indices=indices)
 
         # the name of the subset
@@ -340,68 +346,76 @@ class SceneSubset(CustomSubset):
         # the names of the scenes
         self.ids = scene_ids
 
+    def __repr__(self):
+        """Representation string.
 
-class RandomSubset(CustomSubset):
-    """A custom subset for random dataset splits.
+        Returns
+        -------
+        fs : `str`
+            The representation string.
 
-    Parameters
-    ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
-    indices : `list` [`int`]
-        List of the subset indices to access ``ds``.
-    name : `str`
-        Name of the subset.
-    scenes : `list` [`dict`]
-        List of the subset tiles.
-    scene_ids : `list` or `numpy.ndarray`
-        Container of the scene ids.
+        """
+        fs = '- {}: {:d} tiles ({:.2f}%)'.format(
+            self.name, len(self.scenes), 100 * len(self.scenes) /
+            len(self.dataset))
 
-    Returns
-    -------
-    None.
+        return fs
 
-    """
+
+class SceneSubset(CustomSubset):
+    """A custom subset for dataset splits where the scenes are preserved."""
 
     def __init__(self, ds, indices, name, scenes, scene_ids):
-        super().__init__(dataset=ds, indices=indices)
+        super().__init__(ds, indices, name, scenes, scene_ids)
 
-        # the name of the subset
-        self.name = name
 
-        # the scene in the subset
-        self.scenes = scenes
+class RandomSubset(CustomSubset):
+    """A custom subset for random dataset splits."""
+
+    def __init__(self, ds, indices, name, scenes, scene_ids):
+        super().__init__(ds, indices, name, scenes, scene_ids)
 
 
 class Split(object):
     """Generic class handling how ``ds`` is split.
 
-    Inherit `~pysegcnn.core.split.Split` and implement the
-    `~pysegcnn.core.split.Split.subsets` and
-    `~pysegcnn.core.split.Split.subset_type` method.
+    Each dataset should be split by a subclass of
+    :py:class:`pysegcnn.core.split.Split`, by calling the
+    :py:meth:`pysegcnn.core.split.Split.split` method.
 
-    Parameters
+    .. important::
+
+        The :py:meth:`~pysegcnn.core.split.Split.subsets` and
+        :py:meth:`~pysegcnn.core.split.Split.subset_type` methods have to be
+        implemented when inheriting :py:class:`pysegcnn.core.split.Split`.
+
+    See :py:class:`pysegcnn.core.split.RandomTileSplit` for an example.
+
+    Attributes
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
-
-    Returns
-    -------
-    None.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        The dataset to split into training, validation and test set.
 
     """
 
     def __init__(self, ds):
+        """Initialize.
 
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+
+        """
         # the dataset to split
         self.ds = ds
 
     def split(self):
         """Split dataset into training, validation and test set.
 
-        `~pysegcnn.core.split.Split.split` works only if
-        `~pysegcnn.core.split.Split.subsets` and
-        `~pysegcnn.core.split.Split.subset_type` are implemented.
+        :py:meth:`~pysegcnn.core.split.Split.split` works only if
+        :py:meth:`~pysegcnn.core.split.Split.subsets` and
+        :py:meth:`~pysegcnn.core.split.Split.subset_type` are implemented.
 
         """
         # build the subsets
@@ -422,14 +436,14 @@ class Split(object):
         """Define training, validation and test sets.
 
         Wrapper method for
-        `pysegcnn.core.split.Split.random_tile_split`,
-        `pysegcnn.core.split.Split.random_scene_split` or
-        `pysegcnn.core.split.Split.date_scene_split`.
+        :py:func:`pysegcnn.core.split.Split.random_tile_split`,
+        :py:func:`pysegcnn.core.split.Split.random_scene_split` or
+        :py:func:`pysegcnn.core.split.Split.date_scene_split`.
 
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.split.Split` is not inherited.
+            Raised if :py:class:`pysegcnn.core.split.Split` is not inherited.
 
         Returns
         -------
@@ -441,14 +455,13 @@ class Split(object):
     def subset_type(self):
         """Define the type of each subset.
 
-        Wrapper method for
-        `pysegcnn.core.split.RandomSubset` or
-        `pysegcnn.core.split.SceneSubset`.
+        Wrapper method for :py:class:`pysegcnn.core.split.RandomSubset` or
+        :py:class:`pysegcnn.core.split.SceneSubset`.
 
         Raises
         ------
         NotImplementedError
-            Raised if `pysegcnn.core.split.Split` is not inherited.
+            Raised if :py:class:`pysegcnn.core.split.Split` is not inherited.
 
         Returns
         -------
@@ -459,28 +472,43 @@ class Split(object):
 
 
 class DateSplit(Split):
-    """Split the dataset based on a date.
+    """Split a dataset based on a date.
 
-    Class wrapper for `pysegcnn.core.split.Split.date_scene_split`.
+    .. important::
 
-    Parameters
+        Scenes before ``date`` build the training dataset, scenes after
+        ``date`` the validation dataset. The test set is empty.
+
+    Useful for time series data.
+
+    Class wrapper for :py:func:`pysegcnn.core.split.date_scene_split`.
+
+    Attributes
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
-    date : 'str'
-        A date.
-    dateformat : 'str', optional
-        The format of ``date``. ``dateformat`` is used by
-        `datetime.datetime.strptime' to parse ``date`` to a `datetime.datetime`
-        object. The default is '%Y%m%d'.
-
-    Returns
-    -------
-    None.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        The dataset to split into training, validation and test set.
+    date : `str`
+        The date used to split the dataset.
+    dateformat : `str`
+        The format of ``date``.
 
     """
 
     def __init__(self, ds, date, dateformat):
+        """Initialize.
+
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        date : `str`
+            A date in the format ``dateformat``.
+        dateformat : `str`
+            The format of ``date``. ``dateformat`` is used by
+            :py:func:`datetime.datetime.strptime' to parse ``date`` to a
+            :py:class:`datetime.datetime` object.
+
+        """
         super().__init__(ds)
 
         # the date to split the dataset
@@ -492,28 +520,28 @@ class DateSplit(Split):
         self.dateformat = dateformat
 
     def subsets(self):
-        """Wrap `pysegcnn.core.split.Split.date_scene_split`.
+        """Wrap :py:func:`pysegcnn.core.split.Split.date_scene_split`.
 
         Returns
         -------
         subsets : `dict`
             Subset dictionary with keys:
                 ``'train'``
-                    dictionary containing the training scenes.
+                    The training scenes (`dict`).
                 ``'valid'``
-                    dictionary containing the validation scenes.
+                    The validation scenes (`dict`).
                 ``'test'``
-                    dictionary containing the test scenes, empty.
+                    The test scenes, empty (`dict`).
 
         """
         return date_scene_split(self.ds, self.date, self.dateformat)
 
     def subset_type(self):
-        """Wrap `pysegcnn.core.split.SceneSubset`.
+        """Wrap :py:class:`pysegcnn.core.split.SceneSubset`.
 
         Returns
         -------
-        SceneSubset : `pysegcnn.core.split.SceneSubset`
+        SceneSubset : :py:class:`pysegcnn.core.split.SceneSubset`
             The subset type.
 
         """
@@ -521,31 +549,27 @@ class DateSplit(Split):
 
 
 class RandomSplit(Split):
-    """Randomly split the dataset.
-
-    Generic class for random dataset splits.
-
-    Parameters
-    ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
-    tvratio : `float`
-        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
-        means 80% training, 20% validation.
-    ttratio : `float`, optional
-        The ratio of training and validation data to test data, e.g.
-        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
-        testing. The default is 1.
-    seed : `int`, optional
-        The random seed for reproducibility. The default is 0.
-
-    Returns
-    -------
-    None.
-
-    """
+    """Generic class for random dataset splits."""
 
     def __init__(self, ds, ttratio, tvratio, seed):
+        """Initialize.
+
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        tvratio : `float`
+            The ratio of training data to validation data, e.g.
+            ``tvratio=0.8`` means 80% training, 20% validation.
+        ttratio : `float`
+            The ratio of training and validation data to test data, e.g.
+            ``ttratio=0.6`` means 60% for training and validation, 40% for
+            testing.
+        seed : `int`
+            The random seed used to generate the split. Useful for
+            reproducibility.
+
+        """
         super().__init__(ds)
 
         # the training, validation and test set ratios
@@ -559,28 +583,23 @@ class RandomSplit(Split):
 class RandomTileSplit(RandomSplit):
     """Randomly split the dataset.
 
-    For each scene, the tiles of the scene can be distributed among the
-    training, validation and test set.
+    .. important::
 
-    Class wrapper for `pysegcnn.core.split.Split.random_tile_split`.
+        For each scene, the tiles of the scene can be distributed among the
+        training, validation and test set.
 
-    Parameters
+    Class wrapper for :py:func:`pysegcnn.core.split.random_tile_split`.
+
+    Attributes
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        The dataset to split into training, validation and test set.
     tvratio : `float`
-        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
-        means 80% training, 20% validation.
-    ttratio : `float`, optional
-        The ratio of training and validation data to test data, e.g.
-        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
-        testing. The default is 1.
-    seed : `int`, optional
-        The random seed for reproducibility. The default is 0.
-
-    Returns
-    -------
-    None.
+        The ratio of training data to validation data.
+    ttratio : `float`
+        The ratio of training and validation data to test data.
+    seed : `int`
+        The random seed used to generate the split.
 
     """
 
@@ -588,29 +607,29 @@ class RandomTileSplit(RandomSplit):
         super().__init__(ds, ttratio, tvratio, seed)
 
     def subsets(self):
-        """Wrap `pysegcnn.core.split.Split.random_tile_split`.
+        """Wrap :py:func:`pysegcnn.core.split.Split.random_tile_split`.
 
         Returns
         -------
         subsets : `dict`
             Subset dictionary with keys:
                 ``'train'``
-                    dictionary containing the training scenes.
+                    The training scenes (`dict`).
                 ``'valid'``
-                    dictionary containing the validation scenes.
+                    The validation scenes (`dict`).
                 ``'test'``
-                    dictionary containing the test scenes, empty.
+                    The test scenes (`dict`).
 
         """
         return random_tile_split(self.ds, self.tvratio, self.ttratio,
                                  self.seed)
 
     def subset_type(self):
-        """Wrap `pysegcnn.core.split.RandomSubset`.
+        """Wrap :py:class:`pysegcnn.core.split.RandomSubset`.
 
         Returns
         -------
-        SceneSubset : `pysegcnn.core.split.RandomSubset`
+        SceneSubset : :py:class:`pysegcnn.core.split.RandomSubset`
             The subset type.
 
         """
@@ -618,30 +637,25 @@ class RandomTileSplit(RandomSplit):
 
 
 class RandomSceneSplit(RandomSplit):
-    """Randomly split the dataset.
+    """Semi-randomly split the dataset.
 
-    For each scene, all the tiles of the scene are included in either the
-    training, validation or test set, respectively.
+    .. important::
 
-    Class wrapper for `pysegcnn.core.split.Split.random_scene_split`.
+        For each scene, all the tiles of the scene are included in either the
+        training, validation or test set, respectively.
 
-    Parameters
+    Class wrapper for :py:func:`pysegcnn.core.split.random_scene_split`.
+
+    Attributes
     ----------
-    ds : `pysegcnn.core.dataset.ImageDataset`
-        An instance of `~pysegcnn.core.dataset.ImageDataset`.
+    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+        The dataset to split into training, validation and test set.
     tvratio : `float`
-        The ratio of training data to validation data, e.g. ``tvratio`` = 0.8
-        means 80% training, 20% validation.
-    ttratio : `float`, optional
-        The ratio of training and validation data to test data, e.g.
-        ``ttratio`` = 0.6 means 60% for training and validation, 40% for
-        testing. The default is 1.
-    seed : `int`, optional
-        The random seed for reproducibility. The default is 0.
-
-    Returns
-    -------
-    None.
+        The ratio of training data to validation data.
+    ttratio : `float`
+        The ratio of training and validation data to test data.
+    seed : `int`
+        The random seed used to generate the split.
 
     """
 
@@ -649,29 +663,29 @@ class RandomSceneSplit(RandomSplit):
         super().__init__(ds, ttratio, tvratio, seed)
 
     def subsets(self):
-        """Wrap `pysegcnn.core.split.Split.random_scene_split`.
+        """Wrap :py:func:`pysegcnn.core.split.Split.random_scene_split`.
 
         Returns
         -------
         subsets : `dict`
             Subset dictionary with keys:
                 ``'train'``
-                    dictionary containing the training scenes.
+                    The training scenes (`dict`).
                 ``'valid'``
-                    dictionary containing the validation scenes.
+                    The validation scenes (`dict`).
                 ``'test'``
-                    dictionary containing the test scenes, empty.
+                    The test scenes (`dict`).
 
         """
         return random_scene_split(self.ds, self.tvratio, self.ttratio,
                                   self.seed)
 
     def subset_type(self):
-        """Wrap `pysegcnn.core.split.SceneSubset`.
+        """Wrap :py:class:`pysegcnn.core.split.SceneSubset`.
 
         Returns
         -------
-        SceneSubset : `pysegcnn.core.split.SceneSubset`
+        SceneSubset : :py:class:`pysegcnn.core.split.SceneSubset`
             The subset type.
 
         """

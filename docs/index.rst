@@ -18,7 +18,6 @@ Using PySegCNN
 .. toctree::
    :maxdepth: 1
 
-   ./source/requirements
    ./source/installation
    ./source/api
 

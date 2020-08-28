@@ -3,6 +3,22 @@
 Installation
 ============
 
+Requirements
+------------
+``pysegcnn`` is a pure Python package that works on both Windows and Linux.
+
+.. important::
+
+    ``pysegcnn`` requires ``Python>=3.7``.
+
+Here is a list of all dependencies of ``pysegcnn``.
+
+    - numpy
+    - scipy
+    - matplotlib
+    - pytorch
+    - gdal
+
 Download
 ---------
 You can download ``pysegcnn`` from this repository's
@@ -74,6 +90,6 @@ root directory within the activated ``pysegcnn`` conda environment**:
 If successful, you should be able to import ``pysegcnn`` from any Python
 interpreter using:
 
-.. code-block:: python
+.. ipython:: python
 
     import pysegcnn

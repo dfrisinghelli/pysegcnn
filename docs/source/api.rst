@@ -5,31 +5,29 @@
 API Reference
 =============
 
-This page lists the available functions and classes of ``pysegcnn``.
-
+This page lists functions and classes of the ``pysegcnn`` package, which are
+relevant at the API level. If you need to dig deeper into the source files, go
+to the git `repository <https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn>`_.
 
 Dataset
 -------
 
-Custom dataset classes compliant to the PyTorch `standard <https://pytorch.org/docs/stable/data.html>`_.
+The ``pysegcnn`` package offers support for custom datasets, which are compliant
+to the PyTorch `standard <https://pytorch.org/docs/stable/data.html>`_.
+Currently, image datasets from the `Landsat <https://landsat.usgs.gov/>`_ and
+`Sentinel-2`_ satellites are supported.
 
 Generic classes
 ^^^^^^^^^^^^^^^
-Generic class to implement a `custom dataset <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_.
+
+The following two generic classes can be inherited to implement a
+`custom dataset <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_.
 
 .. autosummary::
     :toctree: generated/
     :nosignatures:
 
     core.dataset.ImageDataset
-
-Generic class to implement a custom dataset following a standard directory
-structure.
-
-.. autosummary::
-    :toctree: generated/
-    :nosignatures:
-
     core.dataset.StandardEoDataset
 
 
@@ -49,38 +47,24 @@ spaceborne multispectral image datasets are supported out-of-the-box:
 Models
 ------
 
-Layers
-^^^^^^
-
-Convolutional neural network layers.
+The ``pysegcnn`` package ships with a customizable interface to build
+convolutional neural networks for image segmentation.
 
 .. autosummary::
     :toctree: generated/
     :nosignatures:
 
-    core.layers.Block
     core.layers.Conv2dSame
+    core.layers.Block
     core.layers.ConvBnReluMaxPool
     core.layers.ConvBnReluMaxUnpool
     core.layers.ConvBnReluUpsample
-
-Encoder-Decoder architechture
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Generic ``Encoder`` and ``Decoder`` classes to build an encoder-decoder
-architecture.
-
-.. autosummary::
-    :toctree: generated/
-    :nosignatures:
-
     core.layers.EncoderBlock
     core.layers.DecoderBlock
     core.layers.Encoder
     core.layers.Decoder
 
-Neural Networks
-^^^^^^^^^^^^^^^
+Implemented models.
 
 .. autosummary::
     :toctree: generated/
@@ -89,6 +73,19 @@ Neural Networks
     core.models.Network
     core.models.UNet
 
+
+Training, Validation and Test set
+---------------------------------
+
+Classes to split a dataset into training, validation and test set.
+
+.. autosummary::
+    :toctree: generated/
+    :nosignatures:
+
+    core.split.DateSplit
+    core.split.RandomTileSplit
+    core.split.RandomSceneSplit
 
 ..
     Links:
@@ -113,3 +110,6 @@ Neural Networks
 
 .. _Hughes & Hayes (2014):
     https://www.mdpi.com/2072-4292/6/6/4907
+
+.. _Early Stopping:
+    https://en.wikipedia.org/wiki/Early_stopping

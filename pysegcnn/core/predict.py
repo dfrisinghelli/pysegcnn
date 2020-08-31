@@ -167,11 +167,11 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
 
             # plot inputs, ground truth and model predictions
             sname = fname + '_{}_{}.pt'.format(ds.name, batch)
-            fig, ax = plot_sample(inputs.numpy().clip(0, 1),
+            fig, ax = plot_sample(inputs.numpy().squeeze().clip(0, 1),
                                   ds.dataset.use_bands,
                                   ds.dataset.labels,
-                                  y=labels,
-                                  y_pred=prd,
+                                  y=labels.numpy().squeeze(),
+                                  y_pred=prd.numpy(),
                                   state=sname,
                                   **kwargs)
 

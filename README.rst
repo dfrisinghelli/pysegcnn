@@ -7,7 +7,7 @@ networks for semantic image segmentation. The package is primarily designed to
 work with multispectral satellite imagery. ``pysegcnn`` is based on the machine
 learning framework `PyTorch <https://pytorch.org/>`_.
 
-.. include:: docs/source/installation.rst
+.. include:: ./docs/source/installation.rst
 
 Datasets
 ========
@@ -15,7 +15,7 @@ Currently, the following publicly available satellite imagery datasets are
 supported out-of-the-box:
 
 - Spatial Procedures for Automated Removal of Cloud and Shadow `SPARCS`_
-by `Hughes M.J. & Hayes D.J. (2014)`_
+  by `Hughes M.J. & Hayes D.J. (2014)`_
 - `Cloud-38`_ and `Cloud-95`_ by Mohajerani S. & Saeedi P. (`2019`_, `2020`_)
 
 Contact

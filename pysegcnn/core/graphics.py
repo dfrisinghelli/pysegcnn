@@ -130,7 +130,7 @@ def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
 
     """
     # check whether to apply constrast stretching
-    rgb = np.dstack([contrast_stretching(x[use_bands.index(band)], alpha)
+    rgb = np.dstack([contrast_stretching(x[use_bands.index(band), ...], alpha)
                      for band in bands])
 
     # get labels and corresponding colors

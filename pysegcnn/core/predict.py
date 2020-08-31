@@ -116,7 +116,7 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
     # check whether the dataset is a valid subset, i.e.
     # an instance of pysegcnn.core.split.SceneSubset or
     # an instance of pysegcnn.core.split.RandomSubset
-    if not isinstance(ds, RandomSubset) or not isinstance(ds, SceneSubset):
+    if not (isinstance(ds, RandomSubset) or isinstance(ds, SceneSubset)):
         raise TypeError('ds should be an instance of {} or of {}.'
                         .format(repr(RandomSubset), repr(SceneSubset)))
 

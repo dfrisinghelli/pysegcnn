@@ -20,6 +20,7 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
+import os
 import dataclasses
 import pathlib
 import logging
@@ -37,7 +38,7 @@ from torch.optim import Optimizer
 from pysegcnn.core.dataset import SupportedDatasets, ImageDataset
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import img2np, item_in_enum, accuracy_function
-from pysegcnn.core.split import SupportedSplits
+from pysegcnn.core.split import SupportedSplits, CustomSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
 from pysegcnn.core.layers import Conv2dSame
@@ -929,6 +930,58 @@ class EvalConfig(BaseConfig):
         # input path for model state files
         self.models_path = self.base_path.joinpath('_models')
         self.state_file = self.models_path.joinpath(self.state_file)
+
+    @staticmethod
+    def replace_dataset_path(ds, dataset_path):
+        """Replace the path to the scenes of a dataset.
+
+        Useful to evaluate models on machines, that are different from the
+        machine the model was trained on.
+
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.split.CustomSubset`
+            A subset of an instance of
+            :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        dataset_path : `str`
+            Path to the dataset on the current machine.
+
+        Raises
+        ------
+        TypeError
+            Raised if ``ds`` is not an instance of
+            :py:class:`pysegcnn.core.split.CustomSubset` and if ``ds`` is not
+            a subset of an instance of
+            :py:class:`pysegcnn.core.dataset.ImageDataset`.
+
+        """
+        # check input type
+        if isinstance(ds, CustomSubset):
+            # check the type of the dataset
+            if not isinstance(ds.dataset, ImageDataset):
+                raise TypeError('ds should be a subset created from a {}.'
+                                .format(repr(ImageDataset)))
+        else:
+            raise TypeError('ds should be an instance of {}.'
+                            .format(repr(CustomSubset)))
+
+        # iterate over the scenes of the dataset
+        for scene in ds.dataset.scenes:
+            for k, v in scene.items():
+                # do only look for paths
+                if isinstance(v, str) and k != 'id':
+
+                    # iterate over the path for as long as the basename does
+                    # not match any scene identifier
+                    dpath = os.path.dirname(v)
+                    while (ds.dataset.parse_scene_id(os.path.basename(dpath))
+                           is not None):
+                        dpath = os.path.dirname(dpath)
+
+                    # replace dataset path
+                    if dpath != dataset_path:
+                        scene[k] = v.replace(str(dpath), dataset_path)
+
 
 
 @dataclasses.dataclass

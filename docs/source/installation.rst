@@ -90,6 +90,6 @@ root directory within the activated ``pysegcnn`` conda environment**:
 If successful, you should be able to import ``pysegcnn`` from any Python
 interpreter using:
 
-.. ipython:: python
+.. code-block:: python
 
     import pysegcnn

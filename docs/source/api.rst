@@ -113,3 +113,6 @@ Classes to split a dataset into training, validation and test set.
 
 .. _Early Stopping:
     https://en.wikipedia.org/wiki/Early_stopping
+
+.. _equations:
+    https://www.usgs.gov/land-resources/nli/landsat/using-usgs-landsat-level-1-data-product

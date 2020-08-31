@@ -27,8 +27,8 @@ If not explicitly stated otherwise, this repository is licensed under the
 **GNU GENERAL PUBLIC LICENSE v3.0**
 (see `License <https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn/-/blob/master/LICENSE>`_).
 
-Contributors & Contact
-----------------------
+Contact
+--------
 For further information or ideas for future development please contact:
 daniel.frisinghelli@gmail.com.
 

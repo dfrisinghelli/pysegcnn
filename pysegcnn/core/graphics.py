@@ -375,7 +375,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
                    ls='--', color='grey')
         ax1.text(esepoch - nbatches, ax1.get_ylim()[0] + 0.01,
                  'epoch = {}, accuracy = {:.1f}%'
-                 .format(int(esepoch / nbatches), esacc * 100),
+                 .format(int(esepoch / nbatches) + 1, esacc * 100),
                  ha='right', color='grey')
 
     # create a patch (proxy artist) for every color

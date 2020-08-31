@@ -36,7 +36,7 @@ from pysegcnn.core.trainer import EvalConfig, LogConfig
 from pysegcnn.core.predict import predict_samples, predict_scenes
 from pysegcnn.core.logging import log_conf
 from pysegcnn.core.graphics import plot_confusion_matrix, plot_loss
-from pysegcnn.main.config import eval_config
+from pysegcnn.main.config import eval_config, DATASET_PATH
 
 
 if __name__ == '__main__':
@@ -61,6 +61,9 @@ if __name__ == '__main__':
         ds = model_state['train_ds']
     else:
         ds = model_state['test_ds'] if ec.test else model_state['valid_ds']
+
+    # check the dataset path
+    ec.replace_dataset_path(ds, DATASET_PATH)
 
     # keyword arguments for plotting
     kwargs = {'bands': ec.plot_bands,

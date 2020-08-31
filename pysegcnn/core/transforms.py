@@ -34,17 +34,14 @@ class Transform(object):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The image to transform.
 
         Raises
         ------
         NotImplementedError
-            Raised if `~pysegcnn.core.transforms.Transform` is not inherited.
-
-        Returns
-        -------
-        None.
+            Raised if :py:class:`pysegcnn.core.transforms.Transform` is not
+            inherited.
 
         """
         raise NotImplementedError
@@ -54,6 +51,12 @@ class VariantTransform(Transform):
     """Base class for a spatially variant transformation.
 
     Transformation on the ground truth required.
+
+    Attributes
+    ----------
+    invariant : `bool`
+        Whether the transformation is spatially invariant.
+
     """
 
     def __init__(self):
@@ -66,6 +69,12 @@ class InvariantTransform(Transform):
     """Base class for a spatially invariant transformation.
 
     Transformation on the ground truth not required.
+
+    Attributes
+    ----------
+    invariant : `bool`
+        Whether the transformation is spatially invariant.
+
     """
 
     def __init__(self):
@@ -77,18 +86,24 @@ class InvariantTransform(Transform):
 class FlipLr(VariantTransform):
     """Flip an image horizontally.
 
-    Parameters
+    Attributes
     ----------
-    p : `float`, optional
-        The probability to apply the transformation. The default is 0.5.
-
-    Returns
-    -------
-    None.
+    p : `float`
+        The probability to apply the transformation.
+    applied : `bool`
+        Whether the transformation was applied.
 
     """
 
     def __init__(self, p=0.5):
+        """Initialize.
+
+        Parameters
+        ----------
+        p : `float`, optional
+            The probability to apply the transformation. The default is `0.5`.
+
+        """
         super().__init__()
         # the probability to apply the transformation
         self.p = p
@@ -98,12 +113,12 @@ class FlipLr(VariantTransform):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The image to transform.
 
         Returns
         -------
-        transform : `numpy.ndarray`
+        transform : :py:class:`numpy.ndarray`
             The transformed image.
 
         """
@@ -131,18 +146,24 @@ class FlipLr(VariantTransform):
 class FlipUd(VariantTransform):
     """Flip an image vertically.
 
-    Parameters
+    Attributes
     ----------
-    p : `float`, optional
-        The probability to apply the transformation. The default is 0.5.
-
-    Returns
-    -------
-    None.
+    p : `float`
+        The probability to apply the transformation.
+    applied : `bool`
+        Whether the transformation was applied.
 
     """
 
     def __init__(self, p=0.5):
+        """Initialize.
+
+        Parameters
+        ----------
+        p : `float`, optional
+            The probability to apply the transformation. The default is `0.5`.
+
+        """
         super().__init__()
         # the probability to apply the transformation
         self.p = p
@@ -152,12 +173,12 @@ class FlipUd(VariantTransform):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The image to transform.
 
         Returns
         -------
-        transform : `numpy.ndarray`
+        transform : :py:class:`numpy.ndarray`
             The transformed image.
 
         """
@@ -183,26 +204,35 @@ class FlipUd(VariantTransform):
 
 
 class Rotate(VariantTransform):
-    """Rotate an image by ``angle``.
+    """Rotate an image in the spatial plane.
 
-    The image is rotated in the spatial plane.
+    .. important::
 
-    If the input array has more then two dimensions, the spatial dimensions are
-    assumed to be the last two dimensions of the array.
+        If the input array has more then two dimensions, the spatial dimensions
+        are assumed to be the last two dimensions of the array.
 
-    Parameters
+    Attributes
     ----------
+    p : `float`
+        The probability to apply the transformation.
+    applied : `bool`
+        Whether the transformation was applied.
     angle : `float`
         The rotation angle in degrees.
-    p : `float`, optional
-        The probability to apply the transformation. The default is 0.5.
 
-    Returns
-    -------
-    None.
     """
 
     def __init__(self, angle, p=0.5):
+        """Initialize.
+
+        Parameters
+        ----------
+        angle : `float`
+            The rotation angle in degrees.
+        p : `float`, optional
+            The probability to apply the transformation. The default is `0.5`.
+
+        """
         super().__init__()
 
         # the rotation angle
@@ -216,13 +246,14 @@ class Rotate(VariantTransform):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The image to transform.
 
         Returns
         -------
-        transform : `numpy.ndarray`
+        transform : :py:class:`numpy.ndarray`
             The transformed image.
+
         """
         if np.random.random(1) < self.p:
 
@@ -260,35 +291,27 @@ class Rotate(VariantTransform):
 class Noise(InvariantTransform):
     """Add gaussian noise to an image.
 
-    Valid modes are:
+    Supported modes are:
 
-        'add': image = image + noise
-        'speckle' : image = image + image * noise
+        - 'add' : ``image = image + noise``
+        - 'speckle' : ``image = image + image * noise``
 
-    Parameters
+    Attributes
     ----------
+    modes : `list` [`str`]
+        The supported modes.
     mode : `str`
         The mode to add the noise.
-    mean : `float`, optional
-        The mean of the gaussian distribution from which the noise is sampled.
-        The default is 0.
-    var : `float`, optional
-        The variance of the gaussian distribution from which the noise is
-        sampled. The default is 0.05.
-    p : `float`, optional
-        The probability to apply the transformation. The default is 0.5.
-    exclude : `list` [`float`] or `list` [`int`], optional
-        Values for which the noise is not added. Useful for pixels resulting
-        from image padding. The default is [].
-
-    Raises
-    ------
-    ValueError
-        Raised if ``mode`` is not supported.
-
-    Returns
-    -------
-    None.
+    mean : `float`
+        The mean of the gaussian distribution.
+    var : `float`
+        The variance of the gaussian distribution.
+    p : `float`
+        The probability to apply the transformation.
+    applied : `bool`
+        Whether the transformation was applied.
+    exclude : `list` [`float`]
+        Values for which the noise is not added.
 
     """
 
@@ -296,6 +319,30 @@ class Noise(InvariantTransform):
     modes = ['add', 'speckle']
 
     def __init__(self, mode, mean=0, var=0.05, p=0.5, exclude=[]):
+        """Initialize.
+
+        Parameters
+        ----------
+        mode : `str`
+            The mode to add the noise.
+        mean : `float`, optional
+            The mean of the gaussian distribution from which the noise is
+            sampled. The default is `0`.
+        var : `float`, optional
+            The variance of the gaussian distribution from which the noise is
+            sampled. The default is `0.05`.
+        p : `float`, optional
+            The probability to apply the transformation. The default is `0.5`.
+        exclude : `list` [`float`] or `list` [`int`], optional
+            Values for which the noise is not added. Useful for pixels
+            resulting from image padding. The default is `[]`.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``mode`` is not supported.
+
+        """
         super().__init__()
 
         # check which kind of noise to apply
@@ -320,13 +367,13 @@ class Noise(InvariantTransform):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The image to transform.
 
         Returns
         -------
-        transform : `numpy.ndarray`
-            The transformed image
+        transform : :py:class:`numpy.ndarray`
+            The transformed image.
 
         """
         if np.random.random(1) < self.p:
@@ -372,19 +419,24 @@ class Augment(object):
 
     Container class applying each transformation in ``transforms`` in order.
 
-    Parameters
+    Attributes
     ----------
     transforms : `list` or `tuple`
-        A sequence of instances of `pysegcnn.core.transforms.VariantTransform`
-        or `pysegcnn.core.transforms.InvariantTransform`.
-
-    Returns
-    -------
-    None.
+        The transformations to apply.
 
     """
 
     def __init__(self, transforms):
+        """Initialize.
+
+        Parameters
+        ----------
+        transforms : `list` or `tuple`
+            A list of instances of
+            :py:class:`pysegcnn.core.transforms.VariantTransform`
+            or :py:class:`pysegcnn.core.transforms.InvariantTransform`.
+
+        """
         assert isinstance(transforms, (list, tuple))
         self.transforms = transforms
 
@@ -396,16 +448,16 @@ class Augment(object):
 
         Parameters
         ----------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The input image.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The corresponding ground truth of ``image``.
 
         Returns
         -------
-        image : `numpy.ndarray`
+        image : :py:class:`numpy.ndarray`
             The transformed image.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The transformed ground truth.
 
         """
@@ -432,17 +484,17 @@ class Augment(object):
         return image, gt
 
     def __repr__(self):
-        """Representation of `~pysegcnn.core.transforms.Augment`.
+        """Representation.
 
         Returns
         -------
-        repr : `str`
+        fs : `str`
             Representation string.
 
         """
-        fstring = self.__class__.__name__ + '('
+        fs = self.__class__.__name__ + '('
         for t in self.transforms:
-            fstring += '\n'
-            fstring += '    {0}'.format(t)
-        fstring += '\n)'
-        return fstring
+            fs += '\n'
+            fs += '    {0}'.format(t)
+        fs += '\n)'
+        return fs

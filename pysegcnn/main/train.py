@@ -2,13 +2,18 @@
 
 Steps to launch a model run:
 
-    (1) Configure the model run in pysegcnn/main/config.py
-        (i) configure the dataset      : dictionary 'dataset_config'
-        (j) configure the dataset split: dictionary 'split_config'
-        (k) configure the model        : dictionary 'model_config'
-    (2) Save pysegcnn/main/config.py
-    (3) In a terminal, navigate to the repository's root directory
-    (4) run "python pysegcnn/main/train.py"
+    1. Configure the model run in :py:mod:`pysegcnn.main.config.py`
+        - configure the dataset: ``dataset_config``
+        - configure the split  : ``split_config``
+        - configure the model  : ``model_config``
+    2. Save :py:mod:`pysegcnn.main.config.py`
+    3. In a terminal, navigate to the repository's root directory
+    4. Run
+
+    .. code-block:: bash
+
+        python pysegcnn/main/train.py
+
 
 License
 -------

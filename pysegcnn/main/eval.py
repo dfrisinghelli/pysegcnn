@@ -2,10 +2,15 @@
 
 Steps to run a model evaluation:
 
-    (1) Configure the dictionary 'eval_config' in pysegcnn/main/config.py
-    (2) Save pysegcnn/main/config.py
-    (3) In a terminal, navigate to the repository's root directory
-    (4) run "python pysegcnn/main/eval.py"
+    1. Configure the dictionary ``eval_config`` in
+    :py:mod:`pysegcnn.main.config.py`
+    2. Save :py:mod:`pysegcnn.main.config.py`
+    3. In a terminal, navigate to the repository's root directory
+    4. Run
+
+    .. code-block:: bash
+
+        python pysegcnn/main/eval.py
 
 
 License
@@ -42,6 +47,7 @@ if __name__ == '__main__':
     # initialize logging
     log = LogConfig(ec.state_file)
     dictConfig(log_conf(log.log_file))
+    log.init_log('{}: ' + 'Evaluating model: {}.'.format(ec.state_file.name))
 
     # load the model state
     model, _, model_state = Network.load(ec.state_file)

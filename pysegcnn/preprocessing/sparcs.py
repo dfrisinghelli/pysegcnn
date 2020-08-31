@@ -2,6 +2,8 @@
 
 After downloading the Sparcs dataset, from the repository's root directory run:
 
+.. code-block:: bash
+
     python pysegcnn/preprocessing/sparcs.py
 
 The above command will print the usage of the script.

@@ -34,14 +34,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 def _get_scene_tiles(ds, scene_id):
-    """Return the tiles of the scene with id = ``scene_id``.
+    """Return the tiles of the scene with id ``scene_id``.
 
     Parameters
     ----------
-    ds : `pysegcnn.core.split.RandomSubset` or
-    `pysegcnn.core.split.SceneSubset`
-        An instance of `~pysegcnn.core.split.RandomSubset` or
-        `~pysegcnn.core.split.SceneSubset`.
+    ds : :py:class:`pysegcnn.core.split.CustomSubset`
+        A instance of a subclass of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
     scene_id : `str`
         A valid scene identifier.
 
@@ -77,27 +76,27 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
 
     Parameters
     ----------
-    ds : `pysegcnn.core.split.RandomSubset` or
-    `pysegcnn.core.split.SceneSubset`
-        An instance of `~pysegcnn.core.split.RandomSubset` or
-        `~pysegcnn.core.split.SceneSubset`.
-    model : `pysegcnn.core.models.Network`
-        An instance of `~pysegcnn.core.models.Network`.
+    ds : :py:class:`pysegcnn.core.split.RandomSubset` or
+    :py:class:`pysegcnn.core.split.SceneSubset`
+        An instance of :py:class:`pysegcnn.core.split.RandomSubset` or
+        :py:class:`pysegcnn.core.split.SceneSubset`.
+    model : :py:class:`pysegcnn.core.models.Network`
+        An instance of :py:class:`pysegcnn.core.models.Network`.
     cm : `bool`, optional
-        Whether to compute the confusion matrix. The default is False.
+        Whether to compute the confusion matrix. The default is `False`.
     plot : `bool`, optional
         Whether to plot a false color composite, ground truth and model
-        prediction for each sample. The default is False.
+        prediction for each sample. The default is `False`.
     **kwargs
         Additional keyword arguments passed to
-        `pysegcnn.core.graphics.plot_sample`.
+        :py:func:`pysegcnn.core.graphics.plot_sample`.
 
     Raises
     ------
     TypeError
         Raised if ``ds`` is not an instance of
-        `~pysegcnn.core.split.RandomSubset` or
-        `~pysegcnn.core.split.SceneSubset`.
+        :py:class:`pysegcnn.core.split.RandomSubset` or
+        :py:class:`pysegcnn.core.split.SceneSubset`.
 
     Returns
     -------
@@ -109,9 +108,10 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
                 The ground truth
             ``'prediction'``
                 Model prediction
-    conf_mat : `numpy.ndarray`
+    conf_mat : :py:class:`numpy.ndarray`
         The confusion matrix. Note that the confusion matrix ``conf_mat`` is
-        only computed if ``cm`` = True.
+        only computed if ``cm=True``.
+
     """
     # check whether the dataset is a valid subset, i.e.
     # an instance of pysegcnn.core.split.SceneSubset or
@@ -183,26 +183,26 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
 
     Parameters
     ----------
-    ds : `pysegcnn.core.split.SceneSubset`
-        An instance of `~pysegcnn.core.split.SceneSubset`.
-    model : `pysegcnn.core.models.Network`
-        An instance of `~pysegcnn.core.models.Network`.
+    ds : :py:class:`pysegcnn.core.split.SceneSubset`
+        An instance of :py:class:`pysegcnn.core.split.SceneSubset`.
+    model : :py:class:`pysegcnn.core.models.Network`
+        An instance of :py:class:`pysegcnn.core.models.Network`.
     scene_id : `str` or `None`
         A valid scene identifier.
     cm : `bool`, optional
-        Whether to compute the confusion matrix. The default is False.
+        Whether to compute the confusion matrix. The default is `False`.
     plot : `bool`, optional
         Whether to plot a false color composite, ground truth and model
-        prediction for each scene. The default is False.
+        prediction for each scene. The default is `False`.
     **kwargs
         Additional keyword arguments passed to
-        `pysegcnn.core.graphics.plot_sample`.
+        :py:func:`pysegcnn.core.graphics.plot_sample`.
 
     Raises
     ------
     TypeError
         Raised if ``ds`` is not an instance of
-        `~pysegcnn.core.split.SceneSubset`.
+        :py:class:`pysegcnn.core.split.SceneSubset`.
 
     Returns
     -------
@@ -214,9 +214,10 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
                 The ground truth
             ``'prediction'``
                 Model prediction
-    conf_mat : `numpy.ndarray`
+    conf_mat : :py:class:`numpy.ndarray`
         The confusion matrix. Note that the confusion matrix ``conf_mat`` is
-        only computed if ``cm`` = True.
+        only computed if ``cm=True``.
+
     """
     # check whether the dataset is a valid subset, i.e. an instance of
     # pysegcnn.core.split.SceneSubset

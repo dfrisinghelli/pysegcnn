@@ -37,15 +37,15 @@ def contrast_stretching(image, alpha=5):
 
     Parameters
     ----------
-    image : `numpy.ndarray`
-        the input image.
+    image : :py:class:`numpy.ndarray`
+        The input image.
     alpha : `int`, optional
-        The level of the percentiles. The default is 5.
+        The level of the percentiles. The default is `5`.
 
     Returns
     -------
-    norm : `numpy.ndarray`
-        the stretched image.
+    norm : :py:class:`numpy.ndarray`
+        The contrast-stretched image.
 
     """
     # compute upper and lower percentiles defining the range of the stretch
@@ -68,14 +68,14 @@ def running_mean(x, w):
 
     Parameters
     ----------
-    x : array_like
+    x : `array_like`
         The sequence to compute a running mean on.
     w : `int`
         The window length of the running mean.
 
     Returns
     -------
-    rm : `numpy.ndarray`
+    rm : :py:class:`numpy.ndarray`
         The running mean of the sequence ``x``.
 
     """
@@ -90,8 +90,8 @@ def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
 
     Parameters
     ----------
-    x : `numpy.ndarray` or `torch.Tensor`, (b, h, w)
-        Array containing the raw data of the tile, shape=(bands, height, width)
+    x : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, (b, h, w)
+        Array containing the data of the tile, shape=(bands, height, width).
     use_bands : `list` of `str`
         List describing the order of the bands in ``x``.
     labels : `dict` [`int`, `dict`]
@@ -101,31 +101,31 @@ def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
                 A named color (`str`).
             ``'label'``
                 The name of the class label (`str`).
-    y : `numpy.ndarray` or `torch.Tensor` or `None`, optional
+    y : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, optional
         Array containing the ground truth of tile ``x``, shape=(height, width).
-        The default is None.
-    y_pred : `numpy.ndarray` or `torch.Tensor` or `None`, optional
+        The default is `None`, i.e. the ground truth is not plotted.
+    y_pred : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, optional
         Array containing the prediction for tile ``x``, shape=(height, width).
-        The default is None.
+        The default is `None`, i.e. the prediction is not plotted.
     figsize : `tuple`, optional
-        The figure size in centimeters. The default is (10, 10).
+        The figure size in centimeters. The default is `(10, 10)`.
     bands : `list` [`str`], optional
-        The bands to build the FCC. The default is ['nir', 'red', 'green'].
+        The bands to build the FCC. The default is `['nir', 'red', 'green']`.
     state : `str` or `None`, optional
         Filename to save the plot to. ``state`` should be an existing model
-        state file ending with '.pt'. The default is None, i.e. plot is not
-        saved to disk.
-    outpath : `str` or `pathlib.Path`, optional
-        Output path. The default is 'pysegcnn/main/_samples'.
+        state file ending with `'.pt'`. The default is `None`, i.e. the plot is
+        not saved to disk.
+    outpath : `str` or :py:class:`pathlib.Path`, optional
+        Output path. The default is `'pysegcnn/main/_samples'`.
     alpha : `int`, optional
         The level of the percentiles to increase constrast in the FCC.
-        The default is 0, i.e. no stretching.
+        The default is `0`, i.e. no stretching is applied.
 
     Returns
     -------
-    fig : `matplotlib.figure.Figure`
+    fig : :py:class:`matplotlib.figure.Figure`
         The figure handle.
-    ax : `numpy.ndarray` [`matplotlib.axes._subplots.AxesSubplot`]
+    ax : :py:class:`numpy.ndarray`
         An array of the axes handles.
 
     """
@@ -199,7 +199,7 @@ def plot_confusion_matrix(cm, labels, normalize=True,
 
     Parameters
     ----------
-    cm : `numpy.ndarray`
+    cm : :py:class:`numpy.ndarray`
         The confusion matrix.
     labels : `dict` [`int`, `dict`]
         The label dictionary. The keys are the values of the class labels
@@ -209,23 +209,23 @@ def plot_confusion_matrix(cm, labels, normalize=True,
             ``'label'``
                 The name of the class label (`str`).
     normalize : `bool`, optional
-        Whether to normalize the confusion matrix. The default is True.
+        Whether to normalize the confusion matrix. The default is `True`.
     figsize : `tuple`, optional
-        The figure size in centimeters. The default is (10, 10).
+        The figure size in centimeters. The default is `(10, 10)`.
     cmap : `str`, optional
-        A colormap in `matplotlib.pyplot.colormaps()`. The default is 'Blues'.
-    state_file : `str` or `None` or `pathlib.Path`, optional
+        A matplotlib colormap. The default is `'Blues'`.
+    state_file : `str` or `None` or :py:class:`pathlib.Path`, optional
         Filename to save the plot to. ``state`` should be an existing model
-        state file ending with '.pt'. The default is None, i.e. plot is not
-        saved to disk.
-    outpath : `str` or `pathlib.Path`, optional
-        Output path. The default is 'pysegcnn/main/_graphics/'.
+        state file ending with `'.pt'`. The default is `None`, i.e. the plot is
+        not saved to disk.
+    outpath : `str` or :py:class:`pathlib.Path`, optional
+        Output path. The default is `'pysegcnn/main/_graphics/'`.
 
     Returns
     -------
-    fig : `matplotlib.figure.Figure`
+    fig : :py:class:`matplotlib.figure.Figure`
         The figure handle.
-    ax : `matplotlib.axes._subplots.AxesSubplot`
+    ax : :py:class:`matplotlib.axes._subplots.AxesSubplot`
         The axes handle.
 
     """
@@ -302,23 +302,23 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     Parameters
     ----------
-    state_file : `str` or `pathlib.Path`
+    state_file : `str` or :py:class:`pathlib.Path`
         The model state file. Model state files are stored in
-        pysegcnn/main/_models.
+        `pysegcnn/main/_models`.
     figsize : `tuple`, optional
-        The figure size in centimeters. The default is (10, 10).
+        The figure size in centimeters. The default is `(10, 10)`.
     step : `int`, optional
-        The step of epochs for the x-axis labels. The default is 5, i.e. label
-        each fifth epoch.
+        The step to label epochs on the x-axis labels. The default is `5`, i.e.
+        label each fifth epoch.
     colors : `list` [`str`], optional
-        A list of four named colors supported by `matplotlib`.
-        The default is ['lightgreen', 'green', 'skyblue', 'steelblue'].
-    outpath : `str` or `pathlib.Path`, optional
-        Output path. The default is 'pysegcnn/main/_graphics/'.
+        A list of four named colors supported by matplotlib.
+        The default is `['lightgreen', 'green', 'skyblue', 'steelblue']`.
+    outpath : `str` or :py:class:`pathlib.Path`, optional
+        Output path. The default is `'pysegcnn/main/_graphics/'`.
 
     Returns
     -------
-    fig : `matplotlib.figure.Figure`
+    fig : :py:class:`matplotlib.figure.Figure`
         The figure handle.
 
     """

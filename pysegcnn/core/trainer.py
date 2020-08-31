@@ -102,17 +102,17 @@ class DatasetConfig(BaseConfig):
     seed : `int`
         The random seed. Used to split the dataset into training,
         validation and test set. Useful for reproducibility.
-    sort : `bool`, optional
+    sort : `bool`
         Whether to chronologically sort the samples. Useful for time series
         data. The default is `False`.
-    transforms : `list`, optional
+    transforms : `list`
         List of :py:class:`pysegcnn.core.transforms.Augment` instances.
         Each item in ``transforms`` generates a distinct transformed
         version of the dataset. The total dataset is composed of the
         original untransformed dataset together with each transformed
         version of it. If ``transforms=[]``, only the original dataset is
         used. The default is `[]`.
-    pad : `bool`, optional
+    pad : `bool`
         Whether to center pad the input image. Set ``pad=True``, if the
         images are not evenly divisible by the ``tile_size``. The image
         data is padded with a constant padding value of zero. For each
@@ -206,13 +206,13 @@ class SplitConfig(BaseConfig):
     tvratio : `float`
         The ratio of training data to validation data, e.g. ``tvratio=0.8``
         means 80% training, 20% validation.
-    date : `str`, optional
+    date : `str`
         A date. Used if ``split_mode='date'``. The default is  `yyyymmdd`.
-    dateformat : `str`, optional
+    dateformat : `str`
         The format of ``date``. ``dateformat`` is used by
         :py:func:`datetime.datetime.strptime' to parse ``date`` to a
         :py:class:`datetime.datetime` object. The default is `'%Y%m%d'`.
-    drop : `float`, optional
+    drop : `float`
         Whether to drop samples (during training only) with a fraction of
         pixels equal to the constant padding value >= ``drop``. ``drop=0``
         means, do not drop any samples. The default is `0`.
@@ -403,49 +403,49 @@ class ModelConfig(BaseConfig):
         The name of the optimizer to update the model weights.
     loss_name : `str`
         The name of the loss function measuring the model error.
-    skip_connection : `bool`, optional
+    skip_connection : `bool`
         Whether to apply skip connections. The default is `True`.
-    kwargs: `dict`, optional
+    kwargs: `dict`
         The configuration for each convolution in the model. The default is
         `{'kernel_size': 3, 'stride': 1, 'dilation': 1}`.
-    batch_size : `int`, optional
+    batch_size : `int`
         The model batch size. Determines the number of samples to process
         before updating the model weights. The default is `64`.
-    checkpoint : `bool`, optional
+    checkpoint : `bool`
         Whether to resume training from an existing model checkpoint. The
         default is `False`.
-    transfer : `bool`, optional
+    transfer : `bool`
         Whether to use a model for transfer learning on a new dataset. If True,
         the model architecture of ``pretrained_model`` is adjusted to a new
         dataset. The default is `False`.
-    pretrained_model : `str`, optional
+    pretrained_model : `str`
         The name of the pretrained model to use for transfer learning.
         The default is `''`.
-    lr : `float`, optional
+    lr : `float`
         The learning rate used by the gradient descent algorithm.
         The default is `0.001`.
-    early_stop : `bool`, optional
+    early_stop : `bool`
         Whether to apply `Early Stopping`_. The default is `False`.
-    mode : `str`, optional
-        The mode of the early stopping. Depends on the metric measuring
+    mode : `str`
+        The early stopping mode. Depends on the metric measuring
         performance. When using model loss as metric, use ``mode='min'``,
         however, when using accuracy as metric, use ``mode='max'``. For now,
         only ``mode='max'`` is supported. Only used if ``early_stop=True``.
         The default is `'max'`.
-    delta : `float`, optional
+    delta : `float`
         Minimum change in early stopping metric to be considered as an
         improvement. Only used if ``early_stop=True``. The default is `0`.
-    patience : `int`, optional
+    patience : `int`
         The number of epochs to wait for an improvement in the early stopping
         metric. If the model does not improve over more than ``patience``
         epochs, quit training. Only used if ``early_stop=True``. The default is
         `10`.
-    epochs : `int`, optional
+    epochs : `int`
         The maximum number of epochs to train. The default is `50`.
-    nthreads : `int`, optional
+    nthreads : `int`
         The number of cpu threads to use during training. The default is
         :py:func:`torch.get_num_threads()`.
-    save : `bool`, optional
+    save : `bool`
         Whether to save the model state to disk. Model states are saved in
         pysegcnn/main/_models. The default is `True`.
     model_class : :py:class:`pysegcnn.core.models.Network`
@@ -853,31 +853,41 @@ class EvalConfig(BaseConfig):
     test : `bool` or `None`
         Whether to evaluate the model on the training(``test=None``), the
         validation (``test=False``) or the test set (``test=True``).
-    predict_scene : `bool`, optional
+    predict_scene : `bool`
         The model prediction order. If False, the samples (tiles) of a dataset
         are predicted in any order and the scenes are not reconstructed.
         If True, the samples (tiles) are ordered according to the scene they
         belong to and a model prediction for each entire reconstructed scene is
         returned. The default is `False`.
-    plot_samples : `bool`, optional
+    plot_samples : `bool`
         Whether to save a plot of false color composite, ground truth and model
         prediction for each sample (tile). Only used if ``predict_scene=False``
         . The default is `False`.
-    plot_scenes : `bool`, optional
+    plot_scenes : `bool`
         Whether to save a plot of false color composite, ground truth and model
         prediction for each entire scene. Only used if ``predict_scene=True``.
         The default is `False`.
-    plot_bands : `list` [`str`], optional
+    plot_bands : `list` [`str`]
         The bands to build the false color composite. The default is
         `['nir', 'red', 'green']`.
-    cm : `bool`, optional
+    cm : `bool`
         Whether to compute and plot the confusion matrix. The default is `True`
         .
-    figsize : `tuple`, optional
+    figsize : `tuple`
         The figure size in centimeters. The default is `(10, 10)`.
-    alpha : `int`, optional
+    alpha : `int`
         The level of the percentiles for contrast stretching of the false color
         compsite. The default is `0`, i.e. no stretching.
+    base_path : :py:class:`pathlib.Path`
+        Root path to store model output.
+    sample_path : :py:class:`pathlib.Path`
+        Path to store plots of model predictions for single samples.
+    scenes_path : :py:class:`pathlib.Path`
+        Path to store plots of model predictions for entire scenes.
+    perfmc_path : :py:class:`pathlib.Path`
+        Path to store plots of model performance, e.g. confusion matrix.
+    models_path : :py:class:`pathlib.Path`
+        Path to search for model state files, i.e. pretrained models.
 
     """
 
@@ -920,10 +930,6 @@ class EvalConfig(BaseConfig):
         self.models_path = self.base_path.joinpath('_models')
         self.state_file = self.models_path.joinpath(self.state_file)
 
-        # write initialization string to log file
-        LogConfig.init_log('{}: ' + 'Evaluating model: {}.'.format(
-            self.state_file.name))
-
 
 @dataclasses.dataclass
 class LogConfig(BaseConfig):
@@ -931,11 +937,14 @@ class LogConfig(BaseConfig):
 
     Generate the model log file.
 
-    Parameters
+    Attributes
     ----------
     state_file : :py:class:`pathlib.Path`
         Path to a model state file.
-
+    log_path : :py:class:`pathlib.Path`
+        Path to store model logs.
+    log_file : :py:class:`pathlib.Path`
+        Path to the log file of the model ``state_file``.
     """
 
     state_file: pathlib.Path
@@ -991,7 +1000,7 @@ class NetworkTrainer(BaseConfig):
     :py:class:`pysegcnn.core.models.Network` on a dataset of type
     :py:class:`pysegcnn.core.dataset.ImageDataset`.
 
-    Parameters
+    Attributes
     ----------
     model : :py:class:`pysegcnn.core.models.Network`
         The model to train. An instance of
@@ -1003,35 +1012,38 @@ class NetworkTrainer(BaseConfig):
         The loss function to compute the model error. An instance of
         :py:class:`torch.nn.Module`.
     train_dl : :py:class:`torch.utils.data.DataLoader`
-        The training :py:class:`torch.utils.data.DataLoader` instance.
+        The training :py:class:`torch.utils.data.DataLoader` instance build
+        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
     valid_dl : :py:class:`torch.utils.data.DataLoader`
-        The validation :py:class:`torch.utils.data.DataLoader` instance.
+        The validation :py:class:`torch.utils.data.DataLoader` instance build
+        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
     test_dl : :py:class:`torch.utils.data.DataLoader`
-        The test :py:class:`torch.utils.data.DataLoader` instance.
+        The test :py:class:`torch.utils.data.DataLoader` instance build from an
+        instance of :py:class:`pysegcnn.core.split.CustomSubset`.
     state_file : :py:class:`pathlib.Path`
         Path to save the model state.
-    epochs : `int`, optional
+    epochs : `int`
         The maximum number of epochs to train. The default is `1`.
-    nthreads : `int`, optional
+    nthreads : `int`
         The number of cpu threads to use during training. The default is
         :py:func:`torch.get_num_threads()`.
-    early_stop : `bool`, optional
+    early_stop : `bool`
         Whether to apply `Early Stopping`_. The default is `False`.
-    mode : `str`, optional
-        The mode of the early stopping. Depends on the metric measuring
+    mode : `str`
+        The early stopping mode. Depends on the metric measuring
         performance. When using model loss as metric, use ``mode='min'``,
         however, when using accuracy as metric, use ``mode='max'``. For now,
         only ``mode='max'`` is supported. Only used if ``early_stop=True``.
         The default is `'max'`.
-    delta : `float`, optional
+    delta : `float`
         Minimum change in early stopping metric to be considered as an
         improvement. Only used if ``early_stop=True``. The default is `0`.
-    patience : `int`, optional
+    patience : `int`
         The number of epochs to wait for an improvement in the early stopping
         metric. If the model does not improve over more than ``patience``
         epochs, quit training. Only used if ``early_stop=True``. The default is
         `10`.
-    checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`], optional
+    checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`]
         A model checkpoint for ``model``. If specified, ``checkpoint_state``
         should be a dictionary with keys:
             ``'ta'``
@@ -1043,9 +1055,25 @@ class NetworkTrainer(BaseConfig):
             ``'vl'``
                 The loss on the validation set (:py:class:`numpy.ndarray`).
         The default is `{}`.
-    save : `bool`, optional
+    save : `bool`
         Whether to save the model state to ``state_file``. The default is
         `True`.
+    device : `str`
+        The device to train the model on, i.e. `cpu` or `cuda`.
+    max_accuracy : `float`
+        Maximum accuracy on the validation dataset.
+    es : `None` or :py:class:`pysegcnn.core.trainer.EarlyStopping`
+        The early stopping instance if ``early_stop=True``, else `None`.
+    training_state : `dict` [`str`, `numpy.ndarray`]
+            The training state dictionary with keys:
+            ``'ta'``
+                The accuracy on the training set (:py:class:`numpy.ndarray`).
+            ``'tl'``
+                The loss on the training set (:py:class:`numpy.ndarray`).
+            ``'va'``
+                The accuracy on the validation set (:py:class:`numpy.ndarray`).
+            ``'vl'``
+                The loss on the validation set (:py:class:`numpy.ndarray`).
 
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
@@ -1363,6 +1391,24 @@ class EarlyStopping(object):
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
 
+    Attributes
+    ----------
+    mode : `str`
+        The early stopping mode.
+    best : `float`
+        Best metric score.
+    min_delta : `float`
+        Minimum change in early stopping metric to be considered as an
+        improvement.
+    patience : `int`
+        The number of epochs to wait for an improvement.
+    is_better : `function`
+        Function indicating whether the metric improved.
+    early_stop : `bool`
+        Whether the early stopping criterion is met.
+    counter : `int`
+        The counter advancing each time a metric does not improve.
+
     """
 
     def __init__(self, mode='max', best=0, min_delta=0, patience=10):
@@ -1371,7 +1417,7 @@ class EarlyStopping(object):
         Parameters
         ----------
         mode : `str`, optional
-            The mode of the early stopping. Depends on the metric measuring
+            The early stopping mode. Depends on the metric measuring
             performance. When using model loss as metric, use ``mode='min'``,
             however, when using accuracy as metric, use ``mode='max'``. For
             now, only ``mode='max'`` is supported. Only used if

@@ -38,76 +38,70 @@ SUFFIXES = ['toa_ref', 'toa_rad', 'toa_brt']
 
 
 def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
-    """Read an image to a `numpy.ndarray`.
+    r"""Read an image to a :py:class:`numpy.ndarray`.
 
     If ``tile_size`` is not `None`, the input image is divided into square
-    tiles of size (``tile_size``, ``tile_size``). If the image is not evenly
-    divisible and ``pad`` = False, a `ValueError` is raised. However, if
-    ``pad`` = True, center padding with constant value ``cval`` is applied.
+    tiles of size ``(tile_size, tile_size)``. If the image is not evenly
+    divisible and ``pad=False``, a ``ValueError`` is raised. However, if
+    ``pad=True``, center padding with constant value ``cval`` is applied.
 
     The tiling works as follows:
 
-        (Padded) Input image:
+        +-----------+-----------+-----------+-----------+
+        |           |           |           |           |
+        |  tile_00  |  tile_01  |    ...    |  tile_0n  |
+        |           |           |           |           |
+        +-----------+-----------+-----------+-----------+
+        |           |           |           |           |
+        |  tile_10  |  tile_11  |    ...    |  tile_1n  |
+        |           |           |           |           |
+        +-----------+-----------+-----------+-----------+
+        |           |           |           |           |
+        |    ...    |    ...    |    ...    |    ...    |
+        |           |           |           |           |
+        +-----------+-----------+-----------+-----------+
+        |           |           |           |           |
+        |  tile_m0  |  tile_m1  |    ...    |  tile_mn  |
+        |           |           |           |           |
+        +-----------+-----------+-----------+-----------+
 
-        ------------------------------------------------
-        |           |           |          |           |
-        |  tile_00  |  tile_01  |    ...   |  tile_0n  |
-        |           |           |          |           |
-        |----------------------------------------------|
-        |           |           |          |           |
-        |  tile_10  |  tile_11  |    ...   |  tile_1n  |
-        |           |           |          |           |
-        |----------------------------------------------|
-        |           |           |          |           |
-        |    ...    |    ...    |    ...   |    ...    |
-        |           |           |          |           |
-        |----------------------------------------------|
-        |           |           |          |           |
-        |  tile_m0  |  tile_m1  |    ...   |  tile_mn  |
-        |           |           |          |           |
-        ------------------------------------------------
+    where :math:`m = n`. Each tile has its id, which starts at `0` in the
+    topleft corner of the input image, i.e. `tile_00` has :math:`id=0`, and
+    increases along the width axis, i.e. `tile_0n` has :math:`id=n`, `tile_10`
+    has :math:`id=n+1`, ..., `tile_mn` has :math:`id=(m \\cdot n) - 1`.
 
-    where m = n. Each tile has its id, which starts at 0 in the topleft corner
-    of the input image, i.e. tile_00 has id=0, and increases along the width
-    axis, i.e. tile_0n has id=n, tile_10 has id=n+1, ..., tile_mn has
-    id=(m * n) - 1.
-
-    If ``tile`` is an integer, only the tile with id = ``tile`` is returned.
+    If ``tile`` is an integer, only the tile with ``id=tile`` is returned.
 
     Parameters
     ----------
-    path : `str` or `None` or `numpy.ndarray`
+    path : `str` or `None` or :py:class:`numpy.ndarray`
         The image to read.
     tile_size : `None` or `int`, optional
-        The size of a tile. The default is None.
+        The size of a tile. The default is `None`.
     tile : `int`, optional
-        The tile id. The default is None.
+        The tile id. The default is `None`.
     pad : `bool`, optional
-        Whether to center pad the input image. The default is False.
+        Whether to center pad the input image. The default is `False`.
     cval : `float`, optional
-        The constant padding value. The default is 0.
+        The constant padding value. The default is `0`.
 
     Raises
     ------
     FileNotFoundError
         Raised if ``path`` is a path that does not exist.
     TypeError
-        Raised if ``path`` is not `str` or `None` or `numpy.ndarray`.
+        Raised if ``path`` is not `str` or `None` or :py:class:`numpy.ndarray`.
 
     Returns
     -------
-    image : `numpy.ndarray`
+    image : :py:class:`numpy.ndarray`
         The image array. The output shape is:
+            - `(tiles, bands, tile_size, tile_size)` if ``tile_size`` is not
+            `None`. If the image does only have one band,
+            `(tiles, tile_size, tile_size)`
 
-            if ``tile_size`` is not `None`:
-                shape=(tiles, bands, tile_size, tile_size)
-                if the image does only have one band:
-                    shape=(tiles, tile_size, tile_size)
-
-            else:
-                shape=(bands, height, width)
-                if the image does only have one band:
-                    shape=(height, width)
+            - `(bands, height, width)` if ``tile_size=None``. If the image does
+            only have one band, `(height, width)`.
 
     """
     # check the type of path
@@ -252,12 +246,12 @@ def is_divisible(img_size, tile_size, pad=False):
     tile_size : `int`
         The size of the tile.
     pad : `bool`, optional
-        Whether to center pad the input image. The default is False.
+        Whether to center pad the input image. The default is `False`.
 
     Raises
     ------
     ValueError
-        Raised if the image is not evenly divisible and ``pad`` = False.
+        Raised if the image is not evenly divisible and ``pad=False``.
 
     Returns
     -------
@@ -334,7 +328,7 @@ def check_tile_extend(img_size, topleft, tile_size):
     -------
     nrows : `int`
         Number of rows of the tile within the image.
-    ncols : TYPE
+    ncols : `int`
         Number of columns of the tile within the image.
 
     """
@@ -382,7 +376,7 @@ def tile_topleft_corner(img_size, tile_size):
     -------
     indices : `dict`
         The keys of ``indices`` are the tile ids (`int`) and the values are the
-        topleft corners (`tuple` = (y, x)) of the tiles.
+        topleft corners (y, x) of the tiles.
 
     """
     # check if the image is divisible into square tiles of size
@@ -411,14 +405,14 @@ def reconstruct_scene(tiles):
 
     Parameters
     ----------
-    tiles : `torch.Tensor` or `numpy.ndarray`
-        The tiled image, shape=(tiles, bands, tile_size, tile_size) or
-        shape=(tiles, tile_size, tile_size).
+    tiles : :py:class:`torch.Tensor` or :py:class:`numpy.ndarray`
+        The tiled image, shape: `(tiles, bands, tile_size, tile_size)` or
+        `(tiles, tile_size, tile_size)`.
 
     Returns
     -------
-    image : `numpy.ndarray`
-        The reconstructed image.
+    image : :py:class:`numpy.ndarray`
+        The reconstructed image, shape: `(bands, height, width)`.
 
     """
     # convert to numpy array
@@ -453,9 +447,9 @@ def accuracy_function(outputs, labels):
 
     Parameters
     ----------
-    outputs : `torch.Tensor` or array_like
+    outputs : :py:class:`torch.Tensor` or `array_like`
         The model prediction.
-    labels : `torch.Tensor` or array_like
+    labels : :py:class:`torch.Tensor` or `array_like`
         The ground truth.
 
     Returns
@@ -666,13 +660,13 @@ def doy2date(year, doy):
     Parameters
     ----------
     year : `int`
-        The year
+        The year.
     doy : `int`
-        The day of the year
+        The day of the year.
 
     Returns
     -------
-    date : `datetime.datetime`
+    date : :py:class:`datetime.datetime`
         The converted date.
     """
     # convert year/day of year to a datetime object
@@ -689,8 +683,8 @@ def item_in_enum(name, enum):
     ----------
     name : `str`
         Name of the item.
-    enum : `enum.Enum`
-        An instance of `enum.Enum`.
+    enum : :py:class:`enum.Enum`
+        An instance of :py:class:`enum.Enum`.
 
     Raises
     ------
@@ -718,25 +712,25 @@ def destack_tiff(image, outpath=None, overwrite=False, remove=False,
     """Destack a TIFF with more than one band into a TIFF file for each band.
 
     Each band in ``image`` is saved to ``outpath`` as distinct TIFF file.
-    The default filenames are: "filename(``image``) + _B(i).tif", where i is
-    the respective number of each band in ``image``.
+    The default filenames are: `"filename(``image``) + _B(i).tif"`, where `i`
+    is the respective number of each band in ``image``.
 
     Parameters
     ----------
-    image : `str` or `pathlib.Path`
+    image : `str` or :py:class:`pathlib.Path`
         The TIFF to destack.
     outpath : `str`, optional
-        Path to save the output TIFF files. The default is None. If None,
+        Path to save the output TIFF files. The default is `None`. If `None`,
         ``outpath`` is the path to ``image``.
     remove : `bool`, optional
         Whether to remove ``image`` from disk after destacking. The default is
-        False.
+        `False`.
     overwrite : `bool`, optional
-        Whether to overwrite existing TIFF files.
+        Whether to overwrite existing TIFF files. The default is `False`.
     suffix : `str`, optional
         String to append to the filename of ``image``. If specified, the TIFF
-        filenames for each band in ``image`` are, "filename(``image``) +
-        + _B(i)_ + ``suffix``.tif". The default is ''.
+        filenames for each band in ``image`` are, `"filename(``image``) +
+        + _B(i)_ + ``suffix``.tif"`. The default is `''`.
 
     Raises
     ------
@@ -841,39 +835,33 @@ def standard_eo_structure(source_path, target_path, overwrite=False,
     The directory tree in ``source_path`` is modified to the following
     structure in ``target_path``:
 
-        target_path/
-            scene_id_1/
-                files matching scene_id_1
-            scene_id_2/
-                files matching scene_id_2
-            .
-            .
-            .
-            scene_id_n/
-                files matching scene_id_n
+        - target_path/
+            - scene_id_1/
+                - files matching scene_id_1
+            - scene_id_2/
+                - files matching scene_id_2
+            - ...
+            - scene_id_n/
+                - files matching scene_id_n
 
 
     Parameters
     ----------
-    source_path : `str` or `pathlib.Path`
+    source_path : `str` or :py:class:`pathlib.Path`
         Path to the remote sensing dataset.
-    target_path : `str` or `pathlib.Path`
+    target_path : `str` or :py:class:`pathlib.Path`
         Path to save the restructured dataset.
     overwrite : `bool`, optional
         Whether to overwrite existing files in ``target_path``.
-        The default is True.
+        The default is `False`.
     move : `bool`, optional
         Whether to move the files from ``source_path`` to ``target_path``. If
-        True, files in ``source_path`` are moved to ``target_path``, if False,
-        files in ``source_path`` are copied to ``target_path``. The default is
-        False.
+        `True`, files in ``source_path`` are moved to ``target_path``, if
+        `False`, files in ``source_path`` are copied to ``target_path``. The
+        default is `False`.
     parser : `function`, optional
         The scene identifier parsing function. Depends on the sensor of the
-        dataset. See e.g., `pysegcnn.core.utils.parse_landsat_scene`.
-
-    Returns
-    -------
-    None.
+        dataset. See e.g., :py:func:`pysegcnn.core.utils.parse_landsat_scene`.
 
     """
     # create a directory for each scene
@@ -931,17 +919,18 @@ def extract_archive(inpath, outpath, overwrite=False):
 
     Parameters
     ----------
-    inpath : `str` or `pathlib.Path`
+    inpath : `str` or :py:class:`pathlib.Path`
         Path to an archive.
-    outpath : `str` or `pathlib.Path`
+    outpath : `str` or :py:class:`pathlib.Path`
         Path to save extracted files.
     overwrite : `bool`, optional
-        Whether to overwrite existing extracted files.
+        Whether to overwrite existing extracted files. The default is `False`.
 
     Returns
     -------
-    subdir : str
-        path to the extracted files
+    target : :py:class:`pathlib.Path`
+        Path to the extracted files.
+
     """
     inpath = pathlib.Path(inpath)
 
@@ -984,7 +973,7 @@ def read_landsat_metadata(file):
 
     Parameters
     ----------
-    file : `str` or `pathlib.Path`
+    file : `str` or :py:class:`pathlib.Path`
         Path to a Landsat *_MTL.txt file.
 
     Raises
@@ -997,6 +986,7 @@ def read_landsat_metadata(file):
     metadata : `dict`
         The metadata text file as dictionary, where each line is a (key, value)
         pair.
+
     """
     file = pathlib.Path(file)
     # check if the metadata file exists
@@ -1032,7 +1022,8 @@ def get_radiometric_constants(metadata):
     Parameters
     ----------
     metadata : `dict`
-        The dictionary returned by ``read_landsat_metadata``.
+        The dictionary returned by
+        :py:func:`pysegcnn.core.utils.read_landsat_metadata`.
 
     Returns
     -------
@@ -1040,6 +1031,7 @@ def get_radiometric_constants(metadata):
         Radiometric rescaling factors of the OLI sensor.
     tir : `dict`
         Thermal conversion constants of the TIRS sensor.
+
     """
     # regular expression patterns matching the radiometric rescaling factors
     oli_pattern = re.compile('(RADIANCE|REFLECTANCE)_(MULT|ADD)_BAND_\\d{1,2}')
@@ -1064,40 +1056,40 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
     Convert the Landsat OLI bands to top of atmosphere radiance or reflectance
     and the TIRS bands to top of atmosphere brightness temperature.
 
-    Conversion is performed following the `equations`_ provided by the USGS.
+    .. important::
+
+        Conversion is performed following the `equations`_ provided by the
+        USGS.
 
     The filename of each band is extended by one of the following suffixes,
     depending on the type of the radiometric calibration:
 
-        'toa_ref': top of atmosphere reflectance
-        'toa_rad': top of atmopshere radiance
-        'toa_brt': top of atmosphere brightness temperature
+        - `'toa_ref'`: top of atmosphere reflectance
+        - `'toa_rad'`: top of atmopshere radiance
+        - `'toa_brt'`: top of atmosphere brightness temperature
 
     Parameters
     ----------
-    scene : `str` or `pathlib.Path`
+    scene : `str` or :py:class:`pathlib.Path`
         Path to a Landsat scene in digital number format.
-    outpath : `str` or `pathlib.Path`, optional
-        Path to save the calibrated images. The default is None, which means
-        saving to ``scene``.
+    outpath : `str` or :py:class:`pathlib.Path`, optional
+        Path to save the calibrated images. The default is `None`, which means
+        saving in the same directory ``scene``.
     exclude : `list` [`str`], optional
-        Bands to exclude from the radiometric calibration. The default is [].
+        Bands to exclude from the radiometric calibration. The default is `[]`.
     radiance : `bool`, optional
-        Whether to calculate top of atmosphere radiance. The default is False,
-        which means calculating top of atmopshere reflectance.
+        Whether to calculate top of atmosphere radiance. The default is `False`
+        , which means calculating top of atmopshere reflectance.
     overwrite : `bool`, optional
-        Whether to overwrite the calibrated images. The default is False.
+        Whether to overwrite the calibrated images. The default is `False`.
     remove_raw : `bool`, optional
-        Whether to remove the raw digitial number images. The default is True.
+        Whether to remove the raw digitial number images. The default is `True`
+        .
 
     Raises
     ------
     FileNotFoundError
         Raised if ``scene`` does not exist.
-
-    Returns
-    -------
-    None.
 
     .. _equations:
         https://www.usgs.gov/land-resources/nli/landsat/using-usgs-landsat-level-1-data-product

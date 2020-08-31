@@ -20,7 +20,7 @@ import pathlib
 
 # the logging configuration dictionary
 def log_conf(logfile):
-    """Set basic logging configuration passed to `logging.config.dictConfig`.
+    """Set basic logging configuration.
 
     See the logging `docs`_ for a detailed description of the configuration
     dictionary.
@@ -30,7 +30,7 @@ def log_conf(logfile):
 
     Parameters
     ----------
-    logfile : `str` or `pathlib.Path`
+    logfile : `str` or :py:class:`pathlib.Path`
         The file to save the logs to.
 
     Returns

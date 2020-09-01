@@ -15,10 +15,12 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
+import pathlib
 import logging
 
 # externals
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Subset
@@ -26,7 +28,7 @@ import torch.nn.functional as F
 
 # locals
 from pysegcnn.core.utils import reconstruct_scene, accuracy_function
-from pysegcnn.core.graphics import plot_sample
+from pysegcnn.core.graphics import plot_sample, Animate
 from pysegcnn.core.split import RandomSubset, SceneSubset
 
 # module level logger
@@ -167,19 +169,20 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
 
             # plot inputs, ground truth and model predictions
             sname = fname + '_{}_{}.pt'.format(ds.name, batch)
-            fig, ax = plot_sample(inputs.numpy().squeeze().clip(0, 1),
-                                  ds.dataset.use_bands,
-                                  ds.dataset.labels,
-                                  y=labels.numpy().squeeze(),
-                                  y_pred=prd.numpy(),
-                                  state=sname,
-                                  **kwargs)
+            _ = plot_sample(inputs.numpy().squeeze().clip(0, 1),
+                            ds.dataset.use_bands,
+                            ds.dataset.labels,
+                            y=labels.numpy().squeeze(),
+                            y_pred=prd.numpy(),
+                            state=sname,
+                            **kwargs)
 
     return output, conf_mat
 
 
-def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
-    """Classify each scene in ``ds`` with model ``model``.
+def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
+                   animate=False, anim_path=None, **kwargs):
+    """Classify each scene of the dataset ``ds`` with model ``model``.
 
     Parameters
     ----------
@@ -194,6 +197,11 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
     plot : `bool`, optional
         Whether to plot a false color composite, ground truth and model
         prediction for each scene. The default is `False`.
+    animate : `bool`, optional
+        Whether to create an animation of (input, ground truth, prediction) for
+        the scenes of the dataset ``ds``. The default is `False`.
+    anim_path : `str` or :py:class:`pathlib.Path` or `None`, optional
+        Path to save animations. The default is `None`.
     **kwargs
         Additional keyword arguments passed to
         :py:func:`pysegcnn.core.graphics.plot_sample`.
@@ -234,7 +242,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
     model.to(device)
 
     # base filename for each scene
-    fname = model.state_file.name.split('.pt')[0]
+    fname = model.state_file.stem
 
     # initialize confusion matrix
     conf_mat = np.zeros(shape=(model.nclasses, model.nclasses))
@@ -245,6 +253,18 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
     else:
         # the name of the selected scene
         scene_ids = [scene_id]
+
+    # instanciate figure
+    fig, _ = plt.subplots(1, 3, figsize=kwargs['figsize'])
+
+    # check whether to animate figures
+    if animate:
+        # check whether the output path is valid
+        anim_path = pathlib.Path(anim_path)
+        if not anim_path.exists():
+            # create output path
+            anim_path.mkdir(parents=True, exist_ok=True)
+        anim = Animate(anim_path)
 
     # iterate over the scenes
     LOGGER.info('Predicting scenes of the {} dataset ...'.format(ds.name))
@@ -295,12 +315,22 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False, **kwargs):
 
         # plot current scene
         if plot:
-            fig, ax = plot_sample(inputs.clip(0, 1),
-                                  ds.dataset.use_bands,
-                                  ds.dataset.labels,
-                                  y=labels,
-                                  y_pred=prdtcn,
-                                  state=sname,
-                                  **kwargs)
+            # plot inputs, ground truth and model predictions
+            _ = plot_sample(inputs.clip(0, 1),
+                            ds.dataset.use_bands,
+                            ds.dataset.labels,
+                            y=labels,
+                            y_pred=prdtcn,
+                            state=sname,
+                            fig=fig,
+                            **kwargs)
+            # save current figure state as frame for animation
+            if animate:
+                anim.frame(fig.axes)
+
+    # save animation
+    if animate:
+        anim.animate(fig, interval=1000, repeat=True, blit=True)
+        anim.save(fname + '_{}.gif'.format(ds.name), dpi=200)
 
     return output, conf_mat

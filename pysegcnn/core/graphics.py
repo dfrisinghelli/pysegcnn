@@ -16,15 +16,18 @@ License
 
 # builtins
 import os
+import pathlib
 import itertools
 
 # externals
 import numpy as np
 import torch
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
 # locals
@@ -33,7 +36,7 @@ from pysegcnn.main.config import HERE
 
 
 def contrast_stretching(image, alpha=5):
-    """Apply percentile stretching to an image to increase constrast.
+    """Apply `normalization`_ to an image to increase constrast.
 
     Parameters
     ----------
@@ -45,7 +48,10 @@ def contrast_stretching(image, alpha=5):
     Returns
     -------
     norm : :py:class:`numpy.ndarray`
-        The contrast-stretched image.
+        The normalized image.
+
+    .. normalization:
+        https://en.wikipedia.org/wiki/Normalization_(image_processing)
 
     """
     # compute upper and lower percentiles defining the range of the stretch
@@ -53,8 +59,8 @@ def contrast_stretching(image, alpha=5):
 
     # normalize image intensity distribution to
     # (alpha, 100 - alpha) percentiles
-    norm = ((image - inf) * (image.max() - image.min()) /
-            (sup - inf)) + image.min()
+    norm = ((image - inf) * ((image.max() - image.min()) / (sup - inf))
+            + image.min())
 
     # clip: values < min = min, values > max = max
     norm[norm <= image.min()] = image.min()
@@ -83,9 +89,16 @@ def running_mean(x, w):
     return (cumsum[w:] - cumsum[:-w]) / w
 
 
-def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
-                bands=['nir', 'red', 'green'], state=None,
-                outpath=os.path.join(HERE, '_samples/'), alpha=0):
+def plot_sample(x, use_bands, labels,
+                y=None,
+                y_pred=None,
+                figsize=(16, 9),
+                bands=['nir', 'red', 'green'],
+                alpha=0,
+                state=None,
+                fig=None,
+                plot_path=os.path.join(HERE, '_samples/')
+                ):
     """Plot false color composite (FCC), ground truth and model prediction.
 
     Parameters
@@ -108,27 +121,52 @@ def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
         Array containing the prediction for tile ``x``, shape=(height, width).
         The default is `None`, i.e. the prediction is not plotted.
     figsize : `tuple`, optional
-        The figure size in centimeters. The default is `(10, 10)`.
+        The figure size in centimeters. The default is `(16, 9)`.
     bands : `list` [`str`], optional
         The bands to build the FCC. The default is `['nir', 'red', 'green']`.
+    alpha : `int`, optional
+        The level of the percentiles to increase constrast in the FCC.
+        The default is `0`, i.e. no stretching is applied.
     state : `str` or `None`, optional
         Filename to save the plot to. ``state`` should be an existing model
         state file ending with `'.pt'`. The default is `None`, i.e. the plot is
         not saved to disk.
-    outpath : `str` or :py:class:`pathlib.Path`, optional
-        Output path. The default is `'pysegcnn/main/_samples'`.
-    alpha : `int`, optional
-        The level of the percentiles to increase constrast in the FCC.
-        The default is `0`, i.e. no stretching is applied.
+    fig : :py:class:`matplotlib.figure.Figure` or `None`, optional
+        An instance of :py:class:`matplotlib.figure.Figure`. If specified, the
+        images are plotted on this figure. ``fig`` needs to have one row with
+        three axes, e.g.:
+
+        .. code-block: python
+
+            fig, _ = matplotlib.pyplot.subplots(1, 3)
+
+        The default is `None`, which means a new figure of size ``figsize`` is
+        created. Useful for creating animations.
+    plot_path : `str` or :py:class:`pathlib.Path`, optional
+        Output path for static plots. The default is
+        `'pysegcnn/main/_samples'`.
+
+    Raises
+    ------
+    TypeError
+        Raised if ``fig`` is not `None` or an instance of
+        :py:class:`matplotlib.figure.Figure`.
 
     Returns
     -------
     fig : :py:class:`matplotlib.figure.Figure`
-        The figure handle.
+        An instance of :py:class:`matplotlib.figure.Figure`.
     ax : :py:class:`numpy.ndarray`
-        An array of the axes handles.
+        A :py:class:`numpy.ndarray` of
+        :py:class:`matplotlib.axes._subplots.AxesSubplot` instances.
 
     """
+    # check whether the output path is valid
+    plot_path = pathlib.Path(plot_path)
+    if not plot_path.exists():
+        # create output path
+        plot_path.mkdir(parents=True, exist_ok=True)
+
     # check whether to apply constrast stretching
     rgb = np.dstack([contrast_stretching(x[use_bands.index(band), ...], alpha)
                      for band in bands])
@@ -147,49 +185,71 @@ def plot_sample(x, use_bands, labels, y=None, y_pred=None, figsize=(10, 10),
                zip(colors, ulabels)]
 
     # initialize figure
-    fig, ax = plt.subplots(1, 3, figsize=figsize)
+    if fig is None:
+        fig, _ = plt.subplots(1, 3, figsize=figsize)
+    else:
+        # require the passed figure to have at least three axes
+        if not isinstance(fig, matplotlib.figure.Figure):
+            raise TypeError('fig needs to be an instance of {}.'
+                            .format(repr(plt.Figure)))
 
     # plot false color composite
-    ax[0].imshow(rgb)
-    ax[0].set_title('R = {}, G = {}, B = {}'.format(*bands), pad=15)
+    fig.axes[0].imshow(rgb)
+    fig.axes[0].set_title('R = {}, G = {}, B = {}'.format(*bands), pad=15)
 
     # check whether to plot ground truth
-    acc = None
-    if y is None:
-        # remove axis to plot ground truth from figure
-        fig.delaxes(ax[1])
-    else:
+    if y is not None:
         # plot ground thruth mask
-        ax[1].imshow(y, cmap=cmap, interpolation='nearest', norm=norm)
-        ax[1].set_title('Ground truth', pad=15)
+        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', norm=norm)
+        fig.axes[1].set_title('Ground truth', pad=15)
+    else:
+        _del_axis(fig, 1)
 
     # check whether to plot model prediction
-    if y_pred is None:
-        # remove axis to plot model prediction from figure
-        fig.delaxes(ax[2])
-    else:
+    if y_pred is not None:
         # plot model prediction
-        ax[2].imshow(y_pred, cmap=cmap, interpolation='nearest', norm=norm)
+        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest',
+                           norm=norm)
 
         # set title
         title = 'Prediction'
         if y is not None:
             acc = accuracy_function(y_pred, y)
             title += ' ({:.2f}%)'.format(acc * 100)
-        ax[2].set_title(title, pad=15)
+        fig.axes[2].set_title(title, pad=15)
+    else:
+        _del_axis(fig, 2)
 
     # if a ground truth or a model prediction is plotted, add legend
     if len(fig.axes) > 1:
-        plt.legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
-                   frameon=False)
-
+        fig.axes[-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
+                            frameon=False)
     # save figure
     if state is not None:
-        os.makedirs(outpath, exist_ok=True)
-        fig.savefig(os.path.join(outpath, state.replace('.pt', '.png')),
+        fig.savefig(plot_path.joinpath(state.replace('.pt', '.png')),
                     dpi=300, bbox_inches='tight')
 
-    return fig, ax
+    return fig
+
+
+def _del_axis(fig, idx):
+    """Quietly remove an axis from a figure.
+
+    Parameters
+    ----------
+    fig : :py:class:`matplotlib.figure.Figure`
+        An instance of :py:class:`matplotlib.figure.Figure`.
+    idx : `int`
+        The number of the axis to remove.
+
+    """
+    # remove axis ``idx``
+    try:
+        fig.delaxes(fig.axes[idx])
+    # an IndexError is raised, if the axis ``idx`` does not exist
+    except IndexError:
+        # quietly pass
+        return
 
 
 def plot_confusion_matrix(cm, labels, normalize=True,
@@ -224,9 +284,9 @@ def plot_confusion_matrix(cm, labels, normalize=True,
     Returns
     -------
     fig : :py:class:`matplotlib.figure.Figure`
-        The figure handle.
+        An instance of :py:class:`matplotlib.figure.Figure`.
     ax : :py:class:`matplotlib.axes._subplots.AxesSubplot`
-        The axes handle.
+        An instance of :py:class:`matplotlib.axes._subplots.AxesSubplot`.
 
     """
     # number of classes
@@ -319,7 +379,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
     Returns
     -------
     fig : :py:class:`matplotlib.figure.Figure`
-        The figure handle.
+        An instance of :py:class:`matplotlib.figure.Figure`.
 
     """
     # load the model state
@@ -393,3 +453,135 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
                 dpi=300, bbox_inches='tight')
 
     return fig
+
+
+class Animate(object):
+    """Easily create animations with :py:mod:`matplotlib`.
+
+    .. important::
+
+        Inspired by `celluloid`_.
+
+    Attributes
+    ----------
+    axes_artists : `list`
+        List of :py:mod:`matplotlib` artist names. These artists are stored for
+        each frame. See the matplotlib documentation on the abstract `Artists`_
+        class.
+    path : :py:class:`pathlib.Path`
+        Path to save animations.
+    frames : `list`
+        List of frames to generate animation. ``frames`` is populated by
+        calling the :py:meth:`~pysegcnn.core.graphics.Animate.frame` method.
+    animation : :py:class:`matplotlib.animation.ArtistAnimation`
+        The animation with frames ``frames``. ``animation`` is generated by
+        calling the :py:meth:`~pysegcnn.core.graphics.Animate.animate` method.
+
+    .. _celluloid:
+        https://github.com/jwkvam/celluloid
+
+    .. _Artists:
+        https://matplotlib.org/tutorials/intermediate/artists.html
+
+    """
+
+    # axes artists to store for each frame
+    axes_artists = [
+        'images', 'patches', 'texts', 'artists', 'collections', 'lines'
+        ]
+
+    def __init__(self, path):
+        """Initialize.
+
+        Parameters
+        ----------
+        path : `str` or :py:class:`pathlib.Path`
+            Path to save animations.
+
+        """
+        self.path = pathlib.Path(path)
+
+        # list of animation frames
+        self.frames = []
+
+    def frame(self, axes):
+        """Create a snapshot of the current figure state.
+
+        Parameters
+        ----------
+        axes : `list` [:py:class:`matplotlib.axes._subplots.AxesSubplot`]
+            A list of :py:class:`matplotlib.axes._subplots.AxesSubplot`
+            instances.
+
+        """
+        # artists in the current frame
+        frame_artists = []
+
+        # iterate over the axes
+        for i, ax in enumerate(axes):
+            # iterate over the artists
+            for artist in self.axes_artists:
+                # get current artist
+                ca = getattr(ax, artist)
+
+                # add current artist to frame if it does not already exist
+                frame_artists.extend([a for a in ca if a not in
+                                      np.array(self.frames).flatten()])
+
+        # append frame to list of frames to animate
+        self.frames.append(frame_artists)
+
+    def animate(self, fig, **kwargs):
+        """Create an animation.
+
+        Parameters
+        ----------
+        fig : :py:class:`matplotlib.figure.Figure`
+            An instance of :py:class:`matplotlib.figure.Figure`.
+        **kwargs
+            Additional keyword arguments passed to
+            :py:class:`matplotlib.animation.ArtistAnimation`.
+
+        Returns
+        -------
+        animation : :py:class:`matplotlib.animation.ArtistAnimation`
+            The animation.
+
+        """
+        self.animation = ArtistAnimation(fig, self.frames, **kwargs)
+        return self.animation
+
+    def save(self, filename, **kwargs):
+        """Save a `gif`_ animation to disk.
+
+        .. important::
+
+            This requires `ImageMagick`_ to be installed on your system.
+
+        Parameters
+        ----------
+        filename : `str` or :py:class:`pathlib.Path`
+            Path to save animation.
+        **kwargs
+            Additional keyword arguments passed to
+            :py:meth:`matplotlib.animation.ArtistAnimation.save`.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``filename`` does not point to a gif file.
+
+        .. _ImageMagick:
+            https://imagemagick.org/
+
+        .. _gif:
+            https://de.wikipedia.org/wiki/Graphics_Interchange_Format
+
+        """
+        if not str(filename).endswith('.gif'):
+            raise ValueError('filename should point to a gif file, got {}.'
+                             .format(pathlib.Path(filename).suffix))
+
+        # save animation to disk
+        self.animation.save(str(self.path.joinpath(filename)),
+                            writer='imagemagick', **kwargs)

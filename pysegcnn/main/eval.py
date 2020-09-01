@@ -74,14 +74,15 @@ if __name__ == '__main__':
     if ec.predict_scene:
         # reconstruct and predict the scenes in the validation/test set
         scenes, cm = predict_scenes(ds, model, scene_id=None, cm=ec.cm,
-                                    plot=ec.plot_scenes,
-                                    outpath=ec.scenes_path, **kwargs)
+                                    plot=ec.plot_scenes, animate=ec.animate,
+                                    anim_path=ec.animtn_path,
+                                    plot_path=ec.scenes_path, **kwargs)
 
     else:
         # predict the samples in the validation/test set
         samples, cm = predict_samples(ds, model, cm=ec.cm,
                                       plot=ec.plot_samples,
-                                      outpath=ec.sample_path, **kwargs)
+                                      plot_path=ec.sample_path, **kwargs)
 
     # whether to plot the confusion matrix
     if ec.cm:

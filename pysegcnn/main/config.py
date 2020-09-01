@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
 DATASET_NAME = 'Sparcs'
@@ -270,7 +270,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t005v05_t125_b64_r4g3b2n5.pt',
+    'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
@@ -291,22 +291,31 @@ eval_config = {
     #       split_mode="date"
     'predict_scene': True,
 
-    # whether to save plots of (input, ground truth, prediction) of the samples
-    # from the validation/test dataset to disk, applies if predict_scene=False
+    # whether to save plots of (input, ground truth, prediction) for each
+    # sample in the train/validation/test dataset to disk, applies if
+    # predict_scene=False
     # output path is: pysegcnn/main/_samples/
     'plot_samples': False,
 
     # whether to save plots of (input, ground truth, prediction) for each scene
-    # in the validation/test dataset to disk, applies if predict_scene=True
+    # in the train/validation/test dataset to disk, applies if
+    # predict_scene=True
     # output path is: pysegcnn/main/_scenes/
     'plot_scenes': True,
+
+    # whether to create an animation of (input, ground truth, prediction) for
+    # the scenes in the train/validation/test dataset. Useful when predicting a
+    # time-series.
+    # NOTE: this option only works if predict_scene=True and plot_scenes=True
+    # output path is: pysegcnn/main/_animations/
+    'animate': True,
 
     # plot_bands defines the bands used to plot a false color composite of
     # the input scene: red': bands[0], green': bands[1], blue': bands[2]
     'plot_bands': ['nir', 'red', 'green'],
 
     # size of the figures
-    'figsize': (10, 10),
+    'figsize': (16, 9),
 
     # degree of constrast stretching for false color composite
     'alpha': 5

@@ -879,6 +879,9 @@ class EvalConfig(BaseConfig):
     alpha : `int`
         The level of the percentiles for contrast stretching of the false color
         compsite. The default is `0`, i.e. no stretching.
+    animate : `bool`
+        Whether to create an animation of (input, ground truth, prediction) for
+        the scenes in the train/validation/test dataset.
     base_path : :py:class:`pathlib.Path`
         Root path to store model output.
     sample_path : :py:class:`pathlib.Path`
@@ -889,6 +892,8 @@ class EvalConfig(BaseConfig):
         Path to store plots of model performance, e.g. confusion matrix.
     models_path : :py:class:`pathlib.Path`
         Path to search for model state files, i.e. pretrained models.
+    animtn_path : :py:class:`pathlib.Path`
+        Path to store animations.
 
     """
 
@@ -902,6 +907,7 @@ class EvalConfig(BaseConfig):
     cm: bool = True
     figsize: tuple = (10, 10)
     alpha: int = 5
+    animate: bool = False
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -926,6 +932,7 @@ class EvalConfig(BaseConfig):
         self.sample_path = self.base_path.joinpath('_samples')
         self.scenes_path = self.base_path.joinpath('_scenes')
         self.perfmc_path = self.base_path.joinpath('_graphics')
+        self.animtn_path = self.base_path.joinpath('_animations')
 
         # input path for model state files
         self.models_path = self.base_path.joinpath('_models')
@@ -981,7 +988,6 @@ class EvalConfig(BaseConfig):
                     # replace dataset path
                     if dpath != dataset_path:
                         scene[k] = v.replace(str(dpath), dataset_path)
-
 
 
 @dataclasses.dataclass

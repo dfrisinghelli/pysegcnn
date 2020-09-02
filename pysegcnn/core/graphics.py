@@ -193,14 +193,17 @@ def plot_sample(x, use_bands, labels,
 
     # plot false color composite
     fig.axes[0].imshow(rgb)
-    fig.axes[0].set_title('R = {}, G = {}, B = {}'.format(*bands), pad=15)
+    fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
+                     transform=fig.axes[0].transAxes, ha='center', va='bottom')
 
     # check whether to plot ground truth
     if y is not None:
         # plot ground thruth mask
         fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', vmin=0,
                            vmax=len(colors))
-        fig.axes[1].set_title('Ground truth', pad=15)
+        fig.axes[1].text(0.5, 1.04, 'Ground truth',
+                         transform=fig.axes[1].transAxes, ha='center',
+                         va='bottom')
     else:
         _del_axis(fig, 1)
 
@@ -215,7 +218,8 @@ def plot_sample(x, use_bands, labels,
         if y is not None:
             acc = accuracy_function(y_pred, y)
             title += ' ({:.2f}%)'.format(acc * 100)
-        fig.axes[2].set_title(title, pad=15)
+        fig.axes[2].text(0.5, 1.04, title, transform=fig.axes[2].transAxes,
+                         ha='center', va='bottom')
     else:
         _del_axis(fig, 2)
 

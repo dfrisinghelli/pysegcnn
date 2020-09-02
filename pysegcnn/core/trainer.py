@@ -799,7 +799,8 @@ class StateConfig(BaseConfig):
         # get the band numbers
         if self.dc.bands:
             bformat = ''.join(band[0] +
-                              str(self.dc.get_sensor().__members__[band].value)
+                              str(self.dc.dataset_class.get_sensor().
+                                  __members__[band].value)
                               for band in self.dc.bands)
         else:
             bformat = 'all'

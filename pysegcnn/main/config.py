@@ -27,18 +27,18 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
-DATASET_NAME = 'Sparcs'
+# DATASET_NAME = 'Sparcs'
 # DATASET_NAME = 'Cloud95'
-# DATASET_NAME = 'Garmisch'
+DATASET_NAME = 'Garmisch'
 
 # path to the dataset
-DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
+# DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
 # DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME, 'Training')
-# DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
+DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
 
 # the dataset configuration dictionary
 dataset_config = {
@@ -54,8 +54,8 @@ dataset_config = {
     'root_dir': DATASET_PATH,
 
     # a regex pattern to match the ground truth file naming convention
-    'gt_pattern': '(.*)mask\\.png',
-    # 'gt_pattern': '(.*)class\\.img',
+    # 'gt_pattern': '(.*)mask\\.png',
+    'gt_pattern': '(.*)class\\.img',
 
     # define the bands to use to train the segmentation network:
     # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -78,7 +78,8 @@ dataset_config = {
 
     # whether to sort the dataset in chronological order, useful for time
     # series data
-    'sort': False,
+    'sort': True,
+    # 'sort': False,
 
     # whether to artificially increase the training data size using data
     # augmentation methods
@@ -144,7 +145,9 @@ split_config = {
     #                time series data
     #                scenes before date build the training set, scenes after
     #                the date build the validation set, the test set is empty
-    'split_mode': 'scene',
+    'split_mode': 'date',
+    # 'split_mode': 'random',
+    # 'split_mode': 'scene',
 
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
@@ -161,7 +164,7 @@ split_config = {
     # scenes before date build the training set, scenes after the date build
     # the validation set, the test set is empty
     # used if split_mode='date'
-    'date': 'yyyymmdd',
+    'date': '20161231',
     'dateformat': '%Y%m%d',
 
     # whether to drop samples (during training only) with a fraction of
@@ -210,10 +213,13 @@ model_config = {
     # was trained on
 
     # whether to use a pretrained model for transfer learning
-    'transfer': False,
+    'transfer': True,
+    # 'transfer': False,
 
     # name of the pretrained model to apply to a different dataset
-    'pretrained_model': 'UNet_SparcsDataset_t125_b64_rgbn.pt',
+    'pretrained_model': 'UNet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'pretrained_model': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+
 
     # Training ----------------------------------------------------------------
 
@@ -242,11 +248,11 @@ model_config = {
     'early_stop': True,
     'mode': 'max',
     'delta': 0,
-    'patience': 10,
+    'patience': 5,
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
-    'epochs': 200,
+    'epochs': 50,
 
     # define a loss function to calculate the network error
     'loss_name': 'CrossEntropy',
@@ -270,7 +276,8 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'state_file': 'UNet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set

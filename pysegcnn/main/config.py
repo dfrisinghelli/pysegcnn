@@ -217,8 +217,8 @@ model_config = {
     # 'transfer': False,
 
     # name of the pretrained model to apply to a different dataset
-    'pretrained_model': 'UNet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'pretrained_model': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'pretrained_model': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'pretrained_model': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
 
     # Training ----------------------------------------------------------------
@@ -276,8 +276,8 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'UNet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'state_file': 'UNet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set

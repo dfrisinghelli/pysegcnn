@@ -306,6 +306,8 @@ class CustomSubset(Subset):
     ----------
     dataset : :py:class:`pysegcnn.core.dataset.ImageDataset`
         The dataset to split into subsets.
+    split_mode : `str`
+        The mode to split the dataset.
     indices : `list` [`int`]
         List of indices to access the dataset.
     name : `str`
@@ -317,13 +319,15 @@ class CustomSubset(Subset):
 
     """
 
-    def __init__(self, ds, indices, name, scenes, scene_ids):
+    def __init__(self, ds, split_mode, indices, name, scenes, scene_ids):
         """Initialize.
 
         Parameters
         ----------
         ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
             An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        split_mode : `str`
+            The mode to split the dataset.
         indices : `list` [`int`]
             List of indices to access ``ds``. ``indices`` must be pairwise
             disjoint for each subset derived from the same dataset ``ds``.
@@ -336,6 +340,9 @@ class CustomSubset(Subset):
 
         """
         super().__init__(dataset=ds, indices=indices)
+
+        # the mode to split the dataset
+        self.split_mode = split_mode
 
         # the name of the subset
         self.name = name
@@ -355,9 +362,9 @@ class CustomSubset(Subset):
             The representation string.
 
         """
-        fs = '- {}: {:d} tiles ({:.2f}%)'.format(
+        fs = '- {}: {:d} tiles ({:.2f}%), mode = {}'.format(
             self.name, len(self.scenes), 100 * len(self.scenes) /
-            len(self.dataset))
+            len(self.dataset), self.split_mode)
 
         return fs
 
@@ -365,15 +372,15 @@ class CustomSubset(Subset):
 class SceneSubset(CustomSubset):
     """A custom subset for dataset splits where the scenes are preserved."""
 
-    def __init__(self, ds, indices, name, scenes, scene_ids):
-        super().__init__(ds, indices, name, scenes, scene_ids)
+    def __init__(self, ds, split_mode, indices, name, scenes, scene_ids):
+        super().__init__(ds, split_mode, indices, name, scenes, scene_ids)
 
 
 class RandomSubset(CustomSubset):
     """A custom subset for random dataset splits."""
 
-    def __init__(self, ds, indices, name, scenes, scene_ids):
-        super().__init__(ds, indices, name, scenes, scene_ids)
+    def __init__(self, ds, split_mode, indices, name, scenes, scene_ids):
+        super().__init__(ds, split_mode, indices, name, scenes, scene_ids)
 
 
 class Split(object):
@@ -388,6 +395,8 @@ class Split(object):
         The :py:meth:`~pysegcnn.core.split.Split.subsets` and
         :py:meth:`~pysegcnn.core.split.Split.subset_type` methods have to be
         implemented when inheriting :py:class:`pysegcnn.core.split.Split`.
+        Furthermore, a class attribute ``split_mode`` (`str`) has to be
+        defined and added to :py:class:`pysegcnn.core.split.SupportedSplits`.
 
     See :py:class:`pysegcnn.core.split.RandomTileSplit` for an example.
 
@@ -426,7 +435,8 @@ class Split(object):
             ids = np.unique([s['id'] for s in sub.values()])
 
             # build the subset
-            sbst = self.subset_type()(self.ds, list(sub.keys()), name,
+            sbst = self.subset_type()(self.ds, self.split_mode,
+                                      list(sub.keys()), name,
                                       list(sub.values()), ids)
             ds_split.append(sbst)
 
@@ -485,6 +495,8 @@ class DateSplit(Split):
 
     Attributes
     ----------
+    split_mode : `str`
+        The mode to split the dataset, i.e. `'date'`.
     ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
         The dataset to split into training, validation and test set.
     date : `str`
@@ -493,6 +505,9 @@ class DateSplit(Split):
         The format of ``date``.
 
     """
+
+    # the split mode
+    split_mode = 'date'
 
     def __init__(self, ds, date, dateformat):
         """Initialize.
@@ -592,6 +607,8 @@ class RandomTileSplit(RandomSplit):
 
     Attributes
     ----------
+    split_mode : `str`
+        The mode to split the dataset, i.e. `'random'`.
     ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
         The dataset to split into training, validation and test set.
     tvratio : `float`
@@ -602,6 +619,9 @@ class RandomTileSplit(RandomSplit):
         The random seed used to generate the split.
 
     """
+
+    # the split mode
+    split_mode = 'random'
 
     def __init__(self, ds, ttratio, tvratio, seed):
         super().__init__(ds, ttratio, tvratio, seed)
@@ -648,6 +668,8 @@ class RandomSceneSplit(RandomSplit):
 
     Attributes
     ----------
+    split_mode : `str`
+        The mode to split the dataset, i.e. `'scene'`.
     ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
         The dataset to split into training, validation and test set.
     tvratio : `float`
@@ -658,6 +680,9 @@ class RandomSceneSplit(RandomSplit):
         The random seed used to generate the split.
 
     """
+
+    # the split mode
+    split_mode = 'scene'
 
     def __init__(self, ds, ttratio, tvratio, seed):
         super().__init__(ds, ttratio, tvratio, seed)

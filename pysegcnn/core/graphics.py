@@ -18,6 +18,7 @@ License
 import os
 import pathlib
 import itertools
+from datetime.datetime import strftime
 
 # externals
 import numpy as np
@@ -26,7 +27,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
-from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.colors import ListedColormap
 from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
@@ -92,6 +93,7 @@ def running_mean(x, w):
 def plot_sample(x, use_bands, labels,
                 y=None,
                 y_pred=None,
+                date=None,
                 figsize=(16, 9),
                 bands=['nir', 'red', 'green'],
                 alpha=0,
@@ -120,6 +122,9 @@ def plot_sample(x, use_bands, labels,
     y_pred : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, optional
         Array containing the prediction for tile ``x``, shape=(height, width).
         The default is `None`, i.e. the prediction is not plotted.
+    date : :py:class:`datetime.datetime` or `None`
+        The date of the sample. If specified, ``date`` is plotted as title of
+        the FCC. The default is `None`, i.e. ``date`` is not used as title.
     figsize : `tuple`, optional
         The figure size in centimeters. The default is `(16, 9)`.
     bands : `list` [`str`], optional
@@ -193,8 +198,14 @@ def plot_sample(x, use_bands, labels,
 
     # plot false color composite
     fig.axes[0].imshow(rgb)
-    fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
-                     transform=fig.axes[0].transAxes, ha='center', va='bottom')
+
+    # check which title to set
+    if date is None:
+        fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
+                         transform=fig.axes[0].transAxes, ha='center',
+                         va='bottom')
+    else:
+        fig.axes[0].text(0.5, 1.04, strftime(date, '%Y-%m-%d'))
 
     # check whether to plot ground truth
     if y is not None:

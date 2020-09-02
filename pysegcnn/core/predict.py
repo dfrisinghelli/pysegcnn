@@ -55,7 +55,10 @@ def _get_scene_tiles(ds, scene_id):
     Returns
     -------
     indices : `list` [`int`]
-        List of indices of the tiles from scene with id ``scene_id`` in ``ds``.
+        List of indices of the tiles of the scene with id ``scene_id`` in
+        ``ds``.
+    date : :py:class:`datetime.datetime`
+        The date of the scene with id ``scene_id``.
 
     """
     # check if the scene id is valid
@@ -70,7 +73,7 @@ def _get_scene_tiles(ds, scene_id):
         if scene['id'] == scene_id:
             indices.append(i)
 
-    return indices
+    return indices, scene_meta['date']
 
 
 def predict_samples(ds, model, cm=False, plot=False, **kwargs):
@@ -275,8 +278,11 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
         sname = fname + '_{}_{}.pt'.format(ds.name, sid)
 
         # get the indices of the tiles of the scene
-        indices = _get_scene_tiles(ds, sid)
+        indices, date = _get_scene_tiles(ds, sid)
         indices.sort()
+
+        # check whether the dataset is a time series
+        date = date if ds.split_mode == 'date' else None
 
         # create a subset of the dataset
         scene_ds = Subset(ds, indices)
@@ -321,6 +327,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
                             ds.dataset.labels,
                             y=labels,
                             y_pred=prdtcn,
+                            date=date,
                             state=sname,
                             fig=fig,
                             **kwargs)

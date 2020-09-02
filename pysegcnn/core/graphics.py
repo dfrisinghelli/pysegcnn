@@ -18,7 +18,7 @@ License
 import os
 import pathlib
 import itertools
-from datetime.datetime import strftime
+import datetime
 
 # externals
 import numpy as np
@@ -34,6 +34,27 @@ from matplotlib import cm as colormap
 # locals
 from pysegcnn.core.trainer import accuracy_function
 from pysegcnn.main.config import HERE
+
+# plot font size configuration
+SMALL = 10
+MEDIUM = 12
+BIG = 14
+
+# controls default font size
+plt.rc('font', size=MEDIUM)
+
+# axes labels size
+plt.rc('axes', titlesize=BIG, labelsize=MEDIUM)
+
+# axes ticks size
+plt.rc('xtick', labelsize=SMALL)
+plt.rc('ytick', labelsize=SMALL)
+
+# legend font size
+plt.rc('legend', fontsize=MEDIUM)
+
+# figure title size
+plt.rc('figure', titlesize=BIG)
 
 
 def contrast_stretching(image, alpha=5):
@@ -205,7 +226,10 @@ def plot_sample(x, use_bands, labels,
                          transform=fig.axes[0].transAxes, ha='center',
                          va='bottom')
     else:
-        fig.axes[0].text(0.5, 1.04, strftime(date, '%Y-%m-%d'))
+        fig.axes[0].text(0.5, 1.04,
+                         datetime.datetime.strftime(date, '%Y-%m-%d'),
+                         transform=fig.axes[0].transAxes, ha='center',
+                         va='bottom')
 
     # check whether to plot ground truth
     if y is not None:

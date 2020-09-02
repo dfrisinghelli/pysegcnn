@@ -236,8 +236,9 @@ class ImageDataset(Dataset):
 
     def _assert_compose_scenes(self):
         """Check whether compose_scenes() is correctly implemented."""
-        # list of required keys
-        self.keys = self.use_bands + ['gt', 'date', 'tile', 'transform', 'id']
+        # list of required keys additional to the spectral bands
+        additional = ['gt', 'date', 'tile', 'transform', 'id']
+        self.keys = self.use_bands + additional
 
         # check if each scene is correctly composed
         for scene in self.scenes:
@@ -248,9 +249,26 @@ class ImageDataset(Dataset):
                                 )
 
             # check if each scene dictionary has the correct keys
-            if not all([k in scene for k in self.keys]):
-                raise KeyError('Each scene dictionary should have keys {}.'
-                               .format(self.keys))
+            missing_keys = set(self.keys).difference(scene.keys())
+            if missing_keys:
+                # check which keys are missing: a specific band is missing
+                if missing_keys.intersection(self.use_bands):
+                    LOGGER.warning('Requested band(s) {} not available for {}.'
+                                   .format(', '.join(missing_keys),
+                                           self.__class__.__name__))
+
+                    # remove missing bands from list of bands to use during
+                    # training
+                    for band in missing_keys:
+                        self.use_bands.remove(band)
+                    LOGGER.warning('Using bands: {}.'
+                                   .format(', '.join(self.use_bands)))
+
+                # check which keys are missing: if any additional key is
+                # missing, raise an exception
+                if any([k in additional for k in missing_keys]):
+                    raise KeyError('Each scene dictionary should have keys {}.'
+                                   .format(', '.join(additional)))
 
     def _assert_get_size(self):
         """Check whether get_size() is correctly implemented."""
@@ -364,7 +382,8 @@ class ImageDataset(Dataset):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """Return the size of the images in the dataset.
 
         Raises
@@ -382,7 +401,8 @@ class ImageDataset(Dataset):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    def get_sensor(self):
+    @staticmethod
+    def get_sensor():
         """Return an enumeration of the bands of the sensor of the dataset.
 
         Examples can be found in `pysegcnn.core.constants`.
@@ -402,7 +422,8 @@ class ImageDataset(Dataset):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    def get_labels(self):
+    @staticmethod
+    def get_labels():
         """Return an enumeration of the class labels of the dataset.
 
         Examples can be found in `pysegcnn.core.constants`.
@@ -449,7 +470,8 @@ class ImageDataset(Dataset):
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
 
-    def parse_scene_id(self, scene_id):
+    @staticmethod
+    def parse_scene_id(scene_id):
         """Parse the scene identifier.
 
         Parameters
@@ -559,7 +581,8 @@ class ImageDataset(Dataset):
 
         return stack, gt
 
-    def to_tensor(self, x, dtype):
+    @staticmethod
+    def to_tensor(x, dtype):
         """Convert ``x`` to :py:class:`torch.Tensor`.
 
         Parameters
@@ -804,7 +827,8 @@ class SparcsDataset(StandardEoDataset):
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """Image size of the Sparcs dataset.
 
         Returns
@@ -815,7 +839,8 @@ class SparcsDataset(StandardEoDataset):
         """
         return (1000, 1000)
 
-    def get_sensor(self):
+    @staticmethod
+    def get_sensor():
         """Landsat 8 bands of the Sparcs dataset.
 
         Returns
@@ -826,7 +851,8 @@ class SparcsDataset(StandardEoDataset):
         """
         return Landsat8
 
-    def get_labels(self):
+    @staticmethod
+    def get_labels():
         """Class labels of the Sparcs dataset.
 
         Returns
@@ -858,7 +884,8 @@ class SparcsDataset(StandardEoDataset):
         # if the preprocessing is not done externally, implement it here
         return data, gt
 
-    def parse_scene_id(self, scene_id):
+    @staticmethod
+    def parse_scene_id(scene_id):
         """Parse Sparcs scene identifiers (Landsat 8).
 
         Parameters
@@ -885,7 +912,8 @@ class ProSnowDataset(StandardEoDataset):
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
 
-    def get_sensor(self):
+    @staticmethod
+    def get_sensor():
         """Sentinel 2 bands of the ProSnow datasets.
 
         Returns
@@ -896,7 +924,8 @@ class ProSnowDataset(StandardEoDataset):
         """
         return Sentinel2
 
-    def get_labels(self):
+    @staticmethod
+    def get_labels():
         """Class labels of the ProSnow datasets.
 
         Returns
@@ -928,7 +957,8 @@ class ProSnowDataset(StandardEoDataset):
         # if the preprocessing is not done externally, implement it here
         return data, gt
 
-    def parse_scene_id(self, scene_id):
+    @staticmethod
+    def parse_scene_id(scene_id):
         """Parse ProSnow scene identifiers (Sentinel 2).
 
         Parameters
@@ -955,7 +985,8 @@ class ProSnowGarmisch(ProSnowDataset):
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """Image size of the ProSnow Garmisch dataset.
 
         Returns
@@ -976,7 +1007,8 @@ class ProSnowObergurgl(ProSnowDataset):
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
                          sort, seed, transforms)
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """Image size of the ProSnow Obergurgl dataset.
 
         Returns
@@ -1009,7 +1041,8 @@ class Cloud95Dataset(ImageDataset):
         # the black margins around a Landsat 8 scene are excluded
         self.exclude = 'training_patches_95-cloud_nonempty.csv'
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """Image size of the Cloud-95 dataset.
 
         Returns
@@ -1020,7 +1053,8 @@ class Cloud95Dataset(ImageDataset):
         """
         return (384, 384)
 
-    def get_sensor(self):
+    @staticmethod
+    def get_sensor():
         """Landsat 8 bands of the Cloud-95 dataset.
 
         Returns
@@ -1031,7 +1065,8 @@ class Cloud95Dataset(ImageDataset):
         """
         return Landsat8
 
-    def get_labels(self):
+    @staticmethod
+    def get_labels():
         """Class labels of the Cloud-95 dataset.
 
         Returns

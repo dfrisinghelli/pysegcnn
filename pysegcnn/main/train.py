@@ -1,4 +1,4 @@
-"""Main script to train a model.
+"""Main splcfgript to train a model.
 
 Steps to launch a model run:
 
@@ -41,36 +41,34 @@ from pysegcnn.main.config import (dataset_config, split_config, model_config)
 
 if __name__ == '__main__':
 
-    # write code that checks for list of seeds, band combinations etc. here.
-
     # (i) instanciate the configurations
-    dc = DatasetConfig(**dataset_config)
-    sc = SplitConfig(**split_config)
-    mc = ModelConfig(**model_config)
+    dstcfg = DatasetConfig(**dataset_config)      # dataset
+    splcfg = SplitConfig(**split_config)          # dataset split
+    mdlcfg = ModelConfig(**model_config)          # model
+    sttcfg = StateConfig(dstcfg, splcfg, mdlcfg)  # state file
 
-    # (ii) instanciate the dataset
-    ds = dc.init_dataset()
+    # (ii) instanciate the model state file
+    state_file = sttcfg.init_state()
 
-    # (iii) instanciate the model state
-    state = StateConfig(ds, sc, mc)
-    state_file = state.init_state()
-
-    # (iv) initialize logging
+    # (iii) initialize logging
     log = LogConfig(state_file)
     dictConfig(log_conf(log.log_file))
 
+    # (iv) instanciate the dataset
+    ds = dstcfg.init_dataset()
+
     # (v) instanciate the training, validation and test datasets and
     # dataloaders
-    train_ds, valid_ds, test_ds = sc.train_val_test_split(ds)
-    train_dl, valid_dl, test_dl = sc.dataloaders(
-        train_ds, valid_ds, test_ds, batch_size=mc.batch_size, shuffle=True,
-        drop_last=False)
+    train_ds, valid_ds, test_ds = splcfg.train_val_test_split(ds)
+    train_dl, valid_dl, test_dl = splcfg.dataloaders(
+        train_ds, valid_ds, test_ds, batch_size=mdlcfg.batch_size,
+        shuffle=True, drop_last=False)
 
     # (vi) instanciate the model
-    model, optimizer, checkpoint_state = mc.init_model(ds, state_file)
+    model, optimizer, checkpoint_state = mdlcfg.init_model(ds, state_file)
 
     # (vii) instanciate the loss function
-    loss_function = mc.init_loss_function()
+    loss_function = mdlcfg.init_loss_function()
 
     # (viii) initialize network trainer class for easy model training
     trainer = NetworkTrainer(model=model,
@@ -80,14 +78,14 @@ if __name__ == '__main__':
                              valid_dl=valid_dl,
                              test_dl=test_dl,
                              state_file=state_file,
-                             epochs=mc.epochs,
-                             nthreads=mc.nthreads,
-                             early_stop=mc.early_stop,
-                             mode=mc.mode,
-                             delta=mc.delta,
-                             patience=mc.patience,
+                             epochs=mdlcfg.epochs,
+                             nthreads=mdlcfg.nthreads,
+                             early_stop=mdlcfg.early_stop,
+                             mode=mdlcfg.mode,
+                             delta=mdlcfg.delta,
+                             patience=mdlcfg.patience,
                              checkpoint_state=checkpoint_state,
-                             save=mc.save
+                             save=mdlcfg.save
                              )
 
     # (ix) train model

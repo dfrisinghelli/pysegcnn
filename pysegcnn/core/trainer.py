@@ -764,8 +764,8 @@ class StateConfig(BaseConfig):
 
     Attributes
     ----------
-    ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
-        An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+    dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+        An instance of :py:class:`pysegcnn.core.trainer.DatasetConfig`.
     sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
         An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
     mc : :py:class:`pysegcnn.core.trainer.ModelConfig`
@@ -773,7 +773,7 @@ class StateConfig(BaseConfig):
 
     """
 
-    ds: ImageDataset
+    dc: DatasetConfig
     sc: SplitConfig
     mc: ModelConfig
 
@@ -797,34 +797,37 @@ class StateConfig(BaseConfig):
         state_file = '{}_{}_{}_{}Split_{}_t{}_b{}_{}.pt'
 
         # get the band numbers
-        bformat = ''.join(band[0] +
-                          str(self.ds.sensor.__members__[band].value) for
-                          band in self.ds.use_bands)
+        if self.dc.bands:
+            bformat = ''.join(band[0] +
+                              str(self.dc.get_sensor().__members__[band].value)
+                              for band in self.dc.bands)
+        else:
+            bformat = 'all'
 
         # check which split mode was used
         if self.sc.split_mode == 'date':
             # store the date that was used to split the dataset
             state_file = state_file.format(self.mc.model_name,
-                                           self.ds.__class__.__name__,
+                                           self.dc.dataset_class.__name__,
                                            self.mc.optim_name,
                                            self.sc.split_mode.capitalize(),
                                            self.sc.date,
-                                           self.ds.tile_size,
+                                           self.dc.tile_size,
                                            self.mc.batch_size,
                                            bformat)
         else:
             # store the random split parameters
             split_params = 's{}_t{}v{}'.format(
-                self.ds.seed, str(self.sc.ttratio).replace('.', ''),
+                self.dc.seed, str(self.sc.ttratio).replace('.', ''),
                 str(self.sc.tvratio).replace('.', ''))
 
             # model state filename
             state_file = state_file.format(self.mc.model_name,
-                                           self.ds.__class__.__name__,
+                                           self.dc.dataset_class.__name__,
                                            self.mc.optim_name,
                                            self.sc.split_mode.capitalize(),
                                            split_params,
-                                           self.ds.tile_size,
+                                           self.dc.tile_size,
                                            self.mc.batch_size,
                                            bformat)
 

@@ -177,8 +177,6 @@ def plot_sample(x, use_bands, labels,
 
     # create a ListedColormap
     cmap = ListedColormap(colors)
-    boundaries = [*labels.keys(), cmap.N]
-    norm = BoundaryNorm(boundaries, cmap.N)
 
     # create a patch (proxy artist) for every color
     patches = [mpatches.Patch(color=c, label=l) for c, l in
@@ -200,7 +198,8 @@ def plot_sample(x, use_bands, labels,
     # check whether to plot ground truth
     if y is not None:
         # plot ground thruth mask
-        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', norm=norm)
+        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', vmin=0,
+                           vmax=len(colors))
         fig.axes[1].set_title('Ground truth', pad=15)
     else:
         _del_axis(fig, 1)
@@ -208,8 +207,8 @@ def plot_sample(x, use_bands, labels,
     # check whether to plot model prediction
     if y_pred is not None:
         # plot model prediction
-        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest',
-                           norm=norm)
+        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest', vmin=0,
+                           vmax=len(colors))
 
         # set title
         title = 'Prediction'

@@ -256,7 +256,10 @@ def plot_sample(x, use_bands, labels,
         fig.axes[2].text(0.5, 1.04, title, transform=fig.axes[2].transAxes,
                          ha='center', va='bottom')
     else:
-        _del_axis(fig, 2)
+        if y is None:
+            _del_axis(fig, 1)
+        else:
+            _del_axis(fig, 2)
 
     # if a ground truth or a model prediction is plotted, add legend
     if len(fig.axes) > 1:

@@ -21,6 +21,7 @@ License
 
 # builtins
 import os
+import re
 import dataclasses
 import pathlib
 import logging
@@ -943,19 +944,27 @@ class EvalConfig(BaseConfig):
         self.state_file = self.models_path.joinpath(self.state_file)
 
     @staticmethod
-    def replace_dataset_path(ds, dataset_path):
-        """Replace the path to the scenes of a dataset.
+    def replace_dataset_path(ds, drive_path):
+        """Replace the path to the datasets.
 
         Useful to evaluate models on machines, that are different from the
         machine the model was trained on.
+
+        .. important::
+
+            This function assumes that the datasets are stored in a directory
+            named "Datasets" on each machine.
+
+        See `DRIVE_PATH` in :py:mod:`pysegcnn.main.config` for an example path.
 
         Parameters
         ----------
         ds : :py:class:`pysegcnn.core.split.CustomSubset`
             A subset of an instance of
             :py:class:`pysegcnn.core.dataset.ImageDataset`.
-        dataset_path : `str`
-            Path to the dataset on the current machine.
+        drive_path : `str`
+            Base path to the datasets on the current machine. ``drive_path``
+            should end with `'Datasets'`.
 
         Raises
         ------
@@ -982,16 +991,15 @@ class EvalConfig(BaseConfig):
                 # do only look for paths
                 if isinstance(v, str) and k != 'id':
 
-                    # iterate over the path for as long as the basename does
-                    # not match any scene identifier
-                    dpath = os.path.dirname(v)
-                    while (ds.dataset.parse_scene_id(os.path.basename(dpath))
-                           is not None):
-                        dpath = os.path.dirname(dpath)
+                    # drive path: match path before "Datasets"
+                    # dpath = re.search('^(.*)(?=(/.*Datasets))', v)
 
-                    # replace dataset path
-                    if dpath != dataset_path:
-                        scene[k] = v.replace(str(dpath), dataset_path)
+                    # drive path: match path up to "Datasets"
+                    dpath = re.search('^(.*?Datasets)', v)[0]
+
+                    # replace drive path
+                    if dpath != drive_path:
+                        scene[k] = v.replace(str(dpath), drive_path)
 
 
 @dataclasses.dataclass

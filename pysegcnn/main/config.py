@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name of the datasets
 # DATASET_NAME = 'Sparcs'
@@ -220,6 +220,10 @@ model_config = {
     'pretrained_model': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'pretrained_model': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
+    # whether to freeze the pretrained model weights
+    # if True, only the classification layer is re-trained
+    # if False, all layers are re-trained
+    'freeze': True,
 
     # Training ----------------------------------------------------------------
 
@@ -278,6 +282,7 @@ eval_config = {
     # the model to evaluate
     'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'state_file': 'Unet_ProSnowGarmisch_Adam_DateSplit_20161231_t125_b64_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
     # the dataset to evaluate the model on
     # test=False, 0 means evaluating on the validation set

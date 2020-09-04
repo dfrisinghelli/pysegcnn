@@ -423,6 +423,8 @@ class ModelConfig(BaseConfig):
     pretrained_model : `str`
         The name of the pretrained model to use for transfer learning.
         The default is `''`.
+    freeze : `bool`
+        Whether to freeze the pretrained weights.
     lr : `float`
         The learning rate used by the gradient descent algorithm.
         The default is `0.001`.
@@ -478,6 +480,7 @@ class ModelConfig(BaseConfig):
     checkpoint: bool = False
     transfer: bool = False
     pretrained_model: str = ''
+    freeze: bool = True
     lr: float = 0.001
     early_stop: bool = False
     mode: str = 'max'
@@ -612,7 +615,7 @@ class ModelConfig(BaseConfig):
             # load pretrained model
             LOGGER.info('Loading pretrained model for transfer learning from: '
                         '{}'.format(self.pretrained_path))
-            model = self.transfer_model(self.pretrained_path, ds)
+            model = self.transfer_model(self.pretrained_path, ds, self.freeze)
 
         # initialize the optimizer
         optimizer = self.init_optimizer(model)
@@ -685,7 +688,7 @@ class ModelConfig(BaseConfig):
         return model, optimizer, checkpoint_state
 
     @staticmethod
-    def transfer_model(state_file, ds):
+    def transfer_model(state_file, ds, freeze=True):
         """Adjust a pretrained model to a new dataset.
 
         The classification layer of the pretrained model in ``state_file`` is
@@ -699,6 +702,9 @@ class ModelConfig(BaseConfig):
             Path to a pretrained model.
         ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
             An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        freeze : `bool`, optional
+            Whether to freeze the pretrained weights. If `True`, only the last
+            layer (classification layer) is trained. The default is `True`.
 
         Raises
         ------
@@ -745,6 +751,11 @@ class ModelConfig(BaseConfig):
         LOGGER.info('Replacing classification layer to classes: {}.'
                     .format(', '.join('({}, {})'.format(k, v['label'])
                                       for k, v in ds.labels.items())))
+
+        # whether to freeze the pretrained model weigths
+        if freeze:
+            LOGGER.info('Freezing pretrained model weights ...')
+            model.freeze()
 
         # adjust the classification layer to the classes of the new dataset
         model.classifier = Conv2dSame(in_channels=filters[0],

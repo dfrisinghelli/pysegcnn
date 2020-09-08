@@ -745,6 +745,38 @@ class StandardEoDataset(ImageDataset):
 
         return scene_data
 
+    def preprocess(self, data, gt):
+        """Preprocess dataset images.
+
+        Normalize each band to mean=0, var=1.
+
+        Parameters
+        ----------
+        data : `numpy.ndarray`
+            The sample input data.
+        gt : `numpy.ndarray`
+            The sample ground truth.
+
+        Returns
+        -------
+        data : `numpy.ndarray`
+            The preprocessed input data.
+        gt : `numpy.ndarray`
+            The preprocessed ground truth data.
+
+        """
+        # mask of padded values
+        mask = np.where(data == 0)
+
+        # normalize the channel input data: channel-wise alignment
+        data = ((data - data.mean(axis=(1, 2)).reshape(data.shape[0], 1, 1))
+                / np.sqrt(data.var(axis=(1, 2)).reshape(data.shape[0], 1, 1)))
+
+        # mask padded values
+        data[mask] = 0
+
+        return data, gt
+
     def compose_scenes(self):
         """Build the list of samples of the dataset."""
         # search the root directory
@@ -863,27 +895,6 @@ class SparcsDataset(StandardEoDataset):
         """
         return SparcsLabels
 
-    def preprocess(self, data, gt):
-        """Preprocess Sparcs dataset images.
-
-        Parameters
-        ----------
-        data : `numpy.ndarray`
-            The sample input data.
-        gt : `numpy.ndarray`
-            The sample ground truth.
-
-        Returns
-        -------
-        data : `numpy.ndarray`
-            The preprocessed input data.
-        gt : `numpy.ndarray`
-            The preprocessed ground truth data.
-
-        """
-        # if the preprocessing is not done externally, implement it here
-        return data, gt
-
     @staticmethod
     def parse_scene_id(scene_id):
         """Parse Sparcs scene identifiers (Landsat 8).
@@ -935,27 +946,6 @@ class ProSnowDataset(StandardEoDataset):
 
         """
         return ProSnowLabels
-
-    def preprocess(self, data, gt):
-        """Preprocess ProSnow dataset images.
-
-        Parameters
-        ----------
-        data : `numpy.ndarray`
-            The sample input data.
-        gt : `numpy.ndarray`
-            The sample ground truth.
-
-        Returns
-        -------
-        data : `numpy.ndarray`
-            The preprocessed input data.
-        gt : `numpy.ndarray`
-            The preprocessed ground truth data.
-
-        """
-        # if the preprocessing is not done externally, implement it here
-        return data, gt
 
     @staticmethod
     def parse_scene_id(scene_id):

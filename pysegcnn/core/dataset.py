@@ -769,8 +769,8 @@ class StandardEoDataset(ImageDataset):
         mask = np.where(data == 0)
 
         # normalize the channel input data: channel-wise alignment
-        data = ((data - data.mean(axis=(1, 2)).reshape(data.shape[0], 1, 1))
-                / np.sqrt(data.var(axis=(1, 2)).reshape(data.shape[0], 1, 1)))
+        data = ((data - data.mean(axis=(1, 2), keepdims=True))
+                / np.sqrt(data.var(axis=(1, 2), keepdims=True)))
 
         # mask padded values
         data[mask] = 0

@@ -1,0 +1,79 @@
+"""Unsupervised domain adaptation.
+
+This module provides functions and classes to implement algorithms for
+unsupervised domain adaptation.
+
+License
+-------
+
+    Copyright (c) 2020 Daniel Frisinghelli
+
+    This source code is licensed under the GNU General Public License v3.
+
+    See the LICENSE file in the repository's root directory.
+
+"""
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# builtins
+import logging
+
+# externals
+import torch
+import torch.nn as nn
+
+# module level logger
+LOGGER = logging.getLogger(__name__)
+
+
+def coral(source, target):
+
+    # shape of source and target features
+    src_s = source.shape
+    trg_s = target.shape
+
+    # compute distance between covariances for each band iteratively
+    coral_loss = 0
+    for band in range(src_s[1]):
+
+        # the current bands: flatten spatial dimesions
+        src_band = source[:, band, ...].view(src_s[0], src_s[2] * src_s[3])
+        trg_band = target[:, band, ...].view(trg_s[0], trg_s[2] * trg_s[3])
+
+        # source and target covariance matrices
+        src_cov = cov_coral(src_band)
+        trg_cov = cov_coral(trg_band)
+
+        # Frobenius norm: distance between covariance matrices
+        coral_loss += torch.pow(src_cov - trg_cov, 2).sum().sqrt()
+
+    # scale by dimensionality
+    coral_loss /= 4 * (src_s[1] ** 2)
+
+    return coral_loss
+
+
+def cov_coral(M):
+    # number of batches
+    bs = M.size(0)
+
+    # right hand side term
+    rt = torch.matmul(torch.ones(1, bs), M)
+    rt = torch.matmul(rt.t(), rt)
+
+    # squared input matrix
+    M2 = torch.matmul(M.t(), M)
+
+    # covariance matrix
+    return (M2 - rt / bs) / (bs - 1)
+
+
+class CoralLoss(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, source, target):
+        return coral(source, target)

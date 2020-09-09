@@ -748,8 +748,6 @@ class StandardEoDataset(ImageDataset):
     def preprocess(self, data, gt):
         """Preprocess dataset images.
 
-        Normalize each band to mean=0, var=1.
-
         Parameters
         ----------
         data : `numpy.ndarray`
@@ -765,16 +763,6 @@ class StandardEoDataset(ImageDataset):
             The preprocessed ground truth data.
 
         """
-        # mask of padded values
-        mask = np.where(data == 0)
-
-        # normalize the channel input data: channel-wise alignment
-        data = ((data - data.mean(axis=(1, 2), keepdims=True))
-                / np.sqrt(data.var(axis=(1, 2), keepdims=True)))
-
-        # mask padded values
-        data[mask] = 0
-
         return data, gt
 
     def compose_scenes(self):

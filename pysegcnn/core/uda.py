@@ -18,6 +18,7 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
+import enum
 import logging
 
 # externals
@@ -28,8 +29,29 @@ import torch.nn as nn
 LOGGER = logging.getLogger(__name__)
 
 
-def coral(source, target):
+def coral(source, target, device='cpu'):
+    """Correlation Alignment (CORAL) loss function.
 
+    An implementation of `DeepCORAL`_ for unsupervised domain adaptation.
+
+    Parameters
+    ----------
+    source : :py:class:`torch.Tensor`
+        The source domain features.
+    target : :py:class:`torch.Tensor`
+        The target domain features.
+    device : `str`, optional
+        The device to compute on. The default is 'cpu'.
+
+    Returns
+    -------
+    coral_loss : :py:class:`torch.Tensor`
+        The distance in covariance between ``source`` and ``target``.
+
+    .. _DeepCORAL:
+        https://arxiv.org/abs/1607.01719
+
+    """
     # shape of source and target features
     src_s = source.shape
     trg_s = target.shape
@@ -41,6 +63,10 @@ def coral(source, target):
         # the current bands: flatten spatial dimesions
         src_band = source[:, band, ...].view(src_s[0], src_s[2] * src_s[3])
         trg_band = target[:, band, ...].view(trg_s[0], trg_s[2] * trg_s[3])
+
+        # move tensors to gpu, if available
+        src_band = src_band.to(device)
+        trg_band = trg_band.to(device)
 
         # source and target covariance matrices
         src_cov = cov_coral(src_band)
@@ -56,6 +82,19 @@ def coral(source, target):
 
 
 def cov_coral(M):
+    """Compute the covariance matrix.
+
+    Parameters
+    ----------
+    M : :py:class:`torch.Tensor`
+        The two-dimensional feature matrix of shape (m, n).
+
+    Returns
+    -------
+    cov : :py:class:`torch.Tensor`
+        The covariance matrix.
+
+    """
     # number of batches
     bs = M.size(0)
 
@@ -71,9 +110,49 @@ def cov_coral(M):
 
 
 class CoralLoss(nn.Module):
+    """Correlation Alignment (CORAL) loss function class.
 
-    def __init__(self):
+    :py:class:`torch.nn.Module` wrapper for :py:func:`pysegcnn.core.uda.coral`.
+
+    Attributes
+    ----------
+    device : `str`
+        The device to compute on.
+
+    """
+
+    def __init__(self, device='cpu'):
+        """Initialize.
+
+        Parameters
+        ----------
+        device : `str`
+            The device to compute on. The default is 'cpu'.
+
+        """
         super().__init__()
+        self.device = device
 
     def forward(self, source, target):
-        return coral(source, target)
+        """Compute CORAL loss.
+
+        Parameters
+        ----------
+        source : :py:class:`torch.Tensor`
+            The source domain features.
+        target : :py:class:`torch.Tensor`
+            The target domain features.
+
+        Returns
+        -------
+        coral_loss : :py:class:`torch.Tensor`
+            The distance in covariance between ``source`` and ``target``.
+
+        """
+        return coral(source, target, device=self.device)
+
+
+class SupportedUdaMethods(enum.Enum):
+    """Supported unsupervised domain adaptation methods."""
+
+    coral = CoralLoss

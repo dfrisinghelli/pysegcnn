@@ -30,36 +30,39 @@ HERE = os.path.abspath(os.path.dirname(__file__))
 DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
 # DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
-# name of the datasets
-# DATASET_NAME = 'Sparcs'
-# DATASET_NAME = 'Cloud95'
-DATASET_NAME = 'Garmisch'
+# name and paths to the datasets
+DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
+            'Cloud95': os.path.join(DRIVE_PATH, 'Cloud95/Training'),
+            'Garmisch': os.path.join(DRIVE_PATH, 'ProSnow/Garmisch')}
 
-# path to the dataset
-# DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME)
-# DATASET_PATH = os.path.join(DRIVE_PATH, DATASET_NAME, 'Training')
-DATASET_PATH = os.path.join(DRIVE_PATH, 'ProSnow', DATASET_NAME)
+# name of the source domain dataset
+SRC_DS = 'Sparcs'
 
-# the dataset configuration dictionary
-dataset_config = {
+# name of the target domain dataset
+TRG_DS = 'Garmisch'
+
+# the source dataset configuration dictionary
+src_ds_config = {
 
     # ------------------------------- Dataset ---------------------------------
 
     # -------------------------------------------------------------------------
 
     # name of the dataset
-    'dataset_name': DATASET_NAME,
+    'dataset_name': SRC_DS,
 
     # path to the dataset
-    'root_dir': DATASET_PATH,
+    'root_dir': DATASETS[SRC_DS],
 
     # a regex pattern to match the ground truth file naming convention
-    # 'gt_pattern': '(.*)mask\\.png',
-    'gt_pattern': '(.*)class\\.img',
+    'gt_pattern': '(.*)mask\\.png',
+    # 'gt_pattern': '(.*)class\\.img',
 
     # define the bands to use to train the segmentation network:
     # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
     # or [], which corresponds to using all available bands
+    # IMPORTANT: the list of bands should be equal for the source and target
+    #            domains, when using any sort of transfer learning
     'bands': ['red', 'green', 'blue', 'nir'],
 
     # define the size of the network input
@@ -69,6 +72,7 @@ dataset_config = {
     # whether to central pad the scenes with a constant value
     # if True, padding is used if the scenes are not evenly divisible into
     # tiles of size (tile_size, tile_size)
+    # 'pad': False,
     'pad': True,
 
     # the random seed for the numpy random number generator
@@ -127,8 +131,21 @@ dataset_config = {
     #     ],
 }
 
-# the dataset split configuration dictionary
-split_config = {
+# the target dataset configuration dictionary
+trg_ds_config = {
+    'dataset_name': TRG_DS,
+    'root_dir': DATASETS[TRG_DS],
+    'gt_pattern': '(.*)class\\.img',
+    'bands': ['red', 'green', 'blue', 'nir'],
+    'tile_size': 125,
+    'pad': True,
+    'seed': 0,
+    'sort': True,
+    'transforms': [],
+}
+
+# the source dataset split configuration dictionary
+src_split_config = {
 
     # the mode to split the dataset:
     #
@@ -145,9 +162,9 @@ split_config = {
     #                time series data
     #                scenes before date build the training set, scenes after
     #                the date build the validation set, the test set is empty
-    'split_mode': 'date',
+    # 'split_mode': 'date',
     # 'split_mode': 'random',
-    # 'split_mode': 'scene',
+    'split_mode': 'scene',
 
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
@@ -178,6 +195,19 @@ split_config = {
 
     }
 
+# the target dataset split configuration dictionary
+trg_split_config = {
+
+    'split_mode': 'date',
+    # 'split_mode': 'random',
+    # 'split_mode': 'scene',
+    'ttratio': 1,
+    'tvratio': 0.8,
+    'date': '20161231',
+    'dateformat': '%Y%m%d',
+    'drop': 0,
+    }
+
 # the model configuration dictionary
 model_config = {
 
@@ -204,28 +234,52 @@ model_config = {
 
     # Transfer learning -------------------------------------------------------
 
-    # Use pretrained=True only if you wish to fine-tune a pre-trained model
-    # on a different dataset than the one it was trained on
-
-    # If you wish to continue training an existing model on the SAME
-    # dataset, set option checkpoint=True and pretrained=False and make
-    # sure the selected# dataset is the same as the one the existing model
-    # was trained on
-
-    # whether to use a pretrained model for transfer learning
+    # whether to apply any sort of transfer learning
+    # if transfer=False, the model is only trained on the source dataset
     'transfer': True,
-    # 'transfer': False,
+    # 'transfer': True
 
-    # name of the pretrained model to apply to a different dataset
+    # name of the pretrained model to apply for transfer learning
+    # Required if supervised=True
+    # Optional if unsupervised=True
     'pretrained_model': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'pretrained_model': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+
+    # Supervised vs. Unsupervised ---------------------------------------------
+
+    # the mode of transfer learning
+    # supervised=True: fine-tune a pretrained model to the target dataset
+    #                  IMPORTANT: this option requires target domain labels!
+    # supervised=False: adapt a model via unsupervised domain adaptation from
+    #                   the source to the target domain
+    # 'supervised': True,
+    'supervised': False,
 
     # whether to freeze the pretrained model weights
     # if True, only the classification layer is re-trained
     # if False, all layers are re-trained
     'freeze': True,
 
-    # Training ----------------------------------------------------------------
+    # Loss function for unsupervised domain adaptation
+    # Currently supported methods:
+    #   - DeepCORAL (correlation alignment)
+    'uda_loss': 'coral',
+
+    # whether to start domain adaptation from a pretrained model
+    'uda_from_pretrained': False,
+
+    # The weight of the domain adaptation, trading off adaptation with
+    # classification accuracy on the source domain.
+    'uda_lambda': 0.5,
+
+    # ----------------------------- Training  ---------------------------------
+
+    # -------------------------------------------------------------------------
+
+    # whether to save the model state to disk
+    # model states are saved in:    pysegcnn/main/_models
+    # model log files are saved in: pysegcnn/main/_logs
+    'save': True,
 
     # whether to resume training from an existing model checkpoint
     'checkpoint': False,
@@ -238,15 +292,6 @@ model_config = {
     # the seed for the random number generator intializing the network weights
     'torch_seed': 0,
 
-    # ----------------------------- Training  ---------------------------------
-
-    # -------------------------------------------------------------------------
-
-    # whether to save the model state to disk
-    # model states are saved in:    pysegcnn/main/_models
-    # model log files are saved in: pysegcnn/main/_logs
-    'save': True,
-
     # whether to early stop training if the accuracy on the validation set
     # does not increase more than delta over patience epochs
     'early_stop': True,
@@ -258,8 +303,8 @@ model_config = {
     # the whole training dataset
     'epochs': 50,
 
-    # define a loss function to calculate the network error
-    'loss_name': 'CrossEntropy',
+    # define a classification loss function to calculate the network error
+    'cla_loss': 'CrossEntropy',
 
     # define an optimizer to update the network weights
     'optim_name': 'Adam',
@@ -301,7 +346,7 @@ eval_config = {
     #       predicted at once
     # NOTE: this option works only for datasets split by split_mode="scene" or
     #       split_mode="date"
-    'predict_scene': True,
+    'predict_scene': False,
 
     # whether to save plots of (input, ground truth, prediction) for each
     # sample in the train/validation/test dataset to disk, applies if
@@ -313,14 +358,14 @@ eval_config = {
     # in the train/validation/test dataset to disk, applies if
     # predict_scene=True
     # output path is: pysegcnn/main/_scenes/
-    'plot_scenes': True,
+    'plot_scenes': False,
 
     # whether to create an animation of (input, ground truth, prediction) for
     # the scenes in the train/validation/test dataset. Useful when predicting a
     # time-series.
     # NOTE: this option only works if predict_scene=True and plot_scenes=True
     # output path is: pysegcnn/main/_animations/
-    'animate': True,
+    'animate': False,
 
     # plot_bands defines the bands used to plot a false color composite of
     # the input scene: red': bands[0], green': bands[1], blue': bands[2]

@@ -34,59 +34,118 @@ from logging.config import dictConfig
 
 # locals
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
-                                   StateConfig, LogConfig, NetworkTrainer)
+                                   StateConfig, LogConfig, SingleDomainTrainer,
+                                   DomainAdaptationTrainer)
 from pysegcnn.core.logging import log_conf
-from pysegcnn.main.config import (dataset_config, split_config, model_config)
+from pysegcnn.main.config import (src_ds_config, src_split_config,
+                                  trg_ds_config, trg_split_config,
+                                  model_config)
 
 
 if __name__ == '__main__':
 
-    # (i) instanciate the configurations
-    dstcfg = DatasetConfig(**dataset_config)      # dataset
-    splcfg = SplitConfig(**split_config)          # dataset split
-    mdlcfg = ModelConfig(**model_config)          # model
-    sttcfg = StateConfig(dstcfg, splcfg, mdlcfg)  # state file
+    # (i) instanciate the source domain configurations
+    src_dc = DatasetConfig(**src_ds_config)   # source domain dataset
+    src_sc = SplitConfig(**src_split_config)  # source domain dataset split
 
-    # (ii) instanciate the model state file
+    # (ii) instanciate the target domain configuration
+    trg_dc = DatasetConfig(**trg_ds_config)   # target domain dataset
+    trg_sc = SplitConfig(**trg_split_config)  # target domain dataset split
+
+    # (iii) instanciate the model configuration
+    mdlcfg = ModelConfig(**model_config)
+
+    # (iv) instanciate the model state file
+    sttcfg = StateConfig(src_dc, src_sc, trg_dc, trg_sc, mdlcfg)
     state_file = sttcfg.init_state()
 
-    # (iii) initialize logging
+    # (v) initialize logging
     log = LogConfig(state_file)
     dictConfig(log_conf(log.log_file))
 
-    # (iv) instanciate the dataset
-    ds = dstcfg.init_dataset()
+    # (vi) instanciate the source and target domain datasets
+    src_ds = src_dc.init_dataset()
+    trg_ds = trg_dc.init_dataset()
 
-    # (v) instanciate the training, validation and test datasets and
+    # (vii) instanciate the training, validation and test datasets and
     # dataloaders
-    train_ds, valid_ds, test_ds = splcfg.train_val_test_split(ds)
-    train_dl, valid_dl, test_dl = splcfg.dataloaders(
-        train_ds, valid_ds, test_ds, batch_size=mdlcfg.batch_size,
+    src_train_ds, src_valid_ds, src_test_ds = src_sc.train_val_test_split(
+        src_ds)
+    src_train_dl, src_valid_dl, src_test_dl = src_sc.dataloaders(
+        src_train_ds, src_valid_ds, src_test_ds, batch_size=mdlcfg.batch_size,
+        shuffle=True, drop_last=False)
+    trg_train_ds, trg_valid_ds, trg_test_ds = trg_sc.train_val_test_split(
+        trg_ds)
+    trg_train_dl, trg_valid_dl, trg_test_dl = trg_sc.dataloaders(
+        trg_train_ds, trg_valid_ds, trg_test_ds, batch_size=mdlcfg.batch_size,
         shuffle=True, drop_last=False)
 
-    # (vi) instanciate the model
-    model, optimizer, checkpoint_state = mdlcfg.init_model(ds, state_file)
+    # (viii) instanciate the loss function
+    cla_loss_function = mdlcfg.init_cla_loss_function()
 
-    # (vii) instanciate the loss function
-    loss_function = mdlcfg.init_loss_function()
+    # (ix) instanciate the model
+    if mdlcfg.transfer:
 
-    # (viii) initialize network trainer class for easy model training
-    trainer = NetworkTrainer(model=model,
-                             optimizer=optimizer,
-                             loss_function=loss_function,
-                             train_dl=train_dl,
-                             valid_dl=valid_dl,
-                             test_dl=test_dl,
-                             state_file=state_file,
-                             epochs=mdlcfg.epochs,
-                             nthreads=mdlcfg.nthreads,
-                             early_stop=mdlcfg.early_stop,
-                             mode=mdlcfg.mode,
-                             delta=mdlcfg.delta,
-                             patience=mdlcfg.patience,
-                             checkpoint_state=checkpoint_state,
-                             save=mdlcfg.save
-                             )
+        if mdlcfg.supervised:
+            model, optimizer, checkpoint_state = mdlcfg.init_model(trg_ds,
+                                                                   state_file)
+            trainer = SingleDomainTrainer(model=model,
+                                          optimizer=optimizer,
+                                          loss_function=cla_loss_function,
+                                          state_file=state_file,
+                                          epochs=mdlcfg.epochs,
+                                          nthreads=mdlcfg.nthreads,
+                                          early_stop=mdlcfg.early_stop,
+                                          mode=mdlcfg.mode,
+                                          delta=mdlcfg.delta,
+                                          patience=mdlcfg.patience,
+                                          checkpoint_state=checkpoint_state,
+                                          save=mdlcfg.save,
+                                          train_dl=trg_train_dl,
+                                          valid_dl=trg_valid_dl,
+                                          test_dl=trg_test_dl)
 
-    # (ix) train model
+        else:
+            model, optimizer, checkpoint_state = mdlcfg.init_model(src_ds,
+                                                                   state_file)
+            # instanciate the domain adaptation loss
+            uda_loss_function = mdlcfg.init_uda_loss_function()
+            trainer = DomainAdaptationTrainer(model=model,
+                                              optimizer=optimizer,
+                                              loss_function=cla_loss_function,
+                                              state_file=state_file,
+                                              epochs=mdlcfg.epochs,
+                                              nthreads=mdlcfg.nthreads,
+                                              early_stop=mdlcfg.early_stop,
+                                              mode=mdlcfg.mode,
+                                              delta=mdlcfg.delta,
+                                              patience=mdlcfg.patience,
+                                              checkpoint_state=checkpoint_state,
+                                              save=mdlcfg.save,
+                                              src_train_dl=src_train_dl,
+                                              src_valid_dl=src_valid_dl,
+                                              trg_train_dl=trg_train_dl,
+                                              da_loss_function=uda_loss_function,
+                                              uda_lambda=mdlcfg.uda_lambda)
+
+    else:
+        model, optimizer, checkpoint_state = mdlcfg.init_model(src_ds,
+                                                               state_file)
+        trainer = SingleDomainTrainer(model=model,
+                                      optimizer=optimizer,
+                                      loss_function=cla_loss_function,
+                                      state_file=state_file,
+                                      epochs=mdlcfg.epochs,
+                                      nthreads=mdlcfg.nthreads,
+                                      early_stop=mdlcfg.early_stop,
+                                      mode=mdlcfg.mode,
+                                      delta=mdlcfg.delta,
+                                      patience=mdlcfg.patience,
+                                      checkpoint_state=checkpoint_state,
+                                      save=mdlcfg.save,
+                                      train_dl=src_train_dl,
+                                      valid_dl=src_valid_dl,
+                                      test_dl=src_test_dl)
+
+    # (x) train model
     training_state = trainer.train()

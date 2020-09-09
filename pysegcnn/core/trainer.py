@@ -20,7 +20,6 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
-import os
 import re
 import dataclasses
 import pathlib
@@ -42,6 +41,7 @@ from pysegcnn.core.utils import img2np, item_in_enum, accuracy_function
 from pysegcnn.core.split import SupportedSplits, CustomSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
+from pysegcnn.core.uda import SupportedUdaMethods
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.main.config import HERE
 
@@ -403,8 +403,10 @@ class ModelConfig(BaseConfig):
         Useful for reproducibility.
     optim_name : `str`
         The name of the optimizer to update the model weights.
-    loss_name : `str`
+    cla_loss : `str`
         The name of the loss function measuring the model error.
+    uda_loss : `str`
+        The name of the unsupervised domain adaptation loss.
     skip_connection : `bool`
         Whether to apply skip connections. The default is `True`.
     kwargs: `dict`
@@ -420,9 +422,19 @@ class ModelConfig(BaseConfig):
         Whether to use a model for transfer learning on a new dataset. If True,
         the model architecture of ``pretrained_model`` is adjusted to a new
         dataset. The default is `False`.
+    supervised : `bool`
+        Whether to fine-tune a pretrained model (True) or whether to train a
+        model via unsupervised domain adapation methods (False). The default is
+        `False`. Only used if ``transfer=True``.
     pretrained_model : `str`
         The name of the pretrained model to use for transfer learning.
-        The default is `''`.
+        The default is `''`, i.e. do not use a pretrained model.
+    uda_from_pretrained : `bool`
+        Whether to start domain adaptation from ``pretrained_model``. The
+        default is `False`, i.e. train from scratch.
+    uda_lambda : `float`
+        The weight of the domain adaptation, trading off adaptation with
+        classification accuracy on the source domain.
     freeze : `bool`
         Whether to freeze the pretrained weights.
     lr : `float`
@@ -456,7 +468,9 @@ class ModelConfig(BaseConfig):
         A subclass of :py:class:`pysegcnn.core.models.Network`.
     optim_class : :py:class:`torch.optim.Optimizer`
         A subclass of :py:class:`torch.optim.Optimizer`.
-    loss_class : :py:class:`torch.nn.Module`
+    cla_loss_class : :py:class:`torch.nn.Module`
+        A subclass of :py:class:`torch.nn.Module`
+    uda_loss_class : :py:class:`torch.nn.Module`
         A subclass of :py:class:`torch.nn.Module`
     state_path : :py:class:`pathlib.Path`
         Path to save model states.
@@ -472,14 +486,18 @@ class ModelConfig(BaseConfig):
     filters: list
     torch_seed: int
     optim_name: str
-    loss_name: str
+    cla_loss: str
+    uda_loss: str = ''
     skip_connection: bool = True
     kwargs: dict = dataclasses.field(
         default_factory=lambda: {'kernel_size': 3, 'stride': 1, 'dilation': 1})
     batch_size: int = 64
     checkpoint: bool = False
     transfer: bool = False
+    supervised: bool = False
     pretrained_model: str = ''
+    uda_from_pretrained: bool = False
+    uda_lambda: float = 0.5
     freeze: bool = True
     lr: float = 0.001
     early_stop: bool = False
@@ -498,8 +516,9 @@ class ModelConfig(BaseConfig):
         Raises
         ------
         ValueError
-            Raised if the model ``model_name``, the optimizer ``optim_name`` or
-            the loss function ``loss_name`` is not supported.
+            Raised if the model ``model_name``, the optimizer ``optim_name``,
+            the loss function ``cla_loss`` or the domain adaptation loss
+            ``uda_loss`` is not supported.
 
         """
         # check input types
@@ -512,7 +531,13 @@ class ModelConfig(BaseConfig):
         self.optim_class = item_in_enum(self.optim_name, SupportedOptimizers)
 
         # check whether the loss function is currently supported
-        self.loss_class = item_in_enum(self.loss_name, SupportedLossFunctions)
+        self.cla_loss_class = item_in_enum(self.cla_loss,
+                                           SupportedLossFunctions)
+
+        # check whether the domain adaptation loss is currently supported
+        if self.transfer and not self.supervised:
+            self.uda_loss_class = item_in_enum(self.uda_loss,
+                                               SupportedUdaMethods)
 
         # path to model states
         self.state_path = pathlib.Path(HERE).joinpath('_models/')
@@ -541,21 +566,39 @@ class ModelConfig(BaseConfig):
 
         return optimizer
 
-    def init_loss_function(self):
-        """Instanciate the loss function.
+    def init_cla_loss_function(self):
+        """Instanciate the classification loss function.
 
         Returns
         -------
-        loss_function : :py:class:`torch.nn.Module`
+        cla_loss_function : :py:class:`torch.nn.Module`
             An instance of :py:class:`torch.nn.Module`.
 
         """
-        LOGGER.info('Loss function: {}.'.format(repr(self.loss_class)))
+        LOGGER.info('Classification loss function: {}.'
+                    .format(repr(self.cla_loss_class)))
+
+        # instanciate the classification loss function
+        cla_loss_function = self.cla_loss_class()
+
+        return cla_loss_function
+
+    def init_uda_loss_function(self):
+        """Instanciate the domain adaptation loss function.
+
+        Returns
+        -------
+        uda_loss_function : :py:class:`torch.nn.Module`
+            An instance of :py:class:`torch.nn.Module`.
+
+        """
+        LOGGER.info('Domain adaptation loss function: {}.'
+                    .format(repr(self.uda_loss_class)))
 
         # instanciate the loss function
-        loss_function = self.loss_class()
+        uda_loss_function = self.uda_loss_class()
 
-        return loss_function
+        return uda_loss_function
 
     def init_model(self, ds, state_file):
         """Instanciate the model and the optimizer.
@@ -567,6 +610,7 @@ class ModelConfig(BaseConfig):
         Parameters
         ----------
         ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
+            The target domain dataset.
             An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
         state_file : :py:class:`pathlib.Path`
             Path to a model checkpoint.
@@ -595,8 +639,50 @@ class ModelConfig(BaseConfig):
         # write an initialization string to the log file
         LogConfig.init_log('{}: Initializing model run. ')
 
-        # case (1): build a new model
-        if not self.transfer:
+        # copies of configuration variables to avoid boilerplate code
+        checkpoint = self.checkpoint
+        transfer = self.transfer
+
+        # initialize checkpoint state, i.e. no model checkpoint
+        checkpoint_state = {}
+
+        # check whether to load a model checkpoint
+        if checkpoint:
+            try:
+                # load model checkpoint
+                model, optimizer, model_state = Network.load(state_file)
+                checkpoint_state = self.load_checkpoint(model_state)
+
+            except FileNotFoundError:
+                LOGGER.warning('Checkpoint for model {} does not exist. '
+                               'Initializing new model.'
+                               .format(state_file.name))
+                checkpoint = False
+
+        # case (1): initialize a model for transfer learning
+        if transfer and not checkpoint:
+
+            # check whether to fine-tune (supervised) or adapt (unsupervised)
+            if self.supervised:
+                # load pretrained model to fine-tune on new dataset
+                LOGGER.info('Loading pretrained model for supervised transfer '
+                            ' learning from: {}'.format(self.pretrained_path))
+                model, optimizer, model_state = self.transfer_model(
+                    self.pretrained_path, ds, self.freeze)
+            else:
+                # adapt a pretrained model to the target domain
+                if self.uda_from_pretrained:
+                    LOGGER.info('Loading pretrained model for unsupervised '
+                                'domain adaptation from: {}'
+                                .format(self.pretrained_path))
+                    model, optimizer, model_state = Network.load(
+                        self.pretrained_path)
+                else:
+                    transfer = False
+
+        # case (2): initialize a model to train on the source/target domain
+        #           only
+        if not transfer and not checkpoint:
 
             # set the random seed for reproducibility
             torch.manual_seed(self.torch_seed)
@@ -610,82 +696,36 @@ class ModelConfig(BaseConfig):
                 skip=self.skip_connection,
                 **self.kwargs)
 
-        # case (2): load a pretrained model for transfer learning
-        else:
-            # load pretrained model
-            LOGGER.info('Loading pretrained model for transfer learning from: '
-                        '{}'.format(self.pretrained_path))
-            model = self.transfer_model(self.pretrained_path, ds, self.freeze)
-
         # initialize the optimizer
         optimizer = self.init_optimizer(model)
-
-        # whether to resume training from an existing model checkpoint
-        checkpoint_state = {}
-        if self.checkpoint:
-            model, optimizer, checkpoint_state = self.load_checkpoint(
-                model, optimizer, state_file)
 
         return model, optimizer, checkpoint_state
 
     @staticmethod
-    def load_checkpoint(model, optimizer, state_file):
+    def load_checkpoint(model_state):
         """Load an existing model checkpoint.
 
-        If the model checkpoint ``state_file`` exists, the pretrained model and
-        optimizer states are loaded.
+        Load the pretrained model loss and accuracy time series.
 
         Parameters
         ----------
-        model : :py:class:`pysegcnn.core.models.Network`
-            An instance of :py:class:`pysegcnn.core.models.Network`.
-        optimizer : :py:class:`torch.optim.Optimizer`
-            An instance of :py:class:`torch.optim.Optimizer`.
-        state_file : :py:class:`pathlib.Path`
-            Path to the model checkpoint.
+        model_state : `dict`
+            A dictionary containing the model and optimizer state.
 
         Returns
         -------
-        model : :py:class:`pysegcnn.core.models.Network`
-            An instance of :py:class:`pysegcnn.core.models.Network`.
-        optimizer : :py:class:`torch.optim.Optimizer`
-            An instance of :py:class:`torch.optim.Optimizer`.
         checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`]
-            If the model checkpoint ``state_file`` exists, ``checkpoint_state``
-            has keys:
-                ``'ta'``
-                    The accuracy on the training set
-                    (:py:class:`numpy.ndarray`).
-                ``'tl'``
-                    The loss on the training set (:py:class:`numpy.ndarray`).
-                ``'va'``
-                    The accuracy on the validation set
-                    (:py:class:`numpy.ndarray`).
-                ``'vl'``
-                    The loss on the validation set (:py:class:`numpy.ndarray`).
+            The model checkpoint loss and accuracy time series.
 
         """
-        # whether to resume training from an existing model checkpoint
-        checkpoint_state = {}
+        # load model loss and accuracy
 
-        # if no checkpoint exists, file a warning and continue with a model
-        # initialized from scratch
-        if not state_file.exists():
-            LOGGER.warning('Checkpoint for model {} does not exist. '
-                           'Initializing new model.'
-                           .format(state_file.name))
-        else:
-            # load model checkpoint
-            model, optimizer, model_state = Network.load(state_file)
+        # get all non-zero elements, i.e. get number of epochs trained
+        # before the early stop
+        checkpoint_state = {k: v[np.nonzero(v)].reshape(v.shape[0], -1)
+                            for k, v in model_state['state'].items()}
 
-            # load model loss and accuracy
-
-            # get all non-zero elements, i.e. get number of epochs trained
-            # before the early stop
-            checkpoint_state = {k: v[np.nonzero(v)].reshape(v.shape[0], -1)
-                                for k, v in model_state['state'].items()}
-
-        return model, optimizer, checkpoint_state
+        return checkpoint_state
 
     @staticmethod
     def transfer_model(state_file, ds, freeze=True):
@@ -720,6 +760,10 @@ class ModelConfig(BaseConfig):
         model : :py:class:`pysegcnn.core.models.Network`
             An instance of :py:class:`pysegcnn.core.models.Network`. The
             pretrained model adjusted to the new dataset.
+        optimizer : :py:class:`torch.optim.Optimizer`
+           The optimizer used to train the model.
+        model_state : `dict`
+            A dictionary containing the model and optimizer state.
 
         """
         # check input type
@@ -729,7 +773,7 @@ class ModelConfig(BaseConfig):
                                               ImageDataset.__name__])))
 
         # load the pretrained model
-        model, _, model_state = Network.load(state_file)
+        model, optimizer, model_state = Network.load(state_file)
         LOGGER.info('Configuring model for new dataset: {}.'.format(
             ds.__class__.__name__))
 
@@ -762,7 +806,7 @@ class ModelConfig(BaseConfig):
                                       out_channels=model.nclasses,
                                       kernel_size=1)
 
-        return model
+        return model, optimizer, model_state
 
 
 @dataclasses.dataclass
@@ -776,22 +820,54 @@ class StateConfig(BaseConfig):
 
     Attributes
     ----------
-    dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+    src_dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+        The source domain dataset configuration.
         An instance of :py:class:`pysegcnn.core.trainer.DatasetConfig`.
-    sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
+    src_sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
+        The source domain dataset split configuration.
+        An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
+    trg_dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+        The target domain dataset configuration.
+        An instance of :py:class:`pysegcnn.core.trainer.DatasetConfig`.
+    trg_sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
+        The target domain dataset split configuration.
         An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
     mc : :py:class:`pysegcnn.core.trainer.ModelConfig`
+        The model configuration.
         An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
 
     """
 
-    dc: DatasetConfig
-    sc: SplitConfig
+    src_dc: DatasetConfig
+    src_sc: SplitConfig
+    trg_dc: DatasetConfig
+    trg_sc: SplitConfig
     mc: ModelConfig
 
     def __post_init__(self):
-        """Check the type of each argument."""
+        """Check the type of each argument.
+
+        Raises
+        ------
+        ValueError
+            Raised if the spectral bands of the source ``src_dc`` and target
+            ``trg_dc`` datasets are not equal.
+
+        """
         super().__post_init__()
+
+        # base model state filename
+        # Model_Dataset_SplitMode_SplitParams_TileSize_BatchSize_Bands
+        self.state_file = '{}_{}_{}Split_{}_t{}_b{}_{}.pt'
+
+        # check that the spectral bands are the same for both source and target
+        # domains
+        if self.src_dc.bands != self.trg_dc.bands:
+            raise ValueError('Spectral bands of the source and target domain '
+                             'have to be equal: \n source: {} \n target: {}'
+                             .format(', '.join(self.src_dc.bands),
+                                     ', '.join(self.trg_dc.bands))
+                             )
 
     def init_state(self):
         """Generate the model state filename.
@@ -802,59 +878,90 @@ class StateConfig(BaseConfig):
             The path to the model state file.
 
         """
-        # file to save model state to:
-        # network_dataset_optim_split_splitparams_tilesize_batchsize_bands.pt
+        # state file name for model trained on the source domain only
+        state_src = self._format_state_file(
+                self.state_file, self.src_dc, self.src_sc, self.mc)
 
-        # model state filename
-        state_file = '{}_{}_{}_{}Split_{}_t{}_b{}_{}.pt'
+        # check whether the model is trained on the source domain only
+        if not self.mc.transfer:
+            # state file for models trained only on the source domain
+            state = state_src
+        else:
+            # state file for model trained on target domain
+            state_trg = self._format_state_file(
+                self.state_file, self.trg_dc, self.trg_sc, self.mc)
 
+            # check whether a pretrained model is used to fine-tune to the
+            # target domain
+            if self.mc.supervised:
+                # state file for models fine-tuned to target domain
+                state = state_trg.replace('.pt', '_pretrained_{}'.format(
+                    self.mc.pretrained_model))
+            else:
+                # state file for models trained via unsupervised domain
+                # adaptation
+                state = state_src.replace('.pt', '_uda_{}'.format(state_trg))
+
+                # check whether unsupervised domain adaptation is initialized
+                # from a pretrained model state
+                if self.mc.uda_from_pretrained:
+                    state.replace('.pt', '_pretrained_{}'.format(
+                        self.mc.pretrained_model))
+
+        # path to model state
+        state = self.mc.state_path.joinpath(state)
+
+        return state
+
+    def _format_state_file(self, state_file, dc, sc, mc):
+        """Format base model state filename.
+
+        Parameters
+        ----------
+        state_file : `str`
+            The base model state filename.
+        dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+            The domain dataset configuration.
+        sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
+            The domain dataset split configuration.
+        mc : :py:class:`pysegcnn.core.trainer.ModelConfig`
+            The model configuration.
+
+        Returns
+        -------
+        file : `str`
+            The formatted model state filename.
+
+        """
         # get the band numbers
-        if self.dc.bands:
+        if dc.bands:
             bformat = ''.join(band[0] +
-                              str(self.dc.dataset_class.get_sensor().
+                              str(dc.dataset_class.get_sensor().
                                   __members__[band].value)
-                              for band in self.dc.bands)
+                              for band in dc.bands)
         else:
             bformat = 'all'
 
         # check which split mode was used
-        if self.sc.split_mode == 'date':
-            # store the date that was used to split the dataset
-            state_file = state_file.format(self.mc.model_name,
-                                           self.dc.dataset_class.__name__,
-                                           self.mc.optim_name,
-                                           self.sc.split_mode.capitalize(),
-                                           self.sc.date,
-                                           self.dc.tile_size,
-                                           self.mc.batch_size,
-                                           bformat)
+        if sc.split_mode == 'date':
+            # store the date of the split
+            split_params = sc.date
         else:
             # store the random split parameters
             split_params = 's{}_t{}v{}'.format(
-                self.dc.seed, str(self.sc.ttratio).replace('.', ''),
-                str(self.sc.tvratio).replace('.', ''))
+                dc.seed, str(sc.ttratio).replace('.', ''),
+                str(sc.tvratio).replace('.', ''))
 
-            # model state filename
-            state_file = state_file.format(self.mc.model_name,
-                                           self.dc.dataset_class.__name__,
-                                           self.mc.optim_name,
-                                           self.sc.split_mode.capitalize(),
-                                           split_params,
-                                           self.dc.tile_size,
-                                           self.mc.batch_size,
-                                           bformat)
+        # model state filename
+        file = state_file.format(mc.model_name,
+                                 dc.dataset_class.__name__,
+                                 sc.split_mode.capitalize(),
+                                 split_params,
+                                 dc.tile_size,
+                                 mc.batch_size,
+                                 bformat)
 
-        # check whether a pretrained model was used and change state filename
-        # accordingly
-        if self.mc.transfer:
-            # add the configuration of the pretrained model to the state name
-            state_file = (state_file.replace('.pt', '_') +
-                          'pretrained_' + self.mc.pretrained_model)
-
-        # path to model state
-        state = self.mc.state_path.joinpath(state_file)
-
-        return state
+        return file
 
 
 @dataclasses.dataclass
@@ -1076,7 +1183,7 @@ class LogConfig(BaseConfig):
 
 @dataclasses.dataclass
 class NetworkTrainer(BaseConfig):
-    """Model training class.
+    """Base model training class.
 
     Generic class to train an instance of
     :py:class:`pysegcnn.core.models.Network` on a dataset of type
@@ -1091,17 +1198,8 @@ class NetworkTrainer(BaseConfig):
         The optimizer to update the model weights. An instance of
         :py:class:`torch.optim.Optimizer`.
     loss_function : :py:class:`torch.nn.Module`
-        The loss function to compute the model error. An instance of
-        :py:class:`torch.nn.Module`.
-    train_dl : :py:class:`torch.utils.data.DataLoader`
-        The training :py:class:`torch.utils.data.DataLoader` instance build
-        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
-    valid_dl : :py:class:`torch.utils.data.DataLoader`
-        The validation :py:class:`torch.utils.data.DataLoader` instance build
-        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
-    test_dl : :py:class:`torch.utils.data.DataLoader`
-        The test :py:class:`torch.utils.data.DataLoader` instance build from an
-        instance of :py:class:`pysegcnn.core.split.CustomSubset`.
+        The classification loss function to compute the model error. An
+        instance of :py:class:`torch.nn.Module`.
     state_file : :py:class:`pathlib.Path`
         Path to save the model state.
     epochs : `int`
@@ -1165,18 +1263,15 @@ class NetworkTrainer(BaseConfig):
     model: Network
     optimizer: Optimizer
     loss_function: nn.Module
-    train_dl: DataLoader
-    valid_dl: DataLoader
-    test_dl: DataLoader
     state_file: pathlib.Path
-    epochs: int = 1
-    nthreads: int = torch.get_num_threads()
-    early_stop: bool = False
-    mode: str = 'max'
-    delta: float = 0
-    patience: int = 10
-    checkpoint_state: dict = dataclasses.field(default_factory=dict)
-    save: bool = True
+    epochs: int
+    nthreads: int
+    early_stop: bool
+    mode: str
+    delta: float
+    patience: int
+    checkpoint_state: dict
+    save: bool
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -1189,9 +1284,9 @@ class NetworkTrainer(BaseConfig):
         """
         super().__post_init__()
 
-        # whether to use the gpu
-        self.device = torch.device("cuda:0" if torch.cuda.is_available()
-                                   else "cpu")
+        # the device to train the model on
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else
+                                   'cpu')
 
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
@@ -1210,6 +1305,91 @@ class NetworkTrainer(BaseConfig):
 
         # log representation
         LOGGER.info(repr(self))
+
+    def predict(self, dataloader):
+        """Model inference at training time.
+
+        Parameters
+        ----------
+        dataloader : :py:class:`torch.utils.data.DataLoader`
+            The validation dataloader to evaluate the model predictions.
+
+        Returns
+        -------
+        accuracies : :py:class:`numpy.ndarray`
+            The mean model prediction accuracy on each mini-batch in the
+            validation set.
+        losses : :py:class:`numpy.ndarray`
+            The model loss for each mini-batch in the validation set.
+
+        """
+        # set the model to evaluation mode
+        LOGGER.info('Setting model to evaluation mode ...')
+        self.model.eval()
+
+        # create arrays of the observed losses and accuracies
+        accuracies = np.zeros(shape=(len(dataloader), 1))
+        losses = np.zeros(shape=(len(dataloader), 1))
+
+        # iterate over the validation/test set
+        LOGGER.info('Calculating accuracy on the validation set ...')
+        for batch, (inputs, labels) in enumerate(dataloader):
+
+            # send the data to the gpu if available
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+
+            # calculate network outputs
+            with torch.no_grad():
+                outputs = self.model(inputs)
+
+            # compute loss
+            loss = self.loss_function(outputs, labels.long())
+            losses[batch, 0] = loss.detach().numpy().item()
+
+            # calculate predicted class labels
+            pred = F.softmax(outputs, dim=1).argmax(dim=1)
+
+            # calculate accuracy on current batch
+            acc = accuracy_function(pred, labels)
+            accuracies[batch, 0] = acc
+
+            # print progress
+            LOGGER.info('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
+                        .format(batch + 1, len(dataloader), acc))
+
+        # calculate overall accuracy on the validation/test set
+        LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
+                    .format(self.model.epoch, accuracies.mean() * 100))
+
+        return accuracies, losses
+
+
+@dataclasses.dataclass
+class SingleDomainTrainer(NetworkTrainer):
+    """Train a classifier on a single domain.
+
+    Attributes
+    ----------
+    train_dl : :py:class:`torch.utils.data.DataLoader`
+        The training :py:class:`torch.utils.data.DataLoader` instance build
+        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
+    valid_dl : :py:class:`torch.utils.data.DataLoader`
+        The validation :py:class:`torch.utils.data.DataLoader` instance build
+        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
+    test_dl : :py:class:`torch.utils.data.DataLoader`
+        The test :py:class:`torch.utils.data.DataLoader` instance build from an
+        instance of :py:class:`pysegcnn.core.split.CustomSubset`.
+
+    """
+
+    train_dl: DataLoader
+    valid_dl: DataLoader
+    test_dl: DataLoader
+
+    def __post_init__(self):
+        """Check the type of each argument."""
+        super().__post_init__()
 
     def train(self):
         """Train the model.
@@ -1302,7 +1482,7 @@ class NetworkTrainer(BaseConfig):
             if self.early_stop:
 
                 # model predictions on the validation set
-                vacc, vloss = self.predict()
+                vacc, vloss = self.predict(self.valid_dl)
 
                 # append observed accuracy and loss to arrays
                 self.training_state['va'][:, epoch] = vacc.squeeze()
@@ -1329,59 +1509,6 @@ class NetworkTrainer(BaseConfig):
                 self.save_state()
 
         return self.training_state
-
-    def predict(self):
-        """Model inference at training time.
-
-        Returns
-        -------
-        accuracies : :py:class:`numpy.ndarray`
-            The mean model prediction accuracy on each mini-batch in the
-            validation set.
-        losses : :py:class:`numpy.ndarray`
-            The model loss for each mini-batch in the validation set.
-
-        """
-        # set the model to evaluation mode
-        LOGGER.info('Setting model to evaluation mode ...')
-        self.model.eval()
-
-        # create arrays of the observed losses and accuracies
-        accuracies = np.zeros(shape=(len(self.valid_dl), 1))
-        losses = np.zeros(shape=(len(self.valid_dl), 1))
-
-        # iterate over the validation/test set
-        LOGGER.info('Calculating accuracy on the validation set ...')
-        for batch, (inputs, labels) in enumerate(self.valid_dl):
-
-            # send the data to the gpu if available
-            inputs = inputs.to(self.device)
-            labels = labels.to(self.device)
-
-            # calculate network outputs
-            with torch.no_grad():
-                outputs = self.model(inputs)
-
-            # compute loss
-            loss = self.loss_function(outputs, labels.long())
-            losses[batch, 0] = loss.detach().numpy().item()
-
-            # calculate predicted class labels
-            pred = F.softmax(outputs, dim=1).argmax(dim=1)
-
-            # calculate accuracy on current batch
-            acc = accuracy_function(pred, labels)
-            accuracies[batch, 0] = acc
-
-            # print progress
-            LOGGER.info('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
-                        .format(batch + 1, len(self.valid_dl), acc))
-
-        # calculate overall accuracy on the validation/test set
-        LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
-                    .format(self.model.epoch, accuracies.mean() * 100))
-
-        return accuracies, losses
 
     def save_state(self):
         """Save the model state."""
@@ -1457,6 +1584,180 @@ class NetworkTrainer(BaseConfig):
 
         fs += '\n)'
         return fs
+
+
+@dataclasses.dataclass
+class DomainAdaptationTrainer(NetworkTrainer):
+    """Train a classifier on multiple domains.
+
+    Attributes
+    ----------
+    src_train_dl : :py:class:`torch.utils.data.DataLoader`
+        The source domain training :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
+    trg_train_dl : :py:class:`torch.utils.data.DataLoader`
+        The target domain training :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
+    da_loss_function : :py:class:`torch.nn.Module`
+        The domain adaptation loss function. An instance of
+        :py:class:`torch.nn.Module`.
+    uda_lambda : `float`
+        The weight of the domain adaptation, trading off adaptation with
+        classification accuracy on the source domain.
+    """
+
+    src_train_dl: DataLoader
+    src_valid_dl: DataLoader
+    trg_train_dl: DataLoader
+    da_loss_function: nn.Module
+    uda_lambda: float
+
+    def __post_init__(self):
+        """Check the type of each argument."""
+        super().__post_init__()
+
+        # set the device for computing domain adaptation loss
+        self.da_loss_function.device = self.device
+
+    def train(self):
+        """Train the model.
+
+        Returns
+        -------
+        training_state : `dict` [`str`, `numpy.ndarray`]
+            The training state dictionary with keys:
+            ``'ta'``
+                The accuracy on the training set (:py:class:`numpy.ndarray`).
+            ``'tl'``
+                The loss on the training set (:py:class:`numpy.ndarray`).
+            ``'va'``
+                The accuracy on the validation set (:py:class:`numpy.ndarray`).
+            ``'vl'``
+                The loss on the validation set (:py:class:`numpy.ndarray`).
+
+        """
+        LOGGER.info(35 * '-' + ' Training ' + 35 * '-')
+
+        # set the number of threads
+        LOGGER.info('Device: {}'.format(self.device))
+        LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
+        torch.set_num_threads(self.nthreads)
+
+        # number of batches to train in each epoch
+        nbatches = min(len(self.src_train_dl), len(self.trg_train_dl))
+
+        # create dictionary of the observed losses and accuracies on the
+        # training and validation dataset
+        shape = (nbatches, self.epochs)
+        self.training_state = {'cla_loss': np.zeros(shape=shape),
+                               'uda_loss': np.zeros(shape=shape),
+                               'tot_loss': np.zeros(shape=shape),
+                               'strn_acc': np.zeros(shape=shape),
+                               'sval_acc': np.zeros(shape=shape)
+                               }
+
+        # initialize the training: iterate over the entire training dataset
+        for epoch in range(self.epochs):
+
+            # create source and target data training generators
+            source = iter(self.src_train_dl)
+            target = iter(self.trg_train_dl)
+
+            # set the model to training mode
+            LOGGER.info('Setting model to training mode ...')
+            self.model.train()
+
+            # iterate over the number of samples
+            for batch in range(nbatches):
+
+                # get the source and target domain input data
+                src_input, src_label = source.next()
+                trg_input, _ = target.next()
+
+                # send the data to the gpu if available
+                src_input, src_label = (src_input.to(self.device),
+                                        src_label.to(self.device))
+                trg_input = trg_input.to(self.device)
+
+                # reset the gradients
+                self.optimizer.zero_grad()
+
+                # perform forward pass
+                src_preds = self.model(src_input)
+                trg_preds = self.model(trg_input)
+
+                # compute classification loss
+                cla_loss = self.loss_function(src_preds, src_label.long())
+
+                # compute domain adaptation loss:
+                # the difference between source and target domain is computed
+                # after the classification layer
+                uda_loss = self.da_loss_function(src_preds, trg_preds)
+
+                # total loss
+                loss = cla_loss + self.uda_lambda * uda_loss
+
+                # compute the gradients of the loss function w.r.t.
+                # the network weights
+                loss.backward()
+
+                # update the weights
+                self.optimizer.step()
+
+                # calculate predicted class labels
+                ypred = F.softmax(src_preds, dim=1).argmax(dim=1)
+
+                # calculate accuracy on current batch
+                acc = accuracy_function(ypred, src_label)
+
+                # log loss and accuracy
+                self.training_state['cla_loss'][batch, epoch] = cla_loss.item()
+                self.training_state['uda_loss'][batch, epoch] = uda_loss.item()
+                self.training_state['tot_loss'][batch, epoch] = loss.item()
+                self.training_state['strn_acc'][batch, epoch] = acc
+
+                # print progress
+                LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
+                            'Cla_loss: {:.2f}, Da_loss: {:.2f}, Acc: {:.2f}'
+                            .format(epoch + 1, self.epochs, batch + 1,
+                                    nbatches, cla_loss, uda_loss, acc))
+
+            # update the number of epochs trained
+            self.model.epoch += 1
+
+            # whether to evaluate model performance on the validation set and
+            # early stop the training process
+            if self.early_stop:
+
+                # model predictions on the validation set
+                vacc, _ = self.predict(self.src_valid_dl)
+
+                # append observed accuracy and loss to arrays
+                self.training_state['sval_acc'][:, epoch] = vacc.squeeze()
+
+                # metric to assess model performance on the validation set
+                epoch_acc = vacc.squeeze().mean()
+
+                # whether the model improved with respect to the previous epoch
+                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
+                    self.max_accuracy = epoch_acc
+
+                    # save model state if the model improved with
+                    # respect to the previous epoch
+                    self.save_state()
+
+                # whether the early stopping criterion is met
+                if self.es.stop(epoch_acc):
+                    break
+
+            else:
+                # if no early stopping is required, the model state is
+                # saved after each epoch
+                self.save_state()
+
+        return self.training_state
 
 
 class EarlyStopping(object):

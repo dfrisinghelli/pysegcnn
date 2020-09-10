@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -72,8 +72,8 @@ src_ds_config = {
     # whether to central pad the scenes with a constant value
     # if True, padding is used if the scenes are not evenly divisible into
     # tiles of size (tile_size, tile_size)
-    # 'pad': False,
-    'pad': True,
+    'pad': False,
+    # 'pad': True,
 
     # the random seed for the numpy random number generator
     # ensures reproducibility of the training, validation and test data split
@@ -82,8 +82,8 @@ src_ds_config = {
 
     # whether to sort the dataset in chronological order, useful for time
     # series data
-    'sort': True,
-    # 'sort': False,
+    # 'sort': True,
+    'sort': False,
 
     # whether to artificially increase the training data size using data
     # augmentation methods
@@ -237,7 +237,7 @@ model_config = {
     # whether to apply any sort of transfer learning
     # if transfer=False, the model is only trained on the source dataset
     'transfer': True,
-    # 'transfer': True
+    # 'transfer': False
 
     # name of the pretrained model to apply for transfer learning
     # Required if supervised=True
@@ -297,11 +297,11 @@ model_config = {
     'early_stop': True,
     'mode': 'max',
     'delta': 0,
-    'patience': 5,
+    'patience': 10,
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
-    'epochs': 50,
+    'epochs': 100,
 
     # define a classification loss function to calculate the network error
     'cla_loss': 'CrossEntropy',

@@ -976,6 +976,9 @@ class EvalConfig(BaseConfig):
     ----------
     state_file : :py:class:`pathlib.Path`
         Path to the model to evaluate.
+    domain: `bool`
+        Whether to evaluate on the source domain, i.e. the domain the model
+        in ``state_file`` was trained on.
     test : `bool` or `None`
         Whether to evaluate the model on the training(``test=None``), the
         validation (``test=False``) or the test set (``test=True``).
@@ -1023,6 +1026,7 @@ class EvalConfig(BaseConfig):
     """
 
     state_file: pathlib.Path
+    domain: bool
     test: object
     predict_scene: bool = False
     plot_samples: bool = False

@@ -25,6 +25,7 @@ import dataclasses
 import pathlib
 import logging
 import datetime
+from logging.config import dictConfig
 
 # externals
 import numpy as np
@@ -43,6 +44,7 @@ from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
 from pysegcnn.core.uda import SupportedUdaMethods
 from pysegcnn.core.layers import Conv2dSame
+from pysegcnn.core.logging import log_conf
 from pysegcnn.main.config import HERE
 
 # module level logger
@@ -666,7 +668,7 @@ class ModelConfig(BaseConfig):
             if self.supervised:
                 # load pretrained model to fine-tune on new dataset
                 LOGGER.info('Loading pretrained model for supervised transfer '
-                            ' learning from: {}'.format(self.pretrained_path))
+                            'learning from: {}'.format(self.pretrained_path))
                 model, optimizer, model_state = self.transfer_model(
                     self.pretrained_path, ds, self.freeze)
             else:
@@ -1182,6 +1184,108 @@ class LogConfig(BaseConfig):
 
 
 @dataclasses.dataclass
+class MetricTracker(BaseConfig):
+    """Log training metrics.
+
+    Attributes
+    ----------
+    train_metrics : `list` [`str`]
+        List of metric names on the training dataset.
+    valid_metrics : `list` [`str`]
+        List of metric names on the validation dataset.
+    metrics : `list` [`str`]
+        Union of ``train_metrics`` and ``valid_metrics``.
+    state : `dict` [`str`, `list`]
+        Dictionary of the logged metrics. The keys are ``metrics`` and the
+        values are lists of the corresponding metric observed during training.
+
+    """
+
+    train_metrics: list = dataclasses.field(default_factory=['train_loss',
+                                                             'train_accu'])
+    valid_metrics: list = dataclasses.field(default_factory=['valid_loss',
+                                                             'valid_accu'])
+
+    def __post_init__(self):
+        """Check the type of each argument."""
+        super().__post_init__()
+
+    def initialize(self):
+        """Store the metrics as instance attributes."""
+        # initialize the metrics
+        self.metrics = self.train_metrics + self.valid_metrics
+        for metric in self.metrics:
+            setattr(self, str(metric), [])
+
+    def update(self, metric, value):
+        """Update a metric.
+
+        Parameters
+        ----------
+        metric : `str`
+            Name of a metric in ``metrics``.
+        value : `float` or `list` [`float`]
+            The observed value(s) of ``metric``.
+
+        """
+        if isinstance(value, list):
+            getattr(self, str(metric)).extend(value)
+        else:
+            getattr(self, str(metric)).append(value)
+
+    def batch_update(self, metrics, values):
+        """Update a list of metrics.
+
+        Parameters
+        ----------
+        metrics : `list` [`str`]
+            List of metric names.
+        values : `list` [`float`] or `list` [`list` [`float`]]
+            The corresponfing observed values of ``metrics``.
+
+        """
+        for metric, value in zip(metrics, values):
+            self.update(metric, value)
+
+    @property
+    def state(self):
+        """Return a dictionary of the logged metrics.
+
+        Returns
+        -------
+        state : `dict` [`str`, `list`]
+            Dictionary of the logged metrics. The keys are ``metrics`` and the
+            values are lists of the corresponding metric observed during
+            training.
+
+        """
+        return {k: getattr(self, k) for k in self.metrics}
+
+    def np_state(self, tmbatch, vmbatch):
+        """Return a dictionary of the logged metrics.
+
+        Parameters
+        ----------
+        tmbatch : `int`
+            Number of mini-batches in the training dataset.
+        vmbatch : `int`
+            Number of mini-batches in the validation dataset.
+
+        Returns
+        -------
+        state : `dict` [`str`, :py:class:`numpy.ndarray`]
+            Dictionary of the logged metrics. The keys are ``metrics`` and the
+            values are :py:class:`numpy.ndarray`'s of the corresponding metric
+            observed during training with shape=(mini_batch, epoch).
+
+        """
+        return {**{k: np.asarray(getattr(self, k)).reshape(tmbatch, -1)
+                   for k in self.train_metrics},
+                **{k: np.asarray(getattr(self, k)).reshape(vmbatch, -1)
+                   for k in self.valid_metrics}}
+
+
+@dataclasses.dataclass
 class NetworkTrainer(BaseConfig):
     """Base model training class.
 
@@ -1197,7 +1301,7 @@ class NetworkTrainer(BaseConfig):
     optimizer : :py:class:`torch.optim.Optimizer`
         The optimizer to update the model weights. An instance of
         :py:class:`torch.optim.Optimizer`.
-    loss_function : :py:class:`torch.nn.Module`
+    cla_loss_function : :py:class:`torch.nn.Module`
         The classification loss function to compute the model error. An
         instance of :py:class:`torch.nn.Module`.
     state_file : :py:class:`pathlib.Path`
@@ -1225,35 +1329,17 @@ class NetworkTrainer(BaseConfig):
         `10`.
     checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`]
         A model checkpoint for ``model``. If specified, ``checkpoint_state``
-        should be a dictionary with keys:
-            ``'ta'``
-                The accuracy on the training set (:py:class:`numpy.ndarray`).
-            ``'tl'``
-                The loss on the training set (:py:class:`numpy.ndarray`).
-            ``'va'``
-                The accuracy on the validation set (:py:class:`numpy.ndarray`).
-            ``'vl'``
-                The loss on the validation set (:py:class:`numpy.ndarray`).
+        should be a dictionary with keys describing the training metric.
         The default is `{}`.
     save : `bool`
         Whether to save the model state to ``state_file``. The default is
         `True`.
     device : `str`
         The device to train the model on, i.e. `cpu` or `cuda`.
-    max_accuracy : `float`
-        Maximum accuracy on the validation dataset.
     es : `None` or :py:class:`pysegcnn.core.trainer.EarlyStopping`
         The early stopping instance if ``early_stop=True``, else `None`.
-    training_state : `dict` [`str`, `numpy.ndarray`]
-            The training state dictionary with keys:
-            ``'ta'``
-                The accuracy on the training set (:py:class:`numpy.ndarray`).
-            ``'tl'``
-                The loss on the training set (:py:class:`numpy.ndarray`).
-            ``'va'``
-                The accuracy on the validation set (:py:class:`numpy.ndarray`).
-            ``'vl'``
-                The loss on the validation set (:py:class:`numpy.ndarray`).
+    tracker : :py:class:`pysegcnn.core.trainer.MetricTracker`
+        A :py:class:`pysegcnn.core.trainer.MetricTracker` instance.
 
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
@@ -1262,7 +1348,7 @@ class NetworkTrainer(BaseConfig):
 
     model: Network
     optimizer: Optimizer
-    loss_function: nn.Module
+    cla_loss_function: nn.Module
     state_file: pathlib.Path
     epochs: int
     nthreads: int
@@ -1287,14 +1373,21 @@ class NetworkTrainer(BaseConfig):
         # the device to train the model on
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else
                                    'cpu')
+        # set the number of threads
+        torch.set_num_threads(self.nthreads)
 
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
 
-        # maximum accuracy on the validation dataset
+        # instanciate metric tracker
+        self.tracker = MetricTracker(
+            train_metrics=['train_loss', 'train_accu'],
+            valid_metrics=['valid_loss', 'valid_accu'])
+
+        # maximum accuracy on the validation set
         self.max_accuracy = 0
         if self.checkpoint_state:
-            self.max_accuracy = self.checkpoint_state['va'].mean(
+            self.max_accuracy = self.checkpoint_state['valid_accu'].mean(
                 axis=0).max().item()
 
         # whether to use early stopping
@@ -1306,6 +1399,13 @@ class NetworkTrainer(BaseConfig):
         # log representation
         LOGGER.info(repr(self))
 
+        # initialize training log
+        LOGGER.info(35 * '-' + ' Training ' + 35 * '-')
+
+        # log the device and number of threads
+        LOGGER.info('Device: {}'.format(self.device))
+        LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
+
     def predict(self, dataloader):
         """Model inference at training time.
 
@@ -1316,10 +1416,10 @@ class NetworkTrainer(BaseConfig):
 
         Returns
         -------
-        accuracies : :py:class:`numpy.ndarray`
+        accuracy : :py:class:`numpy.ndarray`
             The mean model prediction accuracy on each mini-batch in the
             validation set.
-        losses : :py:class:`numpy.ndarray`
+        loss : :py:class:`numpy.ndarray`
             The model loss for each mini-batch in the validation set.
 
         """
@@ -1327,9 +1427,9 @@ class NetworkTrainer(BaseConfig):
         LOGGER.info('Setting model to evaluation mode ...')
         self.model.eval()
 
-        # create arrays of the observed losses and accuracies
-        accuracies = np.zeros(shape=(len(dataloader), 1))
-        losses = np.zeros(shape=(len(dataloader), 1))
+        # create arrays of the observed loss and accuracy
+        accuracy = []
+        loss = []
 
         # iterate over the validation/test set
         LOGGER.info('Calculating accuracy on the validation set ...')
@@ -1344,15 +1444,15 @@ class NetworkTrainer(BaseConfig):
                 outputs = self.model(inputs)
 
             # compute loss
-            loss = self.loss_function(outputs, labels.long())
-            losses[batch, 0] = loss.detach().numpy().item()
+            cla_loss = self.cla_loss_function(outputs, labels.long())
+            loss.append(cla_loss.item())
 
             # calculate predicted class labels
             pred = F.softmax(outputs, dim=1).argmax(dim=1)
 
             # calculate accuracy on current batch
             acc = accuracy_function(pred, labels)
-            accuracies[batch, 0] = acc
+            accuracy.append(acc)
 
             # print progress
             LOGGER.info('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
@@ -1360,9 +1460,177 @@ class NetworkTrainer(BaseConfig):
 
         # calculate overall accuracy on the validation/test set
         LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
-                    .format(self.model.epoch, accuracies.mean() * 100))
+                    .format(self.model.epoch, np.mean(accuracy) * 100))
 
-        return accuracies, losses
+        return accuracy, loss
+
+    def training_state(self, tmbatch, vmbatch):
+        """Model training metrics.
+
+        Parameters
+        ----------
+        tmbatch : `int`
+            Number of mini-batches in the training dataset.
+        vmbatch : `int`
+            Number of mini-batches in the validation dataset.
+
+        Returns
+        -------
+        state : `dict`
+            The training state dictionary. The keys describe the type of the
+            training metric and the values are :py:class:`numpy.ndarray`'s of
+            the corresponding metric observed during training with
+            shape=(mini_batch, epoch).
+
+        """
+        # current training state
+        state = self.tracker.np_state(tmbatch, vmbatch)
+
+        # optional: training state of the model checkpoint
+        if self.checkpoint_state:
+            # prepend values from checkpoint to current training state
+            state = {k1: np.hstack([v1, v2]) for (k1, v1), (k2, v2) in
+                     zip(self.checkpoint_state.items(), state.items())
+                     if k1 == k2}
+
+        return state
+
+    @staticmethod
+    def init_network_trainer(src_ds_config, src_split_config, trg_ds_config,
+                             trg_split_config, model_config):
+
+        # (i) instanciate the source domain configurations
+        src_dc = DatasetConfig(**src_ds_config)   # source domain dataset
+        src_sc = SplitConfig(**src_split_config)  # source domain dataset split
+
+        # (ii) instanciate the target domain configuration
+        trg_dc = DatasetConfig(**trg_ds_config)   # target domain dataset
+        trg_sc = SplitConfig(**trg_split_config)  # target domain dataset split
+
+        # (iii) instanciate the model configuration
+        mdlcfg = ModelConfig(**model_config)
+
+        # (iv) instanciate the model state file
+        sttcfg = StateConfig(src_dc, src_sc, trg_dc, trg_sc, mdlcfg)
+        state_file = sttcfg.init_state()
+
+        # (v) instanciate logging configuration
+        logcfg = LogConfig(state_file)
+        dictConfig(log_conf(logcfg.log_file))
+
+        # (vi) instanciate the source and target domain datasets
+        src_ds = src_dc.init_dataset()
+        trg_ds = trg_dc.init_dataset()
+
+        # (vii) instanciate the training, validation and test datasets and
+        # dataloaders for the source domain
+        (src_train_ds,
+         src_valid_ds,
+         src_test_ds) = src_sc.train_val_test_split(src_ds)
+        (src_train_dl,
+         src_valid_dl,
+         src_test_dl) = src_sc.dataloaders(src_train_ds,
+                                           src_valid_ds,
+                                           src_test_ds,
+                                           batch_size=mdlcfg.batch_size,
+                                           shuffle=True, drop_last=False)
+
+        # (viii) instanciate the loss function
+        cla_loss_function = mdlcfg.init_cla_loss_function()
+
+        # (ix) check whether to apply transfer learning methods
+        if mdlcfg.transfer:
+
+            # (a) instanciate the training, validation and test datasets and
+            # dataloaders for the target domain
+            (trg_train_ds,
+             trg_valid_ds,
+             trg_test_ds) = trg_sc.train_val_test_split(trg_ds)
+            (trg_train_dl,
+             trg_valid_dl,
+             trg_test_dl) = trg_sc.dataloaders(trg_train_ds,
+                                               trg_valid_ds,
+                                               trg_test_ds,
+                                               batch_size=mdlcfg.batch_size,
+                                               shuffle=True, drop_last=False)
+
+            # (b) instanciate the model
+            if mdlcfg.supervised:
+                model, optimizer, checkpoint_state = mdlcfg.init_model(
+                    trg_ds, state_file)
+
+                # (c) instanciate the network trainer
+                trainer = SingleDomainTrainer(
+                    model=model,
+                    optimizer=optimizer,
+                    cla_loss_function=cla_loss_function,
+                    state_file=state_file,
+                    epochs=mdlcfg.epochs,
+                    nthreads=mdlcfg.nthreads,
+                    early_stop=mdlcfg.early_stop,
+                    mode=mdlcfg.mode,
+                    delta=mdlcfg.delta,
+                    patience=mdlcfg.patience,
+                    checkpoint_state=checkpoint_state,
+                    save=mdlcfg.save,
+                    train_dl=trg_train_dl,
+                    valid_dl=trg_valid_dl,
+                    test_dl=trg_test_dl
+                    )
+
+            else:
+                model, optimizer, checkpoint_state = mdlcfg.init_model(
+                    src_ds, state_file)
+
+                # instanciate the domain adaptation loss
+                uda_loss_function = mdlcfg.init_uda_loss_function()
+
+                # (c) instanciate the network trainer
+                trainer = DomainAdaptationTrainer(
+                    model=model,
+                    optimizer=optimizer,
+                    cla_loss_function=cla_loss_function,
+                    state_file=state_file,
+                    epochs=mdlcfg.epochs,
+                    nthreads=mdlcfg.nthreads,
+                    early_stop=mdlcfg.early_stop,
+                    mode=mdlcfg.mode,
+                    delta=mdlcfg.delta,
+                    patience=mdlcfg.patience,
+                    checkpoint_state=checkpoint_state,
+                    save=mdlcfg.save,
+                    src_train_dl=src_train_dl,
+                    src_valid_dl=src_valid_dl,
+                    trg_train_dl=trg_train_dl,
+                    trg_valid_dl=trg_valid_dl,
+                    uda_loss_function=uda_loss_function,
+                    uda_lambda=mdlcfg.uda_lambda
+                    )
+        else:
+            # (x) instanciate the model
+            model, optimizer, checkpoint_state = mdlcfg.init_model(
+                src_ds, state_file)
+
+            # (xi) instanciate the network trainer
+            trainer = SingleDomainTrainer(
+                model=model,
+                optimizer=optimizer,
+                cla_loss_function=cla_loss_function,
+                state_file=state_file,
+                epochs=mdlcfg.epochs,
+                nthreads=mdlcfg.nthreads,
+                early_stop=mdlcfg.early_stop,
+                mode=mdlcfg.mode,
+                delta=mdlcfg.delta,
+                patience=mdlcfg.patience,
+                checkpoint_state=checkpoint_state,
+                save=mdlcfg.save,
+                train_dl=src_train_dl,
+                valid_dl=src_valid_dl,
+                test_dl=src_test_dl
+                )
+
+        return trainer
 
 
 @dataclasses.dataclass
@@ -1391,40 +1659,26 @@ class SingleDomainTrainer(NetworkTrainer):
         """Check the type of each argument."""
         super().__post_init__()
 
+        # number of mini-batches in the training and validation sets
+        self.tmbatch = len(self.train_dl)
+        self.vmbatch = len(self.valid_dl)
+
+        # the spectral bands used for training
+        self.bands = self.train_dl.dataset.dataset.use_bands
+
+        # initialize the metric tracker
+        self.tracker.initialize()
+
     def train(self):
         """Train the model.
 
         Returns
         -------
         training_state : `dict` [`str`, `numpy.ndarray`]
-            The training state dictionary with keys:
-            ``'ta'``
-                The accuracy on the training set (:py:class:`numpy.ndarray`).
-            ``'tl'``
-                The loss on the training set (:py:class:`numpy.ndarray`).
-            ``'va'``
-                The accuracy on the validation set (:py:class:`numpy.ndarray`).
-            ``'vl'``
-                The loss on the validation set (:py:class:`numpy.ndarray`).
+            The training state dictionary. The keys describe the type of the
+            training metric.
 
         """
-        LOGGER.info(35 * '-' + ' Training ' + 35 * '-')
-
-        # set the number of threads
-        LOGGER.info('Device: {}'.format(self.device))
-        LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
-        torch.set_num_threads(self.nthreads)
-
-        # create dictionary of the observed losses and accuracies on the
-        # training and validation dataset
-        tshape = (len(self.train_dl), self.epochs)
-        vshape = (len(self.valid_dl), self.epochs)
-        self.training_state = {'tl': np.zeros(shape=tshape),
-                               'ta': np.zeros(shape=tshape),
-                               'vl': np.zeros(shape=vshape),
-                               'va': np.zeros(shape=vshape)
-                               }
-
         # initialize the training: iterate over the entire training dataset
         for epoch in range(self.epochs):
 
@@ -1446,9 +1700,7 @@ class SingleDomainTrainer(NetworkTrainer):
                 outputs = self.model(inputs)
 
                 # compute loss
-                loss = self.loss_function(outputs, labels.long())
-                observed_loss = loss.detach().numpy().item()
-                self.training_state['tl'][batch, epoch] = observed_loss
+                loss = self.cla_loss_function(outputs, labels.long())
 
                 # compute the gradients of the loss function w.r.t.
                 # the network weights
@@ -1461,18 +1713,17 @@ class SingleDomainTrainer(NetworkTrainer):
                 ypred = F.softmax(outputs, dim=1).argmax(dim=1)
 
                 # calculate accuracy on current batch
-                observed_accuracy = accuracy_function(ypred, labels)
-                self.training_state['ta'][batch, epoch] = observed_accuracy
+                acc = accuracy_function(ypred, labels)
 
                 # print progress
                 LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
-                            'Loss: {:.2f}, Accuracy: {:.2f}'.format(
-                                epoch + 1,
-                                self.epochs,
-                                batch + 1,
-                                len(self.train_dl),
-                                observed_loss,
-                                observed_accuracy))
+                            'Loss: {:.2f}, Accuracy: {:.2f}'
+                            .format(epoch + 1, self.epochs, batch + 1,
+                                    len(self.train_dl), loss.item(), acc))
+
+                # update training metrics
+                self.tracker.batch_update(self.tracker.train_metrics,
+                                          [loss.item(), acc])
 
             # update the number of epochs trained
             self.model.epoch += 1
@@ -1482,14 +1733,14 @@ class SingleDomainTrainer(NetworkTrainer):
             if self.early_stop:
 
                 # model predictions on the validation set
-                vacc, vloss = self.predict(self.valid_dl)
+                valid_accu, valid_loss = self.predict(self.valid_dl)
 
-                # append observed accuracy and loss to arrays
-                self.training_state['va'][:, epoch] = vacc.squeeze()
-                self.training_state['vl'][:, epoch] = vloss.squeeze()
+                # update validation metrics
+                self.tracker.batch_update(self.tracker.valid_metrics,
+                                          [valid_loss, valid_accu])
 
                 # metric to assess model performance on the validation set
-                epoch_acc = vacc.squeeze().mean()
+                epoch_acc = np.mean(valid_accu)
 
                 # whether the model improved with respect to the previous epoch
                 if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
@@ -1508,34 +1759,20 @@ class SingleDomainTrainer(NetworkTrainer):
                 # saved after each epoch
                 self.save_state()
 
-        return self.training_state
+        return self.training_state(self.tmbatch, self.vmbatch)
 
     def save_state(self):
         """Save the model state."""
-        # whether to save the model state
         if self.save:
-
-            # append the model performance before the checkpoint to the model
-            # state, if a checkpoint is passed
-            if self.checkpoint_state:
-
-                # append values from checkpoint to current training state
-                state = {k1: np.hstack([v1, v2]) for (k1, v1), (k2, v2) in
-                         zip(self.checkpoint_state.items(),
-                             self.training_state.items()) if k1 == k2}
-            else:
-                state = self.training_state
-
-            # save model state
-            _ = self.model.save(
-                self.state_file,
-                self.optimizer,
-                bands=self.train_dl.dataset.dataset.use_bands,
-                train_ds=self.train_dl.dataset,
-                valid_ds=self.valid_dl.dataset,
-                test_ds=self.test_dl.dataset,
-                state=state,
-                )
+            _ = self.model.save(self.state_file,
+                                self.optimizer,
+                                self.bands,
+                                train_dl=self.train_dl,
+                                valid_dl=self.valid_dl,
+                                test_dl=self.test_dl,
+                                state=self.training_state(self.tmbatch,
+                                                          self.vmbatch)
+                                )
 
     def __repr__(self):
         """Representation.
@@ -1596,22 +1833,32 @@ class DomainAdaptationTrainer(NetworkTrainer):
         The source domain training :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
         :py:class:`pysegcnn.core.split.CustomSubset`.
+    src_valid_dl : :py:class:`torch.utils.data.DataLoader`
+        The source domain validation :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
     trg_train_dl : :py:class:`torch.utils.data.DataLoader`
         The target domain training :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
         :py:class:`pysegcnn.core.split.CustomSubset`.
-    da_loss_function : :py:class:`torch.nn.Module`
+    trg_valid_dl : :py:class:`torch.utils.data.DataLoader`
+        The target domain validation :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
+    uda_loss_function : :py:class:`torch.nn.Module`
         The domain adaptation loss function. An instance of
         :py:class:`torch.nn.Module`.
     uda_lambda : `float`
         The weight of the domain adaptation, trading off adaptation with
         classification accuracy on the source domain.
+
     """
 
     src_train_dl: DataLoader
     src_valid_dl: DataLoader
     trg_train_dl: DataLoader
-    da_loss_function: nn.Module
+    trg_valid_dl: DataLoader
+    uda_loss_function: nn.Module
     uda_lambda: float
 
     def __post_init__(self):
@@ -1619,7 +1866,18 @@ class DomainAdaptationTrainer(NetworkTrainer):
         super().__post_init__()
 
         # set the device for computing domain adaptation loss
-        self.da_loss_function.device = self.device
+        self.uda_loss_function.device = self.device
+
+        # adjust metrics and initialize metric tracker
+        self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
+        self.tracker.initialize()
+
+        # number of mini-batches in the training and validation sets
+        self.tmbatch = len(self.src_train_dl)
+        self.vmbatch = len(self.src_valid_dl)
+
+        # the spectral bands used for training
+        self.bands = self.src_train_dl.dataset.dataset.use_bands
 
     def train(self):
         """Train the model.
@@ -1627,54 +1885,30 @@ class DomainAdaptationTrainer(NetworkTrainer):
         Returns
         -------
         training_state : `dict` [`str`, `numpy.ndarray`]
-            The training state dictionary with keys:
-            ``'ta'``
-                The accuracy on the training set (:py:class:`numpy.ndarray`).
-            ``'tl'``
-                The loss on the training set (:py:class:`numpy.ndarray`).
-            ``'va'``
-                The accuracy on the validation set (:py:class:`numpy.ndarray`).
-            ``'vl'``
-                The loss on the validation set (:py:class:`numpy.ndarray`).
+            The training state dictionary. The keys describe the type of the
+            training metric.
 
         """
-        LOGGER.info(35 * '-' + ' Training ' + 35 * '-')
-
-        # set the number of threads
-        LOGGER.info('Device: {}'.format(self.device))
-        LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
-        torch.set_num_threads(self.nthreads)
-
-        # number of batches to train in each epoch
-        nbatches = min(len(self.src_train_dl), len(self.trg_train_dl))
-
-        # create dictionary of the observed losses and accuracies on the
-        # training and validation dataset
-        shape = (nbatches, self.epochs)
-        self.training_state = {'cla_loss': np.zeros(shape=shape),
-                               'uda_loss': np.zeros(shape=shape),
-                               'tot_loss': np.zeros(shape=shape),
-                               'strn_acc': np.zeros(shape=shape),
-                               'sval_acc': np.zeros(shape=shape)
-                               }
-
         # initialize the training: iterate over the entire training dataset
         for epoch in range(self.epochs):
-
-            # create source and target data training generators
-            source = iter(self.src_train_dl)
-            target = iter(self.trg_train_dl)
 
             # set the model to training mode
             LOGGER.info('Setting model to training mode ...')
             self.model.train()
 
-            # iterate over the number of samples
-            for batch in range(nbatches):
+            # create target domain iterator
+            target = iter(self.trg_train_dl)
 
-                # get the source and target domain input data
-                src_input, src_label = source.next()
-                trg_input, _ = target.next()
+            # iterate over the number of samples
+            for batch, (src_input, src_label) in enumerate(self.src_train_dl):
+
+                # get the target domain input data
+                try:
+                    trg_input, _ = target.next()
+                # in case the iterator is finished, re-instanciate it
+                except StopIteration:
+                    target = iter(self.trg_train_dl)
+                    trg_input, _ = target.next()
 
                 # send the data to the gpu if available
                 src_input, src_label = (src_input.to(self.device),
@@ -1689,19 +1923,19 @@ class DomainAdaptationTrainer(NetworkTrainer):
                 trg_preds = self.model(trg_input)
 
                 # compute classification loss
-                cla_loss = self.loss_function(src_preds, src_label.long())
+                cla_loss = self.cla_loss_function(src_preds, src_label.long())
 
                 # compute domain adaptation loss:
                 # the difference between source and target domain is computed
                 # after the classification layer
-                uda_loss = self.da_loss_function(src_preds, trg_preds)
+                uda_loss = self.uda_loss_function(src_preds, trg_preds)
 
                 # total loss
-                loss = cla_loss + self.uda_lambda * uda_loss
+                tot_loss = cla_loss + self.uda_lambda * uda_loss
 
                 # compute the gradients of the loss function w.r.t.
                 # the network weights
-                loss.backward()
+                tot_loss.backward()
 
                 # update the weights
                 self.optimizer.step()
@@ -1712,17 +1946,18 @@ class DomainAdaptationTrainer(NetworkTrainer):
                 # calculate accuracy on current batch
                 acc = accuracy_function(ypred, src_label)
 
-                # log loss and accuracy
-                self.training_state['cla_loss'][batch, epoch] = cla_loss.item()
-                self.training_state['uda_loss'][batch, epoch] = uda_loss.item()
-                self.training_state['tot_loss'][batch, epoch] = loss.item()
-                self.training_state['strn_acc'][batch, epoch] = acc
-
                 # print progress
                 LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
-                            'Cla_loss: {:.2f}, Da_loss: {:.2f}, Acc: {:.2f}'
+                            'Cla_loss: {:.2f}, Uda_loss: {:.2f}, '
+                            'Tot_loss: {:.2f}, Acc: {:.2f}'
                             .format(epoch + 1, self.epochs, batch + 1,
-                                    nbatches, cla_loss, uda_loss, acc))
+                                    self.tmbatch, cla_loss.item(),
+                                    uda_loss.item(), tot_loss.item(), acc))
+
+                # update training metrics
+                self.tracker.batch_update(self.tracker.train_metrics,
+                                          [tot_loss.item(), acc,
+                                           cla_loss.item(), uda_loss.item()])
 
             # update the number of epochs trained
             self.model.epoch += 1
@@ -1732,13 +1967,14 @@ class DomainAdaptationTrainer(NetworkTrainer):
             if self.early_stop:
 
                 # model predictions on the validation set
-                vacc, _ = self.predict(self.src_valid_dl)
+                valid_accu, valid_loss = self.predict(self.src_valid_dl)
 
-                # append observed accuracy and loss to arrays
-                self.training_state['sval_acc'][:, epoch] = vacc.squeeze()
+                # update validation metrics
+                self.tracker.batch_update(self.tracker.valid_metrics,
+                                          [valid_loss, valid_accu])
 
                 # metric to assess model performance on the validation set
-                epoch_acc = vacc.squeeze().mean()
+                epoch_acc = np.mean(valid_accu)
 
                 # whether the model improved with respect to the previous epoch
                 if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
@@ -1757,7 +1993,22 @@ class DomainAdaptationTrainer(NetworkTrainer):
                 # saved after each epoch
                 self.save_state()
 
-        return self.training_state
+        return self.training_state(self.tmbatch, self.vmbatch)
+
+    def save_state(self):
+        """Save the model state."""
+        if self.save:
+            _ = self.model.save(self.state_file,
+                                self.optimizer,
+                                self.bands,
+                                src_train_dl=self.src_train_dl,
+                                src_valid_dl=self.src_valid_dl,
+                                trg_train_dl=self.trg_train_dl,
+                                trg_valid_dl=self.trg_valid_dl,
+                                state=self.training_state(self.tmbatch,
+                                                          self.vmbatch),
+                                uda_lambda=self.uda_lambda
+                                )
 
 
 class EarlyStopping(object):

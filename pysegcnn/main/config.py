@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -325,11 +325,23 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_ProSnowGarmisch_Adam_DateSplit_20161231_t125_b64_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'state_file': 'Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
 
-    # the dataset to evaluate the model on
+    # whether to evaluate the model on the source domain or target domain
+
+    # if domain=False, target domain
+    # if domain=True,  source domain
+
+    # NOTE: models trained on a single domain only will be evaluated on the
+    #       domain specified in 'trg_ds_config' by applying the dataset split
+    #      'trg_split_config', if domain=False
+    'domain': True,
+    # 'domain': False,
+
+    # the subset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
@@ -346,7 +358,7 @@ eval_config = {
     #       predicted at once
     # NOTE: this option works only for datasets split by split_mode="scene" or
     #       split_mode="date"
-    'predict_scene': False,
+    'predict_scene': True,
 
     # whether to save plots of (input, ground truth, prediction) for each
     # sample in the train/validation/test dataset to disk, applies if
@@ -358,7 +370,7 @@ eval_config = {
     # in the train/validation/test dataset to disk, applies if
     # predict_scene=True
     # output path is: pysegcnn/main/_scenes/
-    'plot_scenes': False,
+    'plot_scenes': True,
 
     # whether to create an animation of (input, ground truth, prediction) for
     # the scenes in the train/validation/test dataset. Useful when predicting a

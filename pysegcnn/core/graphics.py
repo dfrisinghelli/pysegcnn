@@ -56,6 +56,9 @@ plt.rc('legend', fontsize=MEDIUM)
 # figure title size
 plt.rc('figure', titlesize=BIG)
 
+# training metrics
+METRICS = ['train_loss', 'train_accu', 'valid_loss', 'valid_accu']
+
 
 def contrast_stretching(image, alpha=5):
     """Apply `normalization`_ to an image to increase constrast.
@@ -433,13 +436,14 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     # compute running mean with a window equal to the number of batches in
     # an epoch
-    rm = {k: running_mean(v.flatten('F'), v.shape[0]) for k, v in loss.items()}
+    rm = {k: running_mean(v.flatten('F'), v.shape[0]) for k, v in loss.items()
+          if k in METRICS}
 
     # sort the keys of the dictionary alphabetically
     rm = {k: rm[k] for k in sorted(rm)}
 
     # number of epochs trained
-    epochs = np.arange(0, loss['tl'].shape[1])
+    epochs = np.arange(0, loss['train_loss'].shape[1])
 
     # instanciate figure
     fig, ax1 = plt.subplots(1, 1, figsize=figsize)
@@ -457,7 +461,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
      if v.any()]
 
     # axes properties and labels
-    nbatches = loss['tl'].shape[0]
+    nbatches = loss['train_loss'].shape[0]
     ax3.set(xticks=[], xticklabels=[])
     ax4.set(xticks=[], xticklabels=[])
     ax1.set(xticks=np.arange(0, nbatches * epochs[-1] + 1, nbatches * step),
@@ -469,9 +473,9 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
             ylim=(0.5, 1))
 
     # compute early stopping point
-    if loss['va'].any():
-        esepoch = np.argmax(loss['va'].mean(axis=0)) * nbatches + 1
-        esacc = np.max(loss['va'].mean(axis=0))
+    if loss['valid_accu'].any():
+        esepoch = np.argmax(loss['valid_accu'].mean(axis=0)) * nbatches + 1
+        esacc = np.max(loss['valid_accu'].mean(axis=0))
         ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
                    ls='--', color='grey')
         ax1.text(esepoch - nbatches, ax1.get_ylim()[0] + 0.01,

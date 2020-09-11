@@ -585,7 +585,7 @@ class ModelConfig(BaseConfig):
 
         return cla_loss_function
 
-    def init_uda_loss_function(self):
+    def init_uda_loss_function(self, uda_lambda):
         """Instanciate the domain adaptation loss function.
 
         Returns
@@ -598,7 +598,7 @@ class ModelConfig(BaseConfig):
                     .format(repr(self.uda_loss_class)))
 
         # instanciate the loss function
-        uda_loss_function = self.uda_loss_class()
+        uda_loss_function = self.uda_loss_class(uda_lambda)
 
         return uda_loss_function
 
@@ -1587,7 +1587,8 @@ class NetworkTrainer(BaseConfig):
                     src_ds, state_file)
 
                 # instanciate the domain adaptation loss
-                uda_loss_function = mdlcfg.init_uda_loss_function()
+                uda_loss_function = mdlcfg.init_uda_loss_function(
+                    mdlcfg.uda_lambda)
 
                 # (c) instanciate the network trainer
                 trainer = DomainAdaptationTrainer(
@@ -1635,6 +1636,57 @@ class NetworkTrainer(BaseConfig):
                 )
 
         return trainer
+
+    def _build_ds_repr(self, train_dl, valid_dl, test_dl=None):
+        """Build the dataset representation.
+
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
+        # dataset configuration
+        fs = '    (dataset):\n        '
+        fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
+                                                              '\n' + 8 * ' ')
+        fs += '\n    (batch):\n        '
+        fs += '- batch size: {}\n        '.format(train_dl.batch_size)
+        fs += '- mini-batch shape (b, c, h, w): {}'.format(
+            ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
+             2 * (train_dl.dataset.dataset.tile_size,)))
+
+        # dataset split
+        fs += '\n    (split):'
+        fs += '\n' + 8 * ' ' + repr(train_dl.dataset)
+        fs += '\n' + 8 * ' ' + repr(valid_dl.dataset)
+        if test_dl is not None:
+            fs += '\n' + 8 * ' ' + repr(test_dl.dataset)
+
+        return fs
+
+    def _build_model_repr_(self):
+        """Build the model representation.
+
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
+        # model
+        fs = '\n    (model):' + '\n' + 8 * ' '
+        fs += ''.join(repr(self.model)).replace('\n', '\n' + 8 * ' ')
+
+        # optimizer
+        fs += '\n    (optimizer):' + '\n' + 8 * ' '
+        fs += ''.join(repr(self.optimizer)).replace('\n', '\n' + 8 * ' ')
+
+        # early stopping
+        fs += '\n    (early stop):' + '\n' + 8 * ' '
+        fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
+
+        return fs
 
 
 @dataclasses.dataclass
@@ -1790,39 +1842,13 @@ class SingleDomainTrainer(NetworkTrainer):
         # representation string to print
         fs = self.__class__.__name__ + '(\n'
 
-        # dataset
-        fs += '    (dataset):\n        '
-        fs += ''.join(
-            repr(self.train_dl.dataset.dataset)).replace('\n', '\n        ')
+        # dataset configuration
+        fs += self._build_ds_repr(
+            self.train_dl, self.valid_dl, self.test_dl).replace('\n',
+                                                                '\n' + 4 * ' ')
 
-        # batch size
-        fs += '\n    (batch):\n        '
-        fs += '- batch size: {}\n        '.format(self.train_dl.batch_size)
-        fs += '- mini-batch shape (b, c, h, w): {}'.format(
-            (self.train_dl.batch_size,
-             len(self.train_dl.dataset.dataset.use_bands),
-             self.train_dl.dataset.dataset.tile_size,
-             self.train_dl.dataset.dataset.tile_size)
-            )
-
-        # dataset split
-        fs += '\n    (split):'
-        fs += '\n        ' + repr(self.train_dl.dataset)
-        fs += '\n        ' + repr(self.valid_dl.dataset)
-        fs += '\n        ' + repr(self.test_dl.dataset)
-
-        # model
-        fs += '\n    (model):\n        '
-        fs += ''.join(repr(self.model)).replace('\n', '\n        ')
-
-        # optimizer
-        fs += '\n    (optimizer):\n        '
-        fs += ''.join(repr(self.optimizer)).replace('\n', '\n        ')
-
-        # early stopping
-        fs += '\n    (early stop):\n        '
-        fs += ''.join(repr(self.es)).replace('\n', '\n        ')
-
+        # model configuration
+        fs += self._build_model_repr_()
         fs += '\n)'
         return fs
 
@@ -2016,6 +2042,36 @@ class DomainAdaptationTrainer(NetworkTrainer):
                                                           self.vmbatch),
                                 uda_lambda=self.uda_lambda
                                 )
+
+    def __repr__(self):
+        """Representation.
+
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
+        # representation string to print
+        fs = self.__class__.__name__ + '(\n'
+
+        # source domain
+        fs += '    (source domain)\n    '
+        fs += self._build_ds_repr(
+            self.src_train_dl, self.src_valid_dl).replace('\n', '\n' + 4 * ' ')
+
+        # target domain
+        fs += '\n    (target domain)\n    '
+        fs += self._build_ds_repr(
+            self.trg_train_dl, self.trg_valid_dl).replace('\n', '\n' + 4 * ' ')
+
+        # model configuration
+        fs += self._build_model_repr_()
+
+        # domain adaptation
+        fs += '\n    (adaptation)' + '\n' + 8 * ' '
+        fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
+        return fs
 
 
 class EarlyStopping(object):

@@ -116,21 +116,26 @@ class CoralLoss(nn.Module):
 
     Attributes
     ----------
+    uda_lambda : `float`
+        The weight of the domain adaptation.
     device : `str`
         The device to compute on.
 
     """
 
-    def __init__(self, device='cpu'):
+    def __init__(self, uda_lambda, device='cpu'):
         """Initialize.
 
         Parameters
         ----------
+        uda_lambda : `float`
+            The weight of the domain adaptation.
         device : `str`
             The device to compute on. The default is 'cpu'.
 
         """
         super().__init__()
+        self.uda_lambda = uda_lambda
         self.device = device
 
     def forward(self, source, target):
@@ -150,6 +155,20 @@ class CoralLoss(nn.Module):
 
         """
         return coral(source, target, device=self.device)
+
+    def __repr__(self):
+        """Representation.
+
+        Returns
+        -------
+        fs : `str`
+            Representation string.
+
+        """
+        # representation string to print
+        fs = self.__class__.__name__ + '(lambda={:.2f})'.format(
+            self.uda_lambda)
+        return fs
 
 
 class SupportedUdaMethods(enum.Enum):

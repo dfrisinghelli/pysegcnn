@@ -310,14 +310,14 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
         # reconstruct the entire scene
         inputs = reconstruct_scene(inp)
         labels = reconstruct_scene(lab)
-        prdtcn = reconstruct_scene(prd)
+        prdctn = reconstruct_scene(prd)
 
         # print progress
         LOGGER.info('Scene {:d}/{:d}, Id: {}, Accuracy: {:.2f}'.format(
-            i + 1, len(scene_ids), sid, accuracy_function(prdtcn, labels)))
+            i + 1, len(scene_ids), sid, accuracy_function(prdctn, labels)))
 
         # save outputs to dictionary
-        output[sid] = {'input': inputs, 'labels': labels, 'prediction': prdtcn}
+        output[sid] = {'input': inputs, 'labels': labels, 'prediction': prdctn}
 
         # plot current scene
         if plot:
@@ -326,7 +326,7 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
                             ds.dataset.use_bands,
                             ds.dataset.labels,
                             y=labels,
-                            y_pred=prdtcn,
+                            y_pred=prdctn,
                             date=date,
                             state=sname,
                             fig=fig,

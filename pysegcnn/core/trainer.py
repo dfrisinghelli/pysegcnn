@@ -1903,6 +1903,9 @@ class DomainAdaptationTrainer(NetworkTrainer):
             # create target domain iterator
             target = iter(self.trg_train_dl)
 
+            # increase domain adaptation weight with increasing epochs
+            uda_lambda = self.uda_lambda * ((epoch + 1) / self.epochs)
+
             # iterate over the number of samples
             for batch, (src_input, src_label) in enumerate(self.src_train_dl):
 
@@ -1935,7 +1938,7 @@ class DomainAdaptationTrainer(NetworkTrainer):
                 uda_loss = self.uda_loss_function(src_preds, trg_preds)
 
                 # total loss
-                tot_loss = cla_loss + self.uda_lambda * uda_loss
+                tot_loss = cla_loss + uda_lambda * uda_loss
 
                 # compute the gradients of the loss function w.r.t.
                 # the network weights

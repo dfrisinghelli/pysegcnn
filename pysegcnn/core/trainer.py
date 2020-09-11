@@ -625,17 +625,7 @@ class ModelConfig(BaseConfig):
             An instance of :py:class:`torch.optim.Optimizer`.
         checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`]
             If the model checkpoint ``state_file`` exists, ``checkpoint_state``
-            has keys:
-                ``'ta'``
-                    The accuracy on the training set
-                    (:py:class:`numpy.ndarray`).
-                ``'tl'``
-                    The loss on the training set (:py:class:`numpy.ndarray`).
-                ``'va'``
-                    The accuracy on the validation set
-                    (:py:class:`numpy.ndarray`).
-                ``'vl'``
-                    The loss on the validation set (:py:class:`numpy.ndarray`).
+            is the model loss and accuracy time series.
 
         """
         # write an initialization string to the log file

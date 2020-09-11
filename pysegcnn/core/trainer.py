@@ -1492,7 +1492,31 @@ class NetworkTrainer(BaseConfig):
     @staticmethod
     def init_network_trainer(src_ds_config, src_split_config, trg_ds_config,
                              trg_split_config, model_config):
+        """Prepare network training.
 
+        Parameters
+        ----------
+        src_ds_config : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+            The source domain dataset configuration.
+        src_split_config : :py:class:`pysegcnn.core.trainer.SplitConfig`
+            The source domain dataset split configuration.
+        trg_ds_config : :py:class:`pysegcnn.core.trainer.DatasetConfig`
+            The target domain dataset configuration..
+        trg_split_config : :py:class:`pysegcnn.core.trainer.SplitConfig`
+            The target domain dataset split configuration.
+        model_config : :py:class:`pysegcnn.core.trainer.ModelConfig`
+            The model configuration.
+
+        Returns
+        -------
+        trainer : :py:class:`pysegcnn.core.trainer.NetworkTrainer`
+            A network trainer instance.
+
+        See :py:mod:`pysegcnn.main.train.py` for an example on how to
+        instanciate a :py:class:`pysegcnn.core.trainer.NetworkTrainer`
+        instance.
+
+        """
         # (i) instanciate the source domain configurations
         src_dc = DatasetConfig(**src_ds_config)   # source domain dataset
         src_sc = SplitConfig(**src_split_config)  # source domain dataset split

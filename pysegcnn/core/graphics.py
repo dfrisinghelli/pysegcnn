@@ -220,6 +220,10 @@ def plot_sample(x, use_bands, labels,
             raise TypeError('fig needs to be an instance of {}.'
                             .format(repr(plt.Figure)))
 
+        # clear figure axes
+        for ax in fig.axes:
+            ax.clear()
+
     # plot false color composite
     fig.axes[0].imshow(rgb)
 
@@ -237,8 +241,8 @@ def plot_sample(x, use_bands, labels,
     # check whether to plot ground truth
     if y is not None:
         # plot ground thruth mask
-        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', vmin=0,
-                           vmax=len(colors))
+        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest',
+                           vmin=int(y.min()), vmax=int(y.max())+1)
         fig.axes[1].text(0.5, 1.04, 'Ground truth',
                          transform=fig.axes[1].transAxes, ha='center',
                          va='bottom')
@@ -248,8 +252,8 @@ def plot_sample(x, use_bands, labels,
     # check whether to plot model prediction
     if y_pred is not None:
         # plot model prediction
-        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest', vmin=0,
-                           vmax=len(colors))
+        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest',
+                           vmin=int(y.min()), vmax=int(y.max())+1)
 
         # set title
         title = 'Prediction'
@@ -460,17 +464,23 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
     [ax.plot(v, color=c) for (k, v), ax, c in zip(rm.items(), axes, colors)
      if v.any()]
 
-    # axes properties and labels
-    nbatches = loss['train_loss'].shape[0]
+    # axes properties and labels: clear redundant axes labels
     ax3.set(xticks=[], xticklabels=[])
     ax4.set(xticks=[], xticklabels=[])
+
+    # loss x-axis limits: compute number of mini-batches in training set
+    nbatches = loss['train_loss'].shape[0]
+
+    # loss y-axis limits
+    ymax, ymin = (np.ceil(max(rm['train_loss'].max(), rm['valid_loss'].max())),
+                  np.floor(min(rm['train_loss'].min(), rm['valid_loss'].min()))
+                  )
     ax1.set(xticks=np.arange(0, nbatches * epochs[-1] + 1, nbatches * step),
-            xticklabels=epochs[::step],
-            xlabel='Epoch',
-            ylabel='Loss',
-            ylim=(0, 1))
-    ax2.set(ylabel='Accuracy',
-            ylim=(0.5, 1))
+            xticklabels=epochs[::step], xlabel='Epoch', ylabel='Loss',
+            ylim=(ymin, ymax))
+
+    # accuracy y-axis limits
+    ax2.set(ylabel='Accuracy', ylim=(0, 1))
 
     # compute early stopping point
     if loss['valid_accu'].any():
@@ -478,7 +488,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
         esacc = np.max(loss['valid_accu'].mean(axis=0))
         ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
                    ls='--', color='grey')
-        ax1.text(esepoch - nbatches, ax1.get_ylim()[0] + 0.01,
+        ax1.text(esepoch - 1, ax1.get_ylim()[0] + 0.01,
                  'epoch = {}, accuracy = {:.1f}%'
                  .format(int(esepoch / nbatches) + 1, esacc * 100),
                  ha='right', color='grey')

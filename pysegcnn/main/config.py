@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -67,13 +67,13 @@ src_ds_config = {
 
     # define the size of the network input
     # if None, the size will default to the size of a scene
-    'tile_size': 125,
+    'tile_size': 128,
 
     # whether to central pad the scenes with a constant value
     # if True, padding is used if the scenes are not evenly divisible into
     # tiles of size (tile_size, tile_size)
-    'pad': False,
-    # 'pad': True,
+    # 'pad': False,
+    'pad': True,
 
     # the random seed for the numpy random number generator
     # ensures reproducibility of the training, validation and test data split
@@ -137,7 +137,7 @@ trg_ds_config = {
     'root_dir': DATASETS[TRG_DS],
     'gt_pattern': '(.*)class\\.img',
     'bands': ['red', 'green', 'blue', 'nir'],
-    'tile_size': 125,
+    'tile_size': 128,
     'pad': True,
     'seed': 0,
     'sort': True,
@@ -255,9 +255,11 @@ model_config = {
     # 'supervised': True,
     'supervised': False,
 
-    # whether to freeze the pretrained model weights
-    # if True, only the classification layer is re-trained
-    # if False, all layers are re-trained
+    # whether to freeze the pretrained model weights when fine-tuning
+    # NOTE: this option only works for supervised transfer learning
+
+    # if True, only the classification layer is fine-tuned
+    # if False, all layers are fine-tuned
     'freeze': True,
 
     # Loss function for unsupervised domain adaptation
@@ -270,7 +272,17 @@ model_config = {
 
     # The weight of the domain adaptation, trading off adaptation with
     # classification accuracy on the source domain.
-    'uda_lambda': 0.5,
+    # NOTE: the domain adaptation weight increases every epoch reaching the
+    #       value you specify for 'uda_lambda' in the last epoch
+    # EXAMPLES:
+    #       - 'uda_lambda' = 1, means that classification and adaptation loss
+    #                           have equal weight in the last epoch
+    #       - 'uda_lambda' = 0.5, means that classification loss has twice the
+    #                             weight than adaptation loss in the last epoch
+    # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
+    #            domain and the less weight on the classification accuracy on
+    #            the source domain.
+    'uda_lambda': 1,
 
     # ----------------------------- Training  ---------------------------------
 
@@ -328,7 +340,8 @@ eval_config = {
     # 'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_ProSnowGarmisch_Adam_DateSplit_20161231_t125_b64_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    'state_file': 'Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    # 'state_file': 'Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'state_file': 'Unet_SparcsDataset_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8.pt',  # nopep8
 
     # whether to evaluate the model on the source domain or target domain
 

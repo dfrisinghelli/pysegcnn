@@ -42,7 +42,7 @@ from pysegcnn.core.utils import img2np, item_in_enum, accuracy_function
 from pysegcnn.core.split import SupportedSplits, CustomSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
-from pysegcnn.core.uda import SupportedUdaMethods
+from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
 from pysegcnn.main.config import HERE
@@ -1281,11 +1281,13 @@ class MetricTracker(BaseConfig):
 
 @dataclasses.dataclass
 class NetworkTrainer(BaseConfig):
-    """Base model training class.
+    """Model training class.
 
-    Generic class to train an instance of
-    :py:class:`pysegcnn.core.models.Network` on a dataset of type
-    :py:class:`pysegcnn.core.dataset.ImageDataset`.
+    Train an instance of :py:class:`pysegcnn.core.models.Network` on a dataset
+    of type :py:class:`pysegcnn.core.dataset.ImageDataset`.
+
+    Supports training a model on a single source domain only and on a source
+    and target domain using deep domain adaptation.
 
     Attributes
     ----------
@@ -1295,11 +1297,45 @@ class NetworkTrainer(BaseConfig):
     optimizer : :py:class:`torch.optim.Optimizer`
         The optimizer to update the model weights. An instance of
         :py:class:`torch.optim.Optimizer`.
+    state_file : :py:class:`pathlib.Path`
+        Path to save the model state.
+    src_train_dl : :py:class:`torch.utils.data.DataLoader`
+        The source domain training :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
+    src_valid_dl : :py:class:`torch.utils.data.DataLoader`
+        The source domain validation :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
+    src_test_dl : :py:class:`torch.utils.data.DataLoader`
+        The source domain test :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`.
     cla_loss_function : :py:class:`torch.nn.Module`
         The classification loss function to compute the model error. An
         instance of :py:class:`torch.nn.Module`.
-    state_file : :py:class:`pathlib.Path`
-        Path to save the model state.
+    trg_train_dl : :py:class:`torch.utils.data.DataLoader`
+        The target domain training :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`. The default is an empty
+        :py:class:`torch.utils.data.DataLoader`.
+    trg_valid_dl : :py:class:`torch.utils.data.DataLoader`
+        The target domain validation :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`. The default is an empty
+        :py:class:`torch.utils.data.DataLoader`.
+    trg_test_dl : :py:class:`torch.utils.data.DataLoader`
+        The target domain test :py:class:`torch.utils.data.DataLoader`
+        instance build from an instance of
+        :py:class:`pysegcnn.core.split.CustomSubset`. The default is an empty
+        :py:class:`torch.utils.data.DataLoader`.
+    uda_loss_function : :py:class:`torch.nn.Module`
+        The domain adaptation loss function. An instance of
+        :py:class:`torch.nn.Module`.
+        The default is :py:class:`pysegcnn.core.uda.CoralLoss`.
+    uda_lambda : `float`
+        The weight of the domain adaptation, trading off adaptation with
+        classification accuracy on the source domain. The default is `0`.
     epochs : `int`
         The maximum number of epochs to train. The default is `1`.
     nthreads : `int`
@@ -1330,10 +1366,24 @@ class NetworkTrainer(BaseConfig):
         `True`.
     device : `str`
         The device to train the model on, i.e. `cpu` or `cuda`.
+    tracker : :py:class:`pysegcnn.core.trainer.MetricTracker`
+        A :py:class:`pysegcnn.core.trainer.MetricTracker` instance tracking
+        training metrics, i.e. loss and accuracy.
+    uda : `bool`
+        Whether to apply deep domain adaptation.
+    max_accuracy : `float`
+        Maximum accuracy of ``model`` on the validation dataset.
     es : `None` or :py:class:`pysegcnn.core.trainer.EarlyStopping`
         The early stopping instance if ``early_stop=True``, else `None`.
-    tracker : :py:class:`pysegcnn.core.trainer.MetricTracker`
-        A :py:class:`pysegcnn.core.trainer.MetricTracker` instance.
+    tmbatch : `int`
+        Number of mini-batches in the training dataset.
+    vmbatch : `int`
+        Number of mini-batches in the validation dataset.
+    bands : `list` [`str`]
+        The spectral bands used to train ``model``.
+    training_state : `dict` [`str`, :py:class:`numpy.ndarray`]
+        The training state dictionary. The keys describe the type of the
+        training metric.
 
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
@@ -1342,16 +1392,24 @@ class NetworkTrainer(BaseConfig):
 
     model: Network
     optimizer: Optimizer
-    cla_loss_function: nn.Module
     state_file: pathlib.Path
-    epochs: int
-    nthreads: int
-    early_stop: bool
-    mode: str
-    delta: float
-    patience: int
-    checkpoint_state: dict
-    save: bool
+    src_train_dl: DataLoader
+    src_valid_dl: DataLoader
+    src_test_dl: DataLoader
+    cla_loss_function: nn.Module
+    trg_train_dl: DataLoader = DataLoader(None)
+    trg_valid_dl: DataLoader = DataLoader(None)
+    trg_test_dl: DataLoader = DataLoader(None)
+    uda_loss_function: nn.Module = CoralLoss
+    uda_lambda: float = 0
+    epochs: int = 1
+    nthreads: int = torch.get_num_threads()
+    early_stop: bool = False
+    mode: str = 'max'
+    delta: float = 0
+    patience: int = 10
+    checkpoint_state: dict = dataclasses.field(default_factory={})
+    save: bool = True
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -1360,6 +1418,8 @@ class NetworkTrainer(BaseConfig):
         available.
 
         Configure early stopping if required.
+
+        Initialize training metric tracking.
 
         """
         super().__post_init__()
@@ -1378,6 +1438,21 @@ class NetworkTrainer(BaseConfig):
             train_metrics=['train_loss', 'train_accu'],
             valid_metrics=['valid_loss', 'valid_accu'])
 
+        # whether to train using deep domain adaptation
+        self.uda = False
+        if self.trg_train_dl.dataset is not None and self.uda_lambda > 0:
+            # set the device for computing domain adaptation loss
+            self.uda_loss_function.device = self.device
+
+            # adjust metrics and initialize metric tracker
+            self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
+
+            # train using deep domain adaptation
+            self.uda = True
+
+        # initialize metric tracker
+        self.tracker.initialize()
+
         # maximum accuracy on the validation set
         self.max_accuracy = 0
         if self.checkpoint_state:
@@ -1390,6 +1465,13 @@ class NetworkTrainer(BaseConfig):
             self.es = EarlyStopping(self.mode, self.max_accuracy, self.delta,
                                     self.patience)
 
+        # number of mini-batches in the training and validation sets
+        self.tmbatch = len(self.src_train_dl)
+        self.vmbatch = len(self.src_valid_dl)
+
+        # the spectral bands used for training
+        self.bands = self.src_train_dl.dataset.dataset.use_bands
+
         # log representation
         LOGGER.info(repr(self))
 
@@ -1399,6 +1481,211 @@ class NetworkTrainer(BaseConfig):
         # log the device and number of threads
         LOGGER.info('Device: {}'.format(self.device))
         LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
+
+    def train(self):
+        """Train the model.
+
+        Returns
+        -------
+        training_state : `dict` [`str`, :py:class:`numpy.ndarray`]
+            The training state dictionary. The keys describe the type of the
+            training metric. See
+            :py:meth:`~pysegcnn.core.trainer.NetworkTrainer.training_state`.
+
+        """
+        # initialize the training: iterate over the entire training dataset
+        for epoch in range(self.epochs):
+
+            # set the model to training mode
+            LOGGER.info('Setting model to training mode ...')
+            self.model.train()
+
+            # train model for a single epoch
+            self.train_epoch(epoch)
+
+            # update the number of epochs trained
+            self.model.epoch += 1
+
+            # whether to evaluate model performance on the validation set and
+            # early stop the training process
+            if self.early_stop:
+
+                # model predictions on the validation set
+                valid_accu, valid_loss = self.predict(self.src_valid_dl)
+
+                # update validation metrics
+                self.tracker.batch_update(self.tracker.valid_metrics,
+                                          [valid_loss, valid_accu])
+
+                # metric to assess model performance on the validation set
+                epoch_acc = np.mean(valid_accu)
+
+                # whether the model improved with respect to the previous epoch
+                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
+                    self.max_accuracy = epoch_acc
+
+                    # save model state if the model improved with
+                    # respect to the previous epoch
+                    self.save_state()
+
+                # whether the early stopping criterion is met
+                if self.es.stop(epoch_acc):
+                    break
+
+            else:
+                # if no early stopping is required, the model state is
+                # saved after each epoch
+                self.save_state()
+
+        return self.training_state
+
+    def _train_source_domain(self, epoch):
+        """Train a model for an epoch on the source domain.
+
+        Parameters
+        ----------
+        epoch : `int`
+            The current epoch.
+
+        """
+        # iterate over the dataloader object
+        for batch, (inputs, labels) in enumerate(self.src_train_dl):
+
+            # send the data to the gpu if available
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+
+            # reset the gradients
+            self.optimizer.zero_grad()
+
+            # perform forward pass
+            outputs = self.model(inputs)
+
+            # compute loss
+            loss = self.cla_loss_function(outputs, labels.long())
+
+            # compute the gradients of the loss function w.r.t.
+            # the network weights
+            loss.backward()
+
+            # update the weights
+            self.optimizer.step()
+
+            # calculate predicted class labels
+            ypred = F.softmax(outputs, dim=1).argmax(dim=1)
+
+            # calculate accuracy on current batch
+            acc = accuracy_function(ypred, labels)
+
+            # print progress
+            LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
+                        'Loss: {:.2f}, Accuracy: {:.2f}'
+                        .format(epoch + 1, self.epochs, batch + 1,
+                                self.tmbatch, loss.item(), acc))
+
+            # update training metrics
+            self.tracker.batch_update(self.tracker.train_metrics,
+                                      [loss.item(), acc])
+
+    def _train_domain_adaptation(self, epoch):
+        """Train a model for an epoch on the source and target domain.
+
+        This function implements deep domain adaptation by extending the
+        standard classification loss by a "domain adaptation loss" calculated
+        from unlabelled target domain samples.
+
+        Parameters
+        ----------
+        epoch : `int`
+            The current epoch.
+
+        """
+        # create target domain iterator
+        target = iter(self.trg_train_dl)
+
+        # increase domain adaptation weight with increasing epochs
+        uda_lambda = self.uda_lambda * ((epoch + 1) / self.epochs)
+
+        # iterate over the number of samples
+        for batch, (src_input, src_label) in enumerate(self.src_train_dl):
+
+            # get the target domain input data
+            try:
+                trg_input, _ = target.next()
+            # in case the iterator is finished, re-instanciate it
+            except StopIteration:
+                target = iter(self.trg_train_dl)
+                trg_input, _ = target.next()
+
+            # send the data to the gpu if available
+            src_input, src_label = (src_input.to(self.device),
+                                    src_label.to(self.device))
+            trg_input = trg_input.to(self.device)
+
+            # reset the gradients
+            self.optimizer.zero_grad()
+
+            # perform forward pass
+            src_preds = self.model(src_input)
+            trg_preds = self.model(trg_input)
+
+            # compute classification loss
+            cla_loss = self.cla_loss_function(src_preds, src_label.long())
+
+            # compute domain adaptation loss:
+            # the difference between source and target domain is computed
+            # after the classification layer
+            uda_loss = self.uda_loss_function(src_preds, trg_preds)
+
+            # total loss
+            tot_loss = cla_loss + uda_lambda * uda_loss
+
+            # compute the gradients of the loss function w.r.t.
+            # the network weights
+            tot_loss.backward()
+
+            # update the weights
+            self.optimizer.step()
+
+            # calculate predicted class labels
+            ypred = F.softmax(src_preds, dim=1).argmax(dim=1)
+
+            # calculate accuracy on current batch
+            acc = accuracy_function(ypred, src_label)
+
+            # print progress
+            LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
+                        'Cla_loss: {:.2f}, Uda_loss: {:.2f}, '
+                        'Tot_loss: {:.2f}, Acc: {:.2f}'
+                        .format(epoch + 1, self.epochs, batch + 1,
+                                self.tmbatch, cla_loss.item(),
+                                uda_loss.item(), tot_loss.item(), acc))
+
+            # update training metrics
+            self.tracker.batch_update(self.tracker.train_metrics,
+                                      [tot_loss.item(), acc,
+                                       cla_loss.item(), uda_loss.item()])
+
+    def train_epoch(self, epoch):
+        """Wrap the function to train a model for a single epoch.
+
+        Depends on whether to apply deep domain adaptation.
+
+        Parameters
+        ----------
+        epoch : `int`
+            The current epoch.
+
+        Returns
+        -------
+        `function`
+            The function to train a model for a single epoch.
+
+        """
+        if self.uda:
+            self._train_domain_adaptation(epoch)
+        else:
+            self._train_source_domain(epoch)
 
     def predict(self, dataloader):
         """Model inference at training time.
@@ -1458,19 +1745,13 @@ class NetworkTrainer(BaseConfig):
 
         return accuracy, loss
 
-    def training_state(self, tmbatch, vmbatch):
+    @property
+    def training_state(self):
         """Model training metrics.
-
-        Parameters
-        ----------
-        tmbatch : `int`
-            Number of mini-batches in the training dataset.
-        vmbatch : `int`
-            Number of mini-batches in the validation dataset.
 
         Returns
         -------
-        state : `dict`
+        state : `dict` [`str`, :py:class:`numpy.ndarray`]
             The training state dictionary. The keys describe the type of the
             training metric and the values are :py:class:`numpy.ndarray`'s of
             the corresponding metric observed during training with
@@ -1478,7 +1759,7 @@ class NetworkTrainer(BaseConfig):
 
         """
         # current training state
-        state = self.tracker.np_state(tmbatch, vmbatch)
+        state = self.tracker.np_state(self.tmbatch, self.vmbatch)
 
         # optional: training state of the model checkpoint
         if self.checkpoint_state:
@@ -1488,6 +1769,22 @@ class NetworkTrainer(BaseConfig):
                      if k1 == k2}
 
         return state
+
+    def save_state(self):
+        """Save the model state."""
+        if self.save:
+            _ = self.model.save(self.state_file,
+                                self.optimizer,
+                                self.bands,
+                                src_train_dl=self.src_train_dl,
+                                src_valid_dl=self.src_valid_dl,
+                                src_test_dl=self.src_test_dl,
+                                trg_train_dl=self.trg_train_dl,
+                                trg_valid_dl=self.trg_valid_dl,
+                                trg_test_dl=self.trg_test_dl,
+                                state=self.training_state,
+                                uda_lambda=self.uda_lambda
+                                )
 
     @staticmethod
     def init_network_trainer(src_ds_config, src_split_config, trg_ds_config,
@@ -1556,7 +1853,10 @@ class NetworkTrainer(BaseConfig):
         # (viii) instanciate the loss function
         cla_loss_function = mdlcfg.init_cla_loss_function()
 
-        # (ix) check whether to apply transfer learning methods
+        # (ix) instanciate the domain adaptation loss
+        uda_loss_function = mdlcfg.init_uda_loss_function(mdlcfg.uda_lambda)
+
+        # (x) check whether to apply transfer learning
         if mdlcfg.transfer:
 
             # (a) instanciate the training, validation and test datasets and
@@ -1572,86 +1872,63 @@ class NetworkTrainer(BaseConfig):
                                                batch_size=mdlcfg.batch_size,
                                                shuffle=True, drop_last=False)
 
-            # (b) instanciate the model
+            # (b) instanciate the model: supervised transfer learning
             if mdlcfg.supervised:
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     trg_ds, state_file)
 
-                # (c) instanciate the network trainer
-                trainer = SingleDomainTrainer(
-                    model=model,
-                    optimizer=optimizer,
-                    cla_loss_function=cla_loss_function,
-                    state_file=state_file,
-                    epochs=mdlcfg.epochs,
-                    nthreads=mdlcfg.nthreads,
-                    early_stop=mdlcfg.early_stop,
-                    mode=mdlcfg.mode,
-                    delta=mdlcfg.delta,
-                    patience=mdlcfg.patience,
-                    checkpoint_state=checkpoint_state,
-                    save=mdlcfg.save,
-                    train_dl=trg_train_dl,
-                    valid_dl=trg_valid_dl,
-                    test_dl=trg_test_dl
-                    )
-
+            # (c) instanciate the model: unsupervised transfer learning
             else:
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     src_ds, state_file)
 
-                # instanciate the domain adaptation loss
-                uda_loss_function = mdlcfg.init_uda_loss_function(
-                    mdlcfg.uda_lambda)
+            # (xi) instanciate the network trainer
+            trainer = NetworkTrainer(model,
+                                     optimizer,
+                                     state_file,
+                                     src_train_dl,
+                                     src_valid_dl,
+                                     src_test_dl,
+                                     cla_loss_function,
+                                     trg_train_dl,
+                                     trg_valid_dl,
+                                     trg_test_dl,
+                                     uda_loss_function,
+                                     mdlcfg.uda_lambda,
+                                     mdlcfg.epochs,
+                                     mdlcfg.nthreads,
+                                     mdlcfg.early_stop,
+                                     mdlcfg.mode,
+                                     mdlcfg.delta,
+                                     mdlcfg.patience,
+                                     checkpoint_state,
+                                     mdlcfg.save)
 
-                # (c) instanciate the network trainer
-                trainer = DomainAdaptationTrainer(
-                    model=model,
-                    optimizer=optimizer,
-                    cla_loss_function=cla_loss_function,
-                    state_file=state_file,
-                    epochs=mdlcfg.epochs,
-                    nthreads=mdlcfg.nthreads,
-                    early_stop=mdlcfg.early_stop,
-                    mode=mdlcfg.mode,
-                    delta=mdlcfg.delta,
-                    patience=mdlcfg.patience,
-                    checkpoint_state=checkpoint_state,
-                    save=mdlcfg.save,
-                    src_train_dl=src_train_dl,
-                    src_valid_dl=src_valid_dl,
-                    trg_train_dl=trg_train_dl,
-                    trg_valid_dl=trg_valid_dl,
-                    uda_loss_function=uda_loss_function,
-                    uda_lambda=mdlcfg.uda_lambda
-                    )
         else:
             # (x) instanciate the model
             model, optimizer, checkpoint_state = mdlcfg.init_model(
                 src_ds, state_file)
 
             # (xi) instanciate the network trainer
-            trainer = SingleDomainTrainer(
-                model=model,
-                optimizer=optimizer,
-                cla_loss_function=cla_loss_function,
-                state_file=state_file,
-                epochs=mdlcfg.epochs,
-                nthreads=mdlcfg.nthreads,
-                early_stop=mdlcfg.early_stop,
-                mode=mdlcfg.mode,
-                delta=mdlcfg.delta,
-                patience=mdlcfg.patience,
-                checkpoint_state=checkpoint_state,
-                save=mdlcfg.save,
-                train_dl=src_train_dl,
-                valid_dl=src_valid_dl,
-                test_dl=src_test_dl
-                )
+            trainer = NetworkTrainer(model,
+                                     optimizer,
+                                     state_file,
+                                     src_train_dl,
+                                     src_valid_dl,
+                                     src_test_dl,
+                                     cla_loss_function,
+                                     epochs=mdlcfg.epochs,
+                                     nthreads=mdlcfg.nthreads,
+                                     early_stop=mdlcfg.early_stop,
+                                     mode=mdlcfg.mode,
+                                     delta=mdlcfg.delta,
+                                     patience=mdlcfg.patience,
+                                     checkpoint_state=checkpoint_state,
+                                     save=mdlcfg.save)
 
         return trainer
 
-    def _build_ds_repr(self, train_dl, valid_dl, test_dl=None):
+    def _build_ds_repr(self, train_dl, valid_dl, test_dl):
         """Build the dataset representation.
 
         Returns
@@ -1672,10 +1949,9 @@ class NetworkTrainer(BaseConfig):
 
         # dataset split
         fs += '\n    (split):'
-        fs += '\n' + 8 * ' ' + repr(train_dl.dataset)
-        fs += '\n' + 8 * ' ' + repr(valid_dl.dataset)
-        if test_dl is not None:
-            fs += '\n' + 8 * ' ' + repr(test_dl.dataset)
+        for dl in [train_dl, valid_dl, test_dl]:
+            if dl.dataset is not None:
+                fs += '\n' + 8 * ' ' + repr(dl.dataset)
 
         return fs
 
@@ -1700,362 +1976,12 @@ class NetworkTrainer(BaseConfig):
         fs += '\n    (early stop):' + '\n' + 8 * ' '
         fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
 
+        # domain adaptation
+        if self.uda:
+            fs += '\n    (adaptation)' + '\n' + 8 * ' '
+            fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
+
         return fs
-
-
-@dataclasses.dataclass
-class SingleDomainTrainer(NetworkTrainer):
-    """Train a classifier on a single domain.
-
-    Attributes
-    ----------
-    train_dl : :py:class:`torch.utils.data.DataLoader`
-        The training :py:class:`torch.utils.data.DataLoader` instance build
-        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
-    valid_dl : :py:class:`torch.utils.data.DataLoader`
-        The validation :py:class:`torch.utils.data.DataLoader` instance build
-        from an instance of :py:class:`pysegcnn.core.split.CustomSubset`.
-    test_dl : :py:class:`torch.utils.data.DataLoader`
-        The test :py:class:`torch.utils.data.DataLoader` instance build from an
-        instance of :py:class:`pysegcnn.core.split.CustomSubset`.
-
-    """
-
-    train_dl: DataLoader
-    valid_dl: DataLoader
-    test_dl: DataLoader
-
-    def __post_init__(self):
-        """Check the type of each argument."""
-        super().__post_init__()
-
-        # number of mini-batches in the training and validation sets
-        self.tmbatch = len(self.train_dl)
-        self.vmbatch = len(self.valid_dl)
-
-        # the spectral bands used for training
-        self.bands = self.train_dl.dataset.dataset.use_bands
-
-        # initialize the metric tracker
-        self.tracker.initialize()
-
-    def train(self):
-        """Train the model.
-
-        Returns
-        -------
-        training_state : `dict` [`str`, `numpy.ndarray`]
-            The training state dictionary. The keys describe the type of the
-            training metric.
-
-        """
-        # initialize the training: iterate over the entire training dataset
-        for epoch in range(self.epochs):
-
-            # set the model to training mode
-            LOGGER.info('Setting model to training mode ...')
-            self.model.train()
-
-            # iterate over the dataloader object
-            for batch, (inputs, labels) in enumerate(self.train_dl):
-
-                # send the data to the gpu if available
-                inputs = inputs.to(self.device)
-                labels = labels.to(self.device)
-
-                # reset the gradients
-                self.optimizer.zero_grad()
-
-                # perform forward pass
-                outputs = self.model(inputs)
-
-                # compute loss
-                loss = self.cla_loss_function(outputs, labels.long())
-
-                # compute the gradients of the loss function w.r.t.
-                # the network weights
-                loss.backward()
-
-                # update the weights
-                self.optimizer.step()
-
-                # calculate predicted class labels
-                ypred = F.softmax(outputs, dim=1).argmax(dim=1)
-
-                # calculate accuracy on current batch
-                acc = accuracy_function(ypred, labels)
-
-                # print progress
-                LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
-                            'Loss: {:.2f}, Accuracy: {:.2f}'
-                            .format(epoch + 1, self.epochs, batch + 1,
-                                    len(self.train_dl), loss.item(), acc))
-
-                # update training metrics
-                self.tracker.batch_update(self.tracker.train_metrics,
-                                          [loss.item(), acc])
-
-            # update the number of epochs trained
-            self.model.epoch += 1
-
-            # whether to evaluate model performance on the validation set and
-            # early stop the training process
-            if self.early_stop:
-
-                # model predictions on the validation set
-                valid_accu, valid_loss = self.predict(self.valid_dl)
-
-                # update validation metrics
-                self.tracker.batch_update(self.tracker.valid_metrics,
-                                          [valid_loss, valid_accu])
-
-                # metric to assess model performance on the validation set
-                epoch_acc = np.mean(valid_accu)
-
-                # whether the model improved with respect to the previous epoch
-                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
-                    self.max_accuracy = epoch_acc
-
-                    # save model state if the model improved with
-                    # respect to the previous epoch
-                    self.save_state()
-
-                # whether the early stopping criterion is met
-                if self.es.stop(epoch_acc):
-                    break
-
-            else:
-                # if no early stopping is required, the model state is
-                # saved after each epoch
-                self.save_state()
-
-        return self.training_state(self.tmbatch, self.vmbatch)
-
-    def save_state(self):
-        """Save the model state."""
-        if self.save:
-            _ = self.model.save(self.state_file,
-                                self.optimizer,
-                                self.bands,
-                                train_dl=self.train_dl,
-                                valid_dl=self.valid_dl,
-                                test_dl=self.test_dl,
-                                state=self.training_state(self.tmbatch,
-                                                          self.vmbatch)
-                                )
-
-    def __repr__(self):
-        """Representation.
-
-        Returns
-        -------
-        fs : `str`
-            Representation string.
-
-        """
-        # representation string to print
-        fs = self.__class__.__name__ + '(\n'
-
-        # dataset configuration
-        fs += self._build_ds_repr(
-            self.train_dl, self.valid_dl, self.test_dl).replace('\n',
-                                                                '\n' + 4 * ' ')
-
-        # model configuration
-        fs += self._build_model_repr_()
-        fs += '\n)'
-        return fs
-
-
-@dataclasses.dataclass
-class DomainAdaptationTrainer(NetworkTrainer):
-    """Train a classifier on multiple domains.
-
-    Attributes
-    ----------
-    src_train_dl : :py:class:`torch.utils.data.DataLoader`
-        The source domain training :py:class:`torch.utils.data.DataLoader`
-        instance build from an instance of
-        :py:class:`pysegcnn.core.split.CustomSubset`.
-    src_valid_dl : :py:class:`torch.utils.data.DataLoader`
-        The source domain validation :py:class:`torch.utils.data.DataLoader`
-        instance build from an instance of
-        :py:class:`pysegcnn.core.split.CustomSubset`.
-    trg_train_dl : :py:class:`torch.utils.data.DataLoader`
-        The target domain training :py:class:`torch.utils.data.DataLoader`
-        instance build from an instance of
-        :py:class:`pysegcnn.core.split.CustomSubset`.
-    trg_valid_dl : :py:class:`torch.utils.data.DataLoader`
-        The target domain validation :py:class:`torch.utils.data.DataLoader`
-        instance build from an instance of
-        :py:class:`pysegcnn.core.split.CustomSubset`.
-    uda_loss_function : :py:class:`torch.nn.Module`
-        The domain adaptation loss function. An instance of
-        :py:class:`torch.nn.Module`.
-    uda_lambda : `float`
-        The weight of the domain adaptation, trading off adaptation with
-        classification accuracy on the source domain.
-
-    """
-
-    src_train_dl: DataLoader
-    src_valid_dl: DataLoader
-    trg_train_dl: DataLoader
-    trg_valid_dl: DataLoader
-    uda_loss_function: nn.Module
-    uda_lambda: float
-
-    def __post_init__(self):
-        """Check the type of each argument."""
-        super().__post_init__()
-
-        # set the device for computing domain adaptation loss
-        self.uda_loss_function.device = self.device
-
-        # adjust metrics and initialize metric tracker
-        self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
-        self.tracker.initialize()
-
-        # number of mini-batches in the training and validation sets
-        self.tmbatch = len(self.src_train_dl)
-        self.vmbatch = len(self.src_valid_dl)
-
-        # the spectral bands used for training
-        self.bands = self.src_train_dl.dataset.dataset.use_bands
-
-    def train(self):
-        """Train the model.
-
-        Returns
-        -------
-        training_state : `dict` [`str`, `numpy.ndarray`]
-            The training state dictionary. The keys describe the type of the
-            training metric.
-
-        """
-        # initialize the training: iterate over the entire training dataset
-        for epoch in range(self.epochs):
-
-            # set the model to training mode
-            LOGGER.info('Setting model to training mode ...')
-            self.model.train()
-
-            # create target domain iterator
-            target = iter(self.trg_train_dl)
-
-            # increase domain adaptation weight with increasing epochs
-            uda_lambda = self.uda_lambda * ((epoch + 1) / self.epochs)
-
-            # iterate over the number of samples
-            for batch, (src_input, src_label) in enumerate(self.src_train_dl):
-
-                # get the target domain input data
-                try:
-                    trg_input, _ = target.next()
-                # in case the iterator is finished, re-instanciate it
-                except StopIteration:
-                    target = iter(self.trg_train_dl)
-                    trg_input, _ = target.next()
-
-                # send the data to the gpu if available
-                src_input, src_label = (src_input.to(self.device),
-                                        src_label.to(self.device))
-                trg_input = trg_input.to(self.device)
-
-                # reset the gradients
-                self.optimizer.zero_grad()
-
-                # perform forward pass
-                src_preds = self.model(src_input)
-                trg_preds = self.model(trg_input)
-
-                # compute classification loss
-                cla_loss = self.cla_loss_function(src_preds, src_label.long())
-
-                # compute domain adaptation loss:
-                # the difference between source and target domain is computed
-                # after the classification layer
-                uda_loss = self.uda_loss_function(src_preds, trg_preds)
-
-                # total loss
-                tot_loss = cla_loss + uda_lambda * uda_loss
-
-                # compute the gradients of the loss function w.r.t.
-                # the network weights
-                tot_loss.backward()
-
-                # update the weights
-                self.optimizer.step()
-
-                # calculate predicted class labels
-                ypred = F.softmax(src_preds, dim=1).argmax(dim=1)
-
-                # calculate accuracy on current batch
-                acc = accuracy_function(ypred, src_label)
-
-                # print progress
-                LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
-                            'Cla_loss: {:.2f}, Uda_loss: {:.2f}, '
-                            'Tot_loss: {:.2f}, Acc: {:.2f}'
-                            .format(epoch + 1, self.epochs, batch + 1,
-                                    self.tmbatch, cla_loss.item(),
-                                    uda_loss.item(), tot_loss.item(), acc))
-
-                # update training metrics
-                self.tracker.batch_update(self.tracker.train_metrics,
-                                          [tot_loss.item(), acc,
-                                           cla_loss.item(), uda_loss.item()])
-
-            # update the number of epochs trained
-            self.model.epoch += 1
-
-            # whether to evaluate model performance on the validation set and
-            # early stop the training process
-            if self.early_stop:
-
-                # model predictions on the validation set
-                valid_accu, valid_loss = self.predict(self.src_valid_dl)
-
-                # update validation metrics
-                self.tracker.batch_update(self.tracker.valid_metrics,
-                                          [valid_loss, valid_accu])
-
-                # metric to assess model performance on the validation set
-                epoch_acc = np.mean(valid_accu)
-
-                # whether the model improved with respect to the previous epoch
-                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
-                    self.max_accuracy = epoch_acc
-
-                    # save model state if the model improved with
-                    # respect to the previous epoch
-                    self.save_state()
-
-                # whether the early stopping criterion is met
-                if self.es.stop(epoch_acc):
-                    break
-
-            else:
-                # if no early stopping is required, the model state is
-                # saved after each epoch
-                self.save_state()
-
-        return self.training_state(self.tmbatch, self.vmbatch)
-
-    def save_state(self):
-        """Save the model state."""
-        if self.save:
-            _ = self.model.save(self.state_file,
-                                self.optimizer,
-                                self.bands,
-                                src_train_dl=self.src_train_dl,
-                                src_valid_dl=self.src_valid_dl,
-                                trg_train_dl=self.trg_train_dl,
-                                trg_valid_dl=self.trg_valid_dl,
-                                state=self.training_state(self.tmbatch,
-                                                          self.vmbatch),
-                                uda_lambda=self.uda_lambda
-                                )
 
     def __repr__(self):
         """Representation.
@@ -2072,19 +1998,21 @@ class DomainAdaptationTrainer(NetworkTrainer):
         # source domain
         fs += '    (source domain)\n    '
         fs += self._build_ds_repr(
-            self.src_train_dl, self.src_valid_dl).replace('\n', '\n' + 4 * ' ')
+            self.src_train_dl, self.src_valid_dl, self.src_test_dl).replace(
+                '\n', '\n' + 4 * ' ')
 
         # target domain
-        fs += '\n    (target domain)\n    '
-        fs += self._build_ds_repr(
-            self.trg_train_dl, self.trg_valid_dl).replace('\n', '\n' + 4 * ' ')
+        if self.uda:
+            fs += '\n    (target domain)\n    '
+            fs += self._build_ds_repr(
+                self.trg_train_dl,
+                self.trg_valid_dl,
+                self.trg_test_dl).replace('\n', '\n' + 4 * ' ')
 
         # model configuration
         fs += self._build_model_repr_()
 
-        # domain adaptation
-        fs += '\n    (adaptation)' + '\n' + 8 * ' '
-        fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
+        fs += '\n)'
         return fs
 
 

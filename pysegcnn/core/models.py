@@ -357,16 +357,11 @@ class EncoderDecoderNetwork(Network):
         return self.classifier(x)
 
 
-class UNet(EncoderDecoderNetwork):
-    """A slightly modified implementation of `U-Net`_ in PyTorch.
+class SegNet(EncoderDecoderNetwork):
+    """An implementation of `SegNet`_ in PyTorch.
 
-    .. important::
-
-        - Each convolution is followed by a batch normalization layer
-        - Upsampling is implemented by a 2x2 max unpooling operation
-
-    .. _U-Net:
-        https://arxiv.org/abs/1505.04597
+    .. _SegNet:
+        https://arxiv.org/abs/1511.00561
 
     Attributes
     ----------
@@ -422,7 +417,7 @@ class UNet(EncoderDecoderNetwork):
 class SupportedModels(enum.Enum):
     """Names and corresponding classes of the implemented models."""
 
-    Unet = UNet
+    segnet = SegNet
 
 
 class SupportedOptimizers(enum.Enum):

@@ -45,7 +45,9 @@ from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
 from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
-from pysegcnn.main.config import HERE
+from pysegcnn.core.graphics import (plot_loss, plot_sample,
+                                    plot_confusion_matrix)
+from pysegcnn.main.config import HERE, DRIVE_PATH
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -771,8 +773,8 @@ class ModelConfig(BaseConfig):
 
         # check whether the current dataset uses the correct spectral bands
         if ds.use_bands != model_state['bands']:
-            raise ValueError('The pretrained network was trained with '
-                             'bands {}, not with bands {}.'
+            raise ValueError('The model was trained with bands {}, not with '
+                             'bands {}.'
                              .format(model_state['bands'], ds.use_bands))
 
         # get the number of convolutional filters
@@ -966,12 +968,19 @@ class EvalConfig(BaseConfig):
     ----------
     state_file : :py:class:`pathlib.Path`
         Path to the model to evaluate.
-    domain: `bool`
-        Whether to evaluate on the source domain, i.e. the domain the model
-        in ``state_file`` was trained on.
+    implicit : `bool`
+        Whether to evaluate the model on the datasets defined at training time.
+    domain : `str`
+        Whether to evaluate on the source domain (``domain='src'``), i.e. the
+        domain the model in ``state_file`` was trained on, or a target domain
+        (``domain='trg'``).
     test : `bool` or `None`
         Whether to evaluate the model on the training(``test=None``), the
         validation (``test=False``) or the test set (``test=True``).
+    ds : `dict`
+        The dataset configuration dictionary passed to
+        :py:class:`pysegcnn.core.trainer.DatasetConfig` when evaluating on
+        an explicitly defined dataset, i.e. ``implicit=False``.
     predict_scene : `bool`
         The model prediction order. If False, the samples (tiles) of a dataset
         are predicted in any order and the scenes are not reconstructed.
@@ -1012,12 +1021,16 @@ class EvalConfig(BaseConfig):
         Path to search for model state files, i.e. pretrained models.
     animtn_path : :py:class:`pathlib.Path`
         Path to store animations.
+    kwargs : `dict`
+        Keyword arguments for :py:func:`pysegcnn.core.graphics.plot_sample`
 
     """
 
     state_file: pathlib.Path
-    domain: bool
+    implicit: bool
+    domain: str
     test: object
+    ds: dict = dataclasses.field(default_factory={})
     predict_scene: bool = False
     plot_samples: bool = False
     plot_scenes: bool = False
@@ -1037,6 +1050,8 @@ class EvalConfig(BaseConfig):
         ------
         TypeError
             Raised if ``test`` is not of type `bool` or `None`.
+        ValueError
+            Raised if ``domain`` is not 'src' or 'trg'.
 
         """
         super().__post_init__()
@@ -1045,6 +1060,11 @@ class EvalConfig(BaseConfig):
         if self.test not in [None, False, True]:
             raise TypeError('Expected "test" to be None, True or False, got '
                             '{}.'.format(self.test))
+
+        # check whether the domain is correctly specified
+        if self.domain not in ['src', 'trg']:
+            raise ValueError('Expected "domain" to be "src" or "trg", got {}.'
+                             .format(self.domain))
 
         # the output paths for the different graphics
         self.base_path = pathlib.Path(HERE)
@@ -1056,6 +1076,11 @@ class EvalConfig(BaseConfig):
         # input path for model state files
         self.models_path = self.base_path.joinpath('_models')
         self.state_file = self.models_path.joinpath(self.state_file)
+
+        # plotting keyword arguments
+        self.kwargs = {'bands': self.plot_bands,
+                       'alpha': self.alpha,
+                       'figsize': self.figsize}
 
     @staticmethod
     def replace_dataset_path(ds, drive_path):
@@ -1069,7 +1094,7 @@ class EvalConfig(BaseConfig):
             This function assumes that the datasets are stored in a directory
             named "Datasets" on each machine.
 
-        See `DRIVE_PATH` in :py:mod:`pysegcnn.main.config` for an example path.
+        See ``DRIVE_PATH`` in :py:mod:`pysegcnn.main.config`.
 
         Parameters
         ----------
@@ -1114,6 +1139,56 @@ class EvalConfig(BaseConfig):
                     # replace drive path
                     if dpath != drive_path:
                         scene[k] = v.replace(str(dpath), drive_path)
+
+    def evaluate(self):
+
+        # initialize logging
+        log = LogConfig(self.state_file)
+        dictConfig(log_conf(log.log_file))
+        log.init_log('{}: ' + 'Evaluating model: {}.'
+                     .format(self.state_file.name))
+
+        # load the model state
+        model, _, model_state = Network.load(self.state_file)
+
+        # plot loss and accuracy
+        plot_loss(self.state_file, outpath=self.perfmc_path)
+
+        # check whether to evaluate on the datasets defined at training time
+        if self.implicit:
+            # check whether to evaluate the model on the training, validation
+            # or test set
+            if self.test is None:
+                ds_set = 'train'
+            else:
+                ds_set = 'test' if self.test else 'valid'
+
+            # the dataset to evaluate the model on
+            ds = model_state[self.domain + '_{}_dl'.format(ds_set)].dataset
+            if ds is None:
+                raise ValueError('Requested dataset "{}" is not available.'
+                                 .format(self.domain + '_{}_dl'.format(ds_set))
+                                 )
+            LOGGER.info('Evaluating on {} set of {}: \n {}'
+                        .format(ds_set, ds.dataset.__class__.__name__,
+                                repr(ds)))
+
+        else:
+            # explicitly defined dataset
+            ds = DatasetConfig(**self.ds).init_dataset()
+
+            # check if the spectral bands match
+            if ds.use_bands != model_state['bands']:
+                raise ValueError('The model was trained with bands {}, not '
+                                 'with bands {}.'
+                                 .format(model_state['bands'], ds.use_bands))
+
+        # check the dataset path
+        self.replace_dataset_path(ds, DRIVE_PATH)
+
+        # evaluate the model
+        # TODO: implement label mapping for uda
+        # TODO: pass correct labels to predicting functiong
 
 
 @dataclasses.dataclass
@@ -1438,9 +1513,13 @@ class NetworkTrainer(BaseConfig):
             train_metrics=['train_loss', 'train_accu'],
             valid_metrics=['valid_loss', 'valid_accu'])
 
-        # whether to train using deep domain adaptation
+        # whether to train using supervised transfer learning or
+        # deep domain adaptation
+
+        # dummy variables for easy model evaluation
         self.uda = False
         if self.trg_train_dl.dataset is not None and self.uda_lambda > 0:
+
             # set the device for computing domain adaptation loss
             self.uda_loss_function.device = self.device
 

@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -216,7 +216,7 @@ model_config = {
     # -------------------------------------------------------------------------
 
     # define the model
-    'model_name': 'Unet',
+    'model_name': 'segnet',
 
     # define the number of filters for each convolutional layer
     # the number of filters should increase with depth
@@ -341,24 +341,44 @@ eval_config = {
     # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_ProSnowGarmisch_Adam_DateSplit_20161231_t125_b64_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
     # 'state_file': 'Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    'state_file': 'Unet_SparcsDataset_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8.pt',  # nopep8
+    'state_file': 'Unet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
 
-    # whether to evaluate the model on the source domain or target domain
+    # Evaluate on datasets defined at training time ---------------------------
 
-    # if domain=False, target domain
-    # if domain=True,  source domain
+    # implicit=True,  models are evaluated on the training, validation
+    #                 and test datasets defined at training time
+    # implicit=False, models are evaluated on an explicitly defined dataset
+    #                 'ds'
+    'implicit': True,
 
-    # NOTE: models trained on a single domain only will be evaluated on the
-    #       domain specified in 'trg_ds_config' by applying the dataset split
-    #      'trg_split_config', if domain=False
-    'domain': True,
-    # 'domain': False,
+    # The options 'domain' and 'test' define on which domain (source, target)
+    # and on which set (training, validation, test) to evaluate the model.
+    # NOTE: If the specified set was not available at training time, an error
+    #       is raised.
+
+    # whether to evaluate the model on the labelled source domain or the
+    # (un)labelled target domain
+    # if domain='trg',  target domain
+    # if domain='src',  source domain
+    'domain': 'src',
+    # 'domain': 'trg',
 
     # the subset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
     'test': False,
+
+    # Evaluate on an explicitly defined dataset -------------------------------
+
+    # OPTIONAL: If 'ds' is specified and 'implicit'=False, the model is not
+    #           evaluated on the datasets defined at training time, but on the
+    #           dataset defined by 'ds'.
+
+     # the dataset to evaluate the model on (optional)
+    'ds': trg_ds_config,
+
+    # Evaluation options ------------------------------------------------------
 
     # whether to compute and plot the confusion matrix
     # output path is: pysegcnn/main/_graphics/

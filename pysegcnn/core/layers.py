@@ -467,10 +467,10 @@ class Decoder(nn.Module):
     ----------
     features : :py:class:`numpy.ndarray`
         Input channels to each convolutional block, i.e. ``filters``.
-    block : :py:class:`pysegcnn.core.layers.EncoderBlock`
+    block : :py:class:`pysegcnn.core.layers.DecoderBlock`
         The convolutional block defining a layer in the decoder.
-        A subclass of :py:class:`pysegcnn.core.layers.EncoderBlock`, e.g.
-        :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool`.
+        A subclass of :py:class:`pysegcnn.core.layers.DecoderBlock`, e.g.
+        :py:class:`pysegcnn.core.layers.ConvBnReluMaxUnpool`.
     skip : `bool`
         Whether to apply skip connections from the encoder to the decoder.
     layers : :py:class:`torch.nn.ModuleList`

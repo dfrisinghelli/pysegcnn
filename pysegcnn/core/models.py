@@ -53,33 +53,54 @@ class Network(nn.Module):
         # initialize state file
         self.state_file = None
 
-    def freeze(self):
+        # number of epochs trained
+        self.epoch = 0
+
+    def freeze(self, name=None):
         """Freeze the weights of a model.
 
         Disables gradient computation: useful when using a pretrained model for
         inference.
 
-        Returns
-        -------
-        None.
+        Parameters
+        ----------
+        name : `str` or `None`
+            The name of a part of the model. If specified, only the weights of
+            that specific part of the model are frozen. If `None`, all model
+            weights are frozen. The default is `None`.
 
         """
-        for param in self.parameters():
-            param.requires_grad = False
+        if name is None:
+            # freeze all the model weights
+            for param in self.parameters():
+                param.requires_grad = False
+        else:
+            # freeze the weights of a part of the model, e.g. encoder weights
+            for param in getattr(self, str(name)).parameters():
+                param.requires_grad = False
 
-    def unfreeze(self):
+    def unfreeze(self, name=None):
         """Unfreeze the weights of a model.
 
         Enables gradient computation: useful when adjusting a pretrained model
         to a new dataset.
 
-        Returns
-        -------
-        None.
+        Parameters
+        ----------
+        name : `str` or `None`
+            The name of a part of the model. If specified, only the weights of
+            that specific part of the model are unfrozen. If `None`, all model
+            weights are unfrozen. The default is `None`.
 
         """
-        for param in self.parameters():
-            param.requires_grad = True
+        if name is None:
+            # freeze all the model weights
+            for param in self.parameters():
+                param.requires_grad = True
+        else:
+            # freeze the weights of a part of the model, e.g. encoder weights
+            for param in getattr(self, str(name)).parameters():
+                param.requires_grad = True
 
     def save(self, state_file, optimizer, bands=None, **kwargs):
         """Save the model state.
@@ -125,7 +146,7 @@ class Network(nn.Module):
         # store construction parameters to instanciate the network
         model_state['params'] = {
             'skip': self.skip,
-            'filters': self.nfilters,
+            'filters': self.filters[1:],
             'nclasses': self.nclasses,
             'in_channels': self.in_channels
             }
@@ -225,7 +246,118 @@ class Network(nn.Module):
         return self.state_file
 
 
-class UNet(Network):
+class EncoderDecoderNetwork(Network):
+    """Generic convolutional encoder-decoder network.
+
+    Attributes
+    ----------
+    in_channels : `int`
+        Number of channels of the input images.
+    nclasses : `int`
+        Number of classes.
+    filters : `list` [`int`]
+        List of the number of convolutional filters in each block.
+    skip : `bool`
+        Whether to apply skip connections from the encoder to the decoder.
+    kwargs : `dict` [`str`]
+        Additional keyword arguments passed to
+        :py:class:`pysegcnn.core.layers.Conv2dSame`.
+    epoch : `int`
+        Number of epochs the model was trained.
+    encoder : :py:class:`pysegcnn.core.layers.Encoder`
+        The convolutional encoder.
+    decoder : :py:class:`pysegcnn.core.layers.Decoder`
+        The convolutional decoder.
+    classifier : :py:class:`pysegcnn.core.layers.Conv2dSame`
+        The classification layer, a 1x1 convolution.
+
+    """
+
+    def __init__(self, in_channels, nclasses, encoder_block, decoder_block,
+                 filters, skip, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        in_channels : `int`
+            Number of channels of the input images.
+        nclasses : `int`
+            Number of classes.
+        encoder_block : :py:class:`pysegcnn.core.layers.EncoderBlock`
+            The convolutional block defining a layer in the encoder.
+            A subclass of :py:class:`pysegcnn.core.layers.EncoderBlock`, e.g.
+            :py:class:`pysegcnn.core.layers.ConvBnReluMaxPool`.
+        decoder_block : :py:class:`pysegcnn.core.layers.DecoderBlock`
+            The convolutional block defining a layer in the decoder.
+            A subclass of :py:class:`pysegcnn.core.layers.DecoderBlock`, e.g.
+            :py:class:`pysegcnn.core.layers.ConvBnReluMaxUnpool`.
+        filters : `list` [`int`]
+            List of input channels to each convolutional block.
+        skip : `bool`
+            Whether to apply skip connections from the encoder to the decoder.
+        **kwargs: `dict` [`str`]
+            Additional keyword arguments passed to
+            :py:class:`pysegcnn.core.layers.Conv2dSame`.
+
+        """
+        super().__init__()
+
+        # number of input channels
+        self.in_channels = in_channels
+
+        # number of classes
+        self.nclasses = nclasses
+
+        # number of convolutional filters for each block
+        self.filters = np.hstack([np.array(in_channels), np.array(filters)])
+
+        # whether to apply skip connections
+        self.skip = skip
+
+        # configuration of the convolutional layers in the network
+        self.kwargs = kwargs
+
+        # construct the encoder
+        self.encoder = Encoder(filters=self.filters, block=encoder_block,
+                               **kwargs)
+
+        # construct the decoder
+        self.decoder = Decoder(filters=self.filters, block=decoder_block,
+                               skip=self.skip, **kwargs)
+
+        # construct the classifier
+        self.classifier = Conv2dSame(in_channels=filters[0],
+                                     out_channels=self.nclasses,
+                                     kernel_size=1)
+
+    def forward(self, x):
+        """Forward propagation of a convolutional encoder-decoder network.
+
+        Parameters
+        ----------
+        x : `torch.Tensor`
+            The input image, shape=(batch_size, channels, height, width).
+
+        Returns
+        -------
+        y : 'torch.Tensor'
+            Logits, shape=(batch_size, channels, height, width).
+
+        """
+        # forward pass: encoder
+        x = self.encoder(x)
+
+        # forward pass: decoder
+        x = self.decoder(x, self.encoder.cache)
+
+        # clear intermediate outputs
+        del self.encoder.cache
+
+        # classification
+        return self.classifier(x)
+
+
+class UNet(EncoderDecoderNetwork):
     """A slightly modified implementation of `U-Net`_ in PyTorch.
 
     .. important::
@@ -242,13 +374,13 @@ class UNet(Network):
         Number of channels of the input images.
     nclasses : `int`
         Number of classes.
+    filters : `list` [`int`]
+        List of the number of convolutional filters in each block.
+    skip : `bool`
+        Whether to apply skip connections from the encoder to the decoder.
     kwargs : `dict` [`str`]
         Additional keyword arguments passed to
         :py:class:`pysegcnn.core.layers.Conv2dSame`.
-    nfilters : `list` [`int`]
-        List of input channels to each convolutional block.
-    skip : `bool`
-        Whether to apply skip connections from the encoder to the decoder.
     epoch : `int`
         Number of epochs the model was trained.
     encoder : :py:class:`pysegcnn.core.layers.Encoder`
@@ -278,65 +410,13 @@ class UNet(Network):
             :py:class:`pysegcnn.core.layers.Conv2dSame`.
 
         """
-        super().__init__()
-
-        # number of input channels
-        self.in_channels = in_channels
-
-        # number of classes
-        self.nclasses = nclasses
-
-        # configuration of the convolutional layers in the network
-        self.kwargs = kwargs
-        self.nfilters = filters
-
-        # convolutional layers of the encoder
-        self.filters = np.hstack([np.array(in_channels), np.array(filters)])
-
-        # whether to apply skip connections
-        self.skip = skip
-
-        # number of epochs trained
-        self.epoch = 0
-
-        # construct the encoder
-        self.encoder = Encoder(filters=self.filters, block=ConvBnReluMaxPool,
-                               **kwargs)
-
-        # construct the decoder
-        self.decoder = Decoder(filters=self.filters, block=ConvBnReluMaxUnpool,
-                               skip=skip, **kwargs)
-
-        # construct the classifier
-        self.classifier = Conv2dSame(in_channels=filters[0],
-                                     out_channels=self.nclasses,
-                                     kernel_size=1)
-
-    def forward(self, x):
-        """Forward propagation of U-Net.
-
-        Parameters
-        ----------
-        x : `torch.Tensor`
-            The input image, shape=(batch_size, channels, height, width).
-
-        Returns
-        -------
-        y : 'torch.tensor'
-            The classified image, shape=(batch_size, height, width).
-
-        """
-        # forward pass: encoder
-        x = self.encoder(x)
-
-        # forward pass: decoder
-        x = self.decoder(x, self.encoder.cache)
-
-        # clear intermediate outputs
-        del self.encoder.cache
-
-        # classification
-        return self.classifier(x)
+        super().__init__(in_channels=in_channels,
+                         nclasses=nclasses,
+                         encoder_block=ConvBnReluMaxPool,
+                         decoder_block=ConvBnReluMaxUnpool,
+                         filters=filters,
+                         skip=skip,
+                         **kwargs)
 
 
 class SupportedModels(enum.Enum):

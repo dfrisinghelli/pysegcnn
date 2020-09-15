@@ -3,9 +3,9 @@
 Steps to launch a model run:
 
     1. Configure the model run in :py:mod:`pysegcnn.main.config.py`
-        - configure the dataset: ``dataset_config``
-        - configure the split  : ``split_config``
-        - configure the model  : ``model_config``
+        - configure the dataset(s): ``src_ds_config`` and ``trg_ds_config``
+        - configure the split(s)  : ``src_ds_config`` and ``trg_ds_config``
+        - configure the model     : ``model_config``
     2. Save :py:mod:`pysegcnn.main.config.py`
     3. In a terminal, navigate to the repository's root directory
     4. Run

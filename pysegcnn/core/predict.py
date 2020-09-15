@@ -250,9 +250,9 @@ def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
     """
     # check whether the dataset is a valid subset, i.e. an instance of
     # pysegcnn.core.split.SceneSubset
-    if not isinstance(ds, SceneSubset):
-        raise TypeError('ds should be an instance of {}.'
-                        .format(repr(SceneSubset)))
+    # if not isinstance(ds, SceneSubset):
+    #     raise TypeError('ds should be an instance of {}.'
+    #                     .format(repr(SceneSubset)))
 
     # the device to compute on, use gpu if available
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

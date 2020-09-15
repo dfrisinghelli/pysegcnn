@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -337,7 +337,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'SegNet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
+    'state_file': 'Segnet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Segnet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -356,14 +356,14 @@ eval_config = {
     # (un)labelled target domain
     # if domain='trg',  target domain
     # if domain='src',  source domain
-    'domain': 'src',
-    # 'domain': 'trg',
+    # 'domain': 'src',
+    'domain': 'trg',
 
     # the subset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
-    'test': False,
+    'test': None,
 
     # Evaluate on an explicitly defined dataset -------------------------------
 

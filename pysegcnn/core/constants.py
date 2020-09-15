@@ -121,3 +121,41 @@ class ProSnowLabels(Label):
     Cloud = 0, 'white'
     Snow = 1, 'lightblue'
     Snow_free = 2, 'sienna'
+
+
+def map_labels(source, target):
+    """Map labels from one dataset to another.
+
+    Parameters
+    ----------
+    source : :py:class:`enum.Enum`
+        The source domain labels, i.e. the labels a model is trained with.
+    target : :py:class:`enum.Enum`
+        The target domain labels, i.e. the labels of the dataset to apply the
+        model to.
+
+    Returns
+    -------
+    label_map : `dict` [`int`, `int`]
+        Dictionary with source labels as keys and corresponding target labels
+        as values.
+
+    """
+    # if source and target labels are equal, the label mapping is the identity
+    if source is target:
+        label_map = None
+
+    # mapping from Sparcs to ProSnow
+    if source is SparcsLabels and target is ProSnowLabels:
+        # label transformation mapping
+        label_map = {0: ProSnowLabels.Snow_free.id,  # Shadow = Snow Free
+                     1: ProSnowLabels.Snow_free.id,  # Shadow ow = Snow Free
+                     2: ProSnowLabels.Snow_free.id,  # Water = Snow Free
+                     3: ProSnowLabels.Snow.id,       # Snow = Snow
+                     4: ProSnowLabels.Snow_free.id,  # Land = Snow Free
+                     5: ProSnowLabels.Cloud.id,      # Cloud = Cloud
+                     6: ProSnowLabels.Snow_free.id,  # Flooded = Snow Free
+                     7: 3                            # No data = No data
+                     }
+
+    return label_map

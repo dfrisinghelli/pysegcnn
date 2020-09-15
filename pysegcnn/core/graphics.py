@@ -32,7 +32,7 @@ from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
 # locals
-from pysegcnn.core.trainer import accuracy_function
+from pysegcnn.core.utils import accuracy_function
 from pysegcnn.main.config import HERE
 
 # plot font size configuration

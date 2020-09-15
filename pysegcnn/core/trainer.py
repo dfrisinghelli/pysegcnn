@@ -1783,12 +1783,20 @@ class NetworkTrainer(BaseConfig):
             # reset the gradients
             self.optimizer.zero_grad()
 
-            # perform forward pass: features after encoder + decoder
-            src_feature = self.model.decoder(self.model.encoder(src_input))
-            trg_feature = self.model.decoder(self.model.encoder(trg_input))
+            # perform forward pass: source domain features
+            src_enc_feature = self.model.encoder(src_input)
+            src_dec_feature = self.model.decoder(src_enc_feature,
+                                                 self.model.encoder.cache)
+            del self.model.encoder.cache  # clear intermediate encoder outputs
+
+            # perform forward pass: target domain features
+            trg_enc_feature = self.model.encoder(trg_input)
+            trg_dec_feature = self.model.decoder(trg_enc_feature,
+                                                 self.model.encoder.cache)
+            del self.model.encoder.cache  # clear intermediate encoder outputs
 
             # model logits on source domain
-            src_preds = self.model.classifier(src_feature)
+            src_preds = self.model.classifier(src_dec_feature)
 
             # compute classification loss
             cla_loss = self.cla_loss_function(src_preds, src_label.long())
@@ -1796,7 +1804,7 @@ class NetworkTrainer(BaseConfig):
             # compute domain adaptation loss:
             # the difference between source and target domain is computed
             # before the classification layer
-            uda_loss = self.uda_loss_function(src_feature, trg_feature)
+            uda_loss = self.uda_loss_function(src_dec_feature, trg_dec_feature)
 
             # total loss
             tot_loss = cla_loss + uda_lambda * uda_loss

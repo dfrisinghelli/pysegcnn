@@ -76,7 +76,7 @@ def _get_scene_tiles(ds, scene_id):
     return indices, scene_meta['date']
 
 
-def predict_samples(ds, model, cm=False, plot=False, **kwargs):
+def predict_samples(ds, model, label_map=None, cm=False, plot=False, **kwargs):
     """Classify each sample in ``ds`` with model ``model``.
 
     Parameters
@@ -87,6 +87,11 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
         :py:class:`pysegcnn.core.split.SceneSubset`.
     model : :py:class:`pysegcnn.core.models.Network`
         An instance of :py:class:`pysegcnn.core.models.Network`.
+    label_map : `dict` [`int`, `int`] or `None`
+        Dictionary with labels of ``ds`` as keys and corresponding labels of
+        the ``model`` as values. If specified, ``label_map`` is used to map the
+        model label predictions to the actual labels of the dataset ``ds``. The
+        default is `None`, i.e. ``model`` and ``ds`` share the same labels.
     cm : `bool`, optional
         Whether to compute the confusion matrix. The default is `False`.
     plot : `bool`, optional
@@ -137,7 +142,10 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
     fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
-    conf_mat = np.zeros(shape=(model.nclasses, model.nclasses))
+    if label_map is None:
+        conf_mat = np.zeros(shape=2 * (model.nclasses,))
+    else:
+        conf_mat = np.zeros(shape=2 * (len(ds.dataset.labels),))
 
     # create the dataloader
     dataloader = DataLoader(ds, batch_size=1, shuffle=False, drop_last=False)
@@ -155,6 +163,11 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
         # compute model predictions
         with torch.no_grad():
             prd = F.softmax(model(inputs), dim=1).argmax(dim=1).squeeze()
+
+        # map model labels to dataset labels
+        if label_map is not None:
+            for k, v in label_map.items():
+                prd[torch.where(prd == k)] = v
 
         # store output for current batch
         output[batch] = {'input': inputs, 'labels': labels, 'prediction': prd}
@@ -183,8 +196,8 @@ def predict_samples(ds, model, cm=False, plot=False, **kwargs):
     return output, conf_mat
 
 
-def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
-                   animate=False, anim_path=None, **kwargs):
+def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
+                   plot=False, animate=False, anim_path=None, **kwargs):
     """Classify each scene of the dataset ``ds`` with model ``model``.
 
     Parameters
@@ -193,6 +206,11 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
         An instance of :py:class:`pysegcnn.core.split.SceneSubset`.
     model : :py:class:`pysegcnn.core.models.Network`
         An instance of :py:class:`pysegcnn.core.models.Network`.
+    label_map : `dict` [`int`, `int`] or `None`
+        Dictionary with labels of ``ds`` as keys and corresponding labels of
+        the ``model`` as values. If specified, ``label_map`` is used to map the
+        model label predictions to the actual labels of the dataset ``ds``. The
+        default is `None`, i.e. ``model`` and ``ds`` share the same labels.
     scene_id : `str` or `None`
         A valid scene identifier.
     cm : `bool`, optional
@@ -248,7 +266,10 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
     fname = model.state_file.stem
 
     # initialize confusion matrix
-    conf_mat = np.zeros(shape=(model.nclasses, model.nclasses))
+    if label_map is None:
+        conf_mat = np.zeros(shape=2 * (model.nclasses,))
+    else:
+        conf_mat = np.zeros(shape=2 * (len(ds.dataset.labels),))
 
     # check whether a scene id is provided
     if scene_id is None:
@@ -301,6 +322,11 @@ def predict_scenes(ds, model, scene_id=None, cm=False, plot=False,
             # apply forward pass: model prediction
             with torch.no_grad():
                 prd = F.softmax(model(inp), dim=1).argmax(dim=1).squeeze()
+
+            # map model labels to dataset labels
+            if label_map is not None:
+                for k, v in label_map.items():
+                    prd[torch.where(prd == k)] = v
 
             # update confusion matrix
             if cm:

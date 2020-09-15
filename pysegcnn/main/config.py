@@ -337,11 +337,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    # 'state_file': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'state_file': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'state_file': 'Unet_ProSnowGarmisch_Adam_DateSplit_20161231_t125_b64_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'state_file': 'Unet_ProSnowGarmisch_DateSplit_20161231_t125_b128_r4g3b2n8_pretrained_Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    'state_file': 'Unet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
+    'state_file': 'SegNet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Unet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -375,8 +371,11 @@ eval_config = {
     #           evaluated on the datasets defined at training time, but on the
     #           dataset defined by 'ds'.
 
-     # the dataset to evaluate the model on (optional)
+    # the dataset to evaluate the model on (optional)
     'ds': trg_ds_config,
+
+    # the dataset split to use for 'ds'
+    'ds_split': trg_split_config,
 
     # Evaluation options ------------------------------------------------------
 

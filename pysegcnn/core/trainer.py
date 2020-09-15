@@ -45,8 +45,9 @@ from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
 from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
-from pysegcnn.core.graphics import (plot_loss, plot_sample,
-                                    plot_confusion_matrix)
+from pysegcnn.core.graphics import plot_loss, plot_confusion_matrix
+from pysegcnn.core.constants import map_labels
+from pysegcnn.core.predict import predict_samples, predict_scenes
 from pysegcnn.main.config import HERE, DRIVE_PATH
 
 # module level logger
@@ -981,6 +982,10 @@ class EvalConfig(BaseConfig):
         The dataset configuration dictionary passed to
         :py:class:`pysegcnn.core.trainer.DatasetConfig` when evaluating on
         an explicitly defined dataset, i.e. ``implicit=False``.
+    ds_split : `dict`
+        The dataset split configuration dictionary passed to
+        :py:class:`pysegcnn.core.trainer.SplitConfig` when evaluating on
+        an explicitly defined dataset, i.e. ``implicit=False``.
     predict_scene : `bool`
         The model prediction order. If False, the samples (tiles) of a dataset
         are predicted in any order and the scenes are not reconstructed.
@@ -1031,6 +1036,7 @@ class EvalConfig(BaseConfig):
     domain: str
     test: object
     ds: dict = dataclasses.field(default_factory={})
+    ds_split: dict = dataclasses.field(default_factory={})
     predict_scene: bool = False
     plot_samples: bool = False
     plot_scenes: bool = False
@@ -1169,9 +1175,10 @@ class EvalConfig(BaseConfig):
                 raise ValueError('Requested dataset "{}" is not available.'
                                  .format(self.domain + '_{}_dl'.format(ds_set))
                                  )
-            LOGGER.info('Evaluating on {} set of {}: \n {}'
-                        .format(ds_set, ds.dataset.__class__.__name__,
-                                repr(ds)))
+
+            # log dataset representation
+            LOGGER.info('Evaluating on {} set of {} domain defined at training'
+                        ' time.'.format(ds_set, self.domain))
 
         else:
             # explicitly defined dataset
@@ -1183,12 +1190,61 @@ class EvalConfig(BaseConfig):
                                  'with bands {}.'
                                  .format(model_state['bands'], ds.use_bands))
 
-        # check the dataset path
+            # split configuration
+            sc = SplitConfig(**self.ds_split)
+            train_ds, valid_ds, test_ds = sc.train_val_test_split(ds)
+
+            # check whether to evaluate the model on the training, validation
+            # or test set
+            if self.test is None:
+                ds = train_ds
+            else:
+                ds = test_ds if self.test else valid_ds
+
+            # log dataset representation
+            LOGGER.info('Evaluating on {} set of explicitly defined dataset: '
+                        '\n {}'.format(ds.name, repr(ds.dataset)))
+
+        # check the dataset path: replace by path on current machine
         self.replace_dataset_path(ds, DRIVE_PATH)
 
+        # model labels: class labels the model was trained with
+        model_labels = model_state['src_train_dl'].dataset.dataset.get_labels()
+
+        # dataset labels: class labels of the selected dataset
+        ds_labels = ds.dataset.get_labels()
+
+        # check whether the model labels are the same as the dataset labels:
+        # e.g, for unsupervised domain adaptation, the model is trained with
+        # labels from the source domain, which may be different from the labels
+        # on the target domain
+        label_map = map_labels(model_labels, ds_labels)
+
         # evaluate the model
-        # TODO: implement label mapping for uda
-        # TODO: pass correct labels to predicting functiong
+
+        # whether to predict each sample or each scene individually
+        if self.predict_scene:
+            # reconstruct and predict the scenes in the validation/test set
+            scenes, cm = predict_scenes(ds, model, label_map=label_map,
+                                        scene_id=None, cm=self.cm,
+                                        plot=self.plot_scenes,
+                                        animate=self.animate,
+                                        anim_path=self.animtn_path,
+                                        plot_path=self.scenes_path,
+                                        **self.kwargs)
+
+        else:
+            # predict the samples in the validation/test set
+            samples, cm = predict_samples(ds, model, label_map=label_map,
+                                          cm=self.cm, plot=self.plot_samples,
+                                          plot_path=self.sample_path,
+                                          **self.kwargs)
+
+        # whether to plot the confusion matrix
+        if self.cm:
+            plot_confusion_matrix(cm, ds.dataset.labels,
+                                  state_file=self.state_file,
+                                  outpath=self.perfmc_path)
 
 
 @dataclasses.dataclass
@@ -1956,32 +2012,49 @@ class NetworkTrainer(BaseConfig):
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     trg_ds, state_file)
 
+                # (xi) instanciate the network trainer
+                trainer = NetworkTrainer(model,
+                                         optimizer,
+                                         state_file,
+                                         trg_train_dl,
+                                         trg_valid_dl,
+                                         trg_test_dl,
+                                         cla_loss_function,
+                                         epochs=mdlcfg.epochs,
+                                         nthreads=mdlcfg.nthreads,
+                                         early_stop=mdlcfg.early_stop,
+                                         mode=mdlcfg.mode,
+                                         delta=mdlcfg.delta,
+                                         patience=mdlcfg.patience,
+                                         checkpoint_state=checkpoint_state,
+                                         save=mdlcfg.save)
+
             # (c) instanciate the model: unsupervised transfer learning
             else:
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     src_ds, state_file)
 
-            # (xi) instanciate the network trainer
-            trainer = NetworkTrainer(model,
-                                     optimizer,
-                                     state_file,
-                                     src_train_dl,
-                                     src_valid_dl,
-                                     src_test_dl,
-                                     cla_loss_function,
-                                     trg_train_dl,
-                                     trg_valid_dl,
-                                     trg_test_dl,
-                                     uda_loss_function,
-                                     mdlcfg.uda_lambda,
-                                     mdlcfg.epochs,
-                                     mdlcfg.nthreads,
-                                     mdlcfg.early_stop,
-                                     mdlcfg.mode,
-                                     mdlcfg.delta,
-                                     mdlcfg.patience,
-                                     checkpoint_state,
-                                     mdlcfg.save)
+                # (xi) instanciate the network trainer
+                trainer = NetworkTrainer(model,
+                                         optimizer,
+                                         state_file,
+                                         src_train_dl,
+                                         src_valid_dl,
+                                         src_test_dl,
+                                         cla_loss_function,
+                                         trg_train_dl,
+                                         trg_valid_dl,
+                                         trg_test_dl,
+                                         uda_loss_function,
+                                         mdlcfg.uda_lambda,
+                                         mdlcfg.epochs,
+                                         mdlcfg.nthreads,
+                                         mdlcfg.early_stop,
+                                         mdlcfg.mode,
+                                         mdlcfg.delta,
+                                         mdlcfg.patience,
+                                         checkpoint_state,
+                                         mdlcfg.save)
 
         else:
             # (x) instanciate the model

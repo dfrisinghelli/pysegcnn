@@ -3,7 +3,8 @@
 This module provides an end-to-end framework of dataclasses designed to train
 segmentation models on image datasets.
 
-See pysegcnn/main/train.py for a complete walkthrough.
+See :py:meth:`pysegcnn.core.trainer.NetworkTrainer.init_network_trainer` for a
+complete walkthrough.
 
 License
 -------
@@ -895,7 +896,8 @@ class StateConfig(BaseConfig):
             else:
                 # state file for models trained via unsupervised domain
                 # adaptation
-                state = state_src.replace('.pt', '_uda_{}'.format(state_trg))
+                state = state_src.replace('.pt', '_uda{}'.format(
+                    state_trg.replace(self.mc.model_name, '')))
 
                 # check whether unsupervised domain adaptation is initialized
                 # from a pretrained model state
@@ -1028,6 +1030,11 @@ class EvalConfig(BaseConfig):
         Path to store animations.
     kwargs : `dict`
         Keyword arguments for :py:func:`pysegcnn.core.graphics.plot_sample`
+    label_map : `dict` [`int`, `int`] or `None`
+        Dictionary with labels of the dataset to evaluate as keys and
+        model labels as values. If specified, ``label_map`` is used to map the
+        model label predictions to the actual labels of the dataset. The
+        default is `None`, i.e. model and dataset share the same labels.
 
     """
 
@@ -1088,6 +1095,9 @@ class EvalConfig(BaseConfig):
                        'alpha': self.alpha,
                        'figsize': self.figsize}
 
+        # label mapping
+        self.label_map = None
+
     @staticmethod
     def replace_dataset_path(ds, drive_path):
         """Replace the path to the datasets.
@@ -1147,7 +1157,15 @@ class EvalConfig(BaseConfig):
                         scene[k] = v.replace(str(dpath), drive_path)
 
     def evaluate(self):
+        """Evaluate a pretrained model on a defined dataset.
 
+        Raises
+        ------
+        ValueError
+            Raised if the requested dataset was not defined at training time,
+            when ``implicit=True``.
+
+        """
         # initialize logging
         log = LogConfig(self.state_file)
         dictConfig(log_conf(log.log_file))
@@ -1218,14 +1236,19 @@ class EvalConfig(BaseConfig):
         # e.g, for unsupervised domain adaptation, the model is trained with
         # labels from the source domain, which may be different from the labels
         # on the target domain
-        label_map = map_labels(model_labels, ds_labels)
+        self.label_map = map_labels(model_labels, ds_labels)
+        if self.label_map is not None:
+            LOGGER.info('Mapping model labels ({}) to dataset labels ({}) ...'
+                        .format(
+                            ', '.join([label.name for label in model_labels]),
+                            ', '.join([label.name for label in ds_labels])))
 
         # evaluate the model
 
         # whether to predict each sample or each scene individually
         if self.predict_scene:
             # reconstruct and predict the scenes in the validation/test set
-            scenes, cm = predict_scenes(ds, model, label_map=label_map,
+            scenes, cm = predict_scenes(ds, model, label_map=self.label_map,
                                         scene_id=None, cm=self.cm,
                                         plot=self.plot_scenes,
                                         animate=self.animate,
@@ -1235,7 +1258,7 @@ class EvalConfig(BaseConfig):
 
         else:
             # predict the samples in the validation/test set
-            samples, cm = predict_samples(ds, model, label_map=label_map,
+            samples, cm = predict_samples(ds, model, label_map=self.label_map,
                                           cm=self.cm, plot=self.plot_samples,
                                           plot_path=self.sample_path,
                                           **self.kwargs)
@@ -1760,17 +1783,20 @@ class NetworkTrainer(BaseConfig):
             # reset the gradients
             self.optimizer.zero_grad()
 
-            # perform forward pass
-            src_preds = self.model(src_input)
-            trg_preds = self.model(trg_input)
+            # perform forward pass: features after encoder + decoder
+            src_feature = self.model.decoder(self.model.encoder(src_input))
+            trg_feature = self.model.decoder(self.model.encoder(trg_input))
+
+            # model logits on source domain
+            src_preds = self.model.classifier(src_feature)
 
             # compute classification loss
             cla_loss = self.cla_loss_function(src_preds, src_label.long())
 
             # compute domain adaptation loss:
             # the difference between source and target domain is computed
-            # after the classification layer
-            uda_loss = self.uda_loss_function(src_preds, trg_preds)
+            # before the classification layer
+            uda_loss = self.uda_loss_function(src_feature, trg_feature)
 
             # total loss
             tot_loss = cla_loss + uda_lambda * uda_loss

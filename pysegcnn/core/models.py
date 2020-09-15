@@ -417,7 +417,7 @@ class SegNet(EncoderDecoderNetwork):
 class SupportedModels(enum.Enum):
     """Names and corresponding classes of the implemented models."""
 
-    segnet = SegNet
+    Segnet = SegNet
 
 
 class SupportedOptimizers(enum.Enum):

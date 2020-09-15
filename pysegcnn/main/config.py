@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -216,7 +216,7 @@ model_config = {
     # -------------------------------------------------------------------------
 
     # define the model
-    'model_name': 'segnet',
+    'model_name': 'Segnet',
 
     # define the number of filters for each convolutional layer
     # the number of filters should increase with depth
@@ -282,7 +282,7 @@ model_config = {
     # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
     #            domain and the less weight on the classification accuracy on
     #            the source domain.
-    'uda_lambda': 1,
+    'uda_lambda': 0.5,
 
     # ----------------------------- Training  ---------------------------------
 

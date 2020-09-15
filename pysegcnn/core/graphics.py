@@ -242,7 +242,7 @@ def plot_sample(x, use_bands, labels,
     if y is not None:
         # plot ground thruth mask
         fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest',
-                           vmin=int(y.min()), vmax=int(y.max())+1)
+                           vmin=0, vmax=len(colors))
         fig.axes[1].text(0.5, 1.04, 'Ground truth',
                          transform=fig.axes[1].transAxes, ha='center',
                          va='bottom')
@@ -253,7 +253,7 @@ def plot_sample(x, use_bands, labels,
     if y_pred is not None:
         # plot model prediction
         fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest',
-                           vmin=int(y.min()), vmax=int(y.max())+1)
+                           vmin=0, vmax=len(colors))
 
         # set title
         title = 'Prediction'

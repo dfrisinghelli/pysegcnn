@@ -178,7 +178,6 @@ class ImageDataset(Dataset):
         self.bands = {band.value: band.name for band in self.sensor}
 
         # the class labels
-        self._label_class = self.get_labels()
         self._assert_get_labels()
         self.labels = self._build_labels()
 
@@ -232,7 +231,7 @@ class ImageDataset(Dataset):
         """
         return {band.id: {'label': band.name.replace('_', ' '),
                           'color': band.color}
-                for band in self._label_class}
+                for band in self.get_labels()}
 
     def _assert_compose_scenes(self):
         """Check whether compose_scenes() is correctly implemented."""
@@ -289,7 +288,7 @@ class ImageDataset(Dataset):
 
     def _assert_get_labels(self):
         """Check whether get_labels() is correctly implemented."""
-        if not issubclass(self._label_class, Label):
+        if not issubclass(self.get_labels(), Label):
             raise TypeError('{}.get_labels() should return an instance of '
                             'pysegcnn.core.constants.Label, '
                             'containing an enumeration of the '

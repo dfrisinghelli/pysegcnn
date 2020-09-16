@@ -143,9 +143,11 @@ def plot_sample(x, use_bands, labels,
     y : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, optional
         Array containing the ground truth of tile ``x``, shape=(height, width).
         The default is `None`, i.e. the ground truth is not plotted.
-    y_pred : :py:class:`numpy.ndarray` or :py:class:`torch.Tensor`, optional
-        Array containing the prediction for tile ``x``, shape=(height, width).
-        The default is `None`, i.e. the prediction is not plotted.
+    y_pred : `dict` [`str`, :py:class:`numpy.ndarray`], optional
+        Dictionary of predictions. The keys indicate the prediction method and
+        the values are the predicted classes for tile ``x``,
+        shape=(height, width). The default is `None`, i.e. no prediction is
+        plotted.
     date : :py:class:`datetime.datetime` or `None`
         The date of the sample. If specified, ``date`` is plotted as title of
         the FCC. The default is `None`, i.e. ``date`` is not used as title.
@@ -211,9 +213,12 @@ def plot_sample(x, use_bands, labels,
     patches = [mpatches.Patch(color=c, label=l) for c, l in
                zip(colors, ulabels)]
 
+    # number of required axes
+    naxes = len(y_pred) + 2
+
     # initialize figure
     if fig is None:
-        fig, _ = plt.subplots(1, 3, figsize=figsize)
+        fig, _ = plt.subplots(1, naxes, figsize=figsize)
     else:
         # require the passed figure to have at least three axes
         if not isinstance(fig, matplotlib.figure.Figure):
@@ -240,6 +245,7 @@ def plot_sample(x, use_bands, labels,
 
     # check whether to plot ground truth
     if y is not None:
+        removed = 2
         # plot ground thruth mask
         fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest',
                            vmin=0, vmax=len(colors))
@@ -247,26 +253,28 @@ def plot_sample(x, use_bands, labels,
                          transform=fig.axes[1].transAxes, ha='center',
                          va='bottom')
     else:
-        _del_axis(fig, 1)
+        removed = 1
 
-    # check whether to plot model prediction
-    if y_pred is not None:
-        # plot model prediction
-        fig.axes[2].imshow(y_pred, cmap=cmap, interpolation='nearest',
-                           vmin=0, vmax=len(colors))
+    # check whether to plot predictions
+    for i, (k, v) in enumerate(y_pred.items()):
 
-        # set title
-        title = 'Prediction'
+        # axis to plot current prediction
+        ax = fig.axes[int(i + removed)]
+
+        # check whether the ground truth is specified and calculate accuracy
         if y is not None:
-            acc = accuracy_function(y_pred, y)
-            title += ' ({:.2f}%)'.format(acc * 100)
-        fig.axes[2].text(0.5, 1.04, title, transform=fig.axes[2].transAxes,
-                         ha='center', va='bottom')
-    else:
-        if y is None:
-            _del_axis(fig, 1)
-        else:
-            _del_axis(fig, 2)
+            acc = accuracy_function(v, y)
+            k += ' ({:.2f}%)'.format(acc * 100)
+
+        # plot model prediction
+        ax.imshow(v, cmap=cmap, interpolation='nearest', vmin=0,
+                  vmax=len(colors))
+        ax.text(0.5, 1.04, k, transform=ax.transAxes, ha='center', va='bottom')
+
+    # remove empty axes
+    for ax in fig.axes:
+        if not ax.images:
+            fig.delaxes(ax)
 
     # if a ground truth or a model prediction is plotted, add legend
     if len(fig.axes) > 1:
@@ -280,24 +288,24 @@ def plot_sample(x, use_bands, labels,
     return fig
 
 
-def _del_axis(fig, idx):
-    """Quietly remove an axis from a figure.
+# def _del_axis(fig, idx):
+#     """Quietly remove an axis from a figure.
 
-    Parameters
-    ----------
-    fig : :py:class:`matplotlib.figure.Figure`
-        An instance of :py:class:`matplotlib.figure.Figure`.
-    idx : `int`
-        The number of the axis to remove.
+#     Parameters
+#     ----------
+#     fig : :py:class:`matplotlib.figure.Figure`
+#         An instance of :py:class:`matplotlib.figure.Figure`.
+#     idx : `int`
+#         The number of the axis to remove.
 
-    """
-    # remove axis ``idx``
-    try:
-        fig.delaxes(fig.axes[idx])
-    # an IndexError is raised, if the axis ``idx`` does not exist
-    except IndexError:
-        # quietly pass
-        return
+#     """
+#     # remove axis ``idx``
+#     try:
+#         fig.delaxes(fig.axes[idx])
+#     # an IndexError is raised, if the axis ``idx`` does not exist
+#     except IndexError:
+#         # quietly pass
+#         return
 
 
 def plot_confusion_matrix(cm, labels, normalize=True,

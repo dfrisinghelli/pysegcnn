@@ -337,7 +337,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'Segnet_SparcsDataset_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_Segnet_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
+    'state_file': 'Segnet_SparcsDataset_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5_uda_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -363,7 +363,17 @@ eval_config = {
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
-    'test': None,
+    'test': False,
+    # 'test': None,
+
+    # whether to map the model labels from the model source domain to the
+    # defined 'domain'
+    # For models trained via unsupervised domain adaptation, the classes of the
+    # source domain, i.e. the classes the model is trained with, may differ
+    # from the classes of the target domain. Setting 'map_labels'=True, means
+    # mapping the source classes to the target classes. Obviously, this is only
+    # possible if the target classes are a subset of the source classes.
+    'map_labels': False,
 
     # Evaluate on an explicitly defined dataset -------------------------------
 

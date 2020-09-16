@@ -106,7 +106,12 @@ def cov_coral(M):
     M2 = torch.matmul(M.t(), M)
 
     # covariance matrix
-    return (M2 - rt / bs) / (bs - 1)
+    cov = (M2 - rt / bs) / (bs - 1)
+
+    # clear cache
+    del bs, rt, M, M2
+
+    return cov
 
 
 class CoralLoss(nn.Module):

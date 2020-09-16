@@ -15,6 +15,7 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
+import enum
 import pathlib
 import logging
 
@@ -87,7 +88,7 @@ def predict_samples(ds, model, label_map=None, cm=False, plot=False, **kwargs):
         :py:class:`pysegcnn.core.split.SceneSubset`.
     model : :py:class:`pysegcnn.core.models.Network`
         An instance of :py:class:`pysegcnn.core.models.Network`.
-    label_map : `dict` [`int`, `int`] or `None`
+    label_map : `dict` [`int`, `int`], :py:class:`enum.EnumMeta` or `None`
         Dictionary with labels of ``ds`` as keys and corresponding labels of
         the ``model`` as values. If specified, ``label_map`` is used to map the
         model label predictions to the actual labels of the dataset ``ds``. The
@@ -142,10 +143,15 @@ def predict_samples(ds, model, label_map=None, cm=False, plot=False, **kwargs):
     fname = model.state_file.name.split('.pt')[0]
 
     # initialize confusion matrix
-    if label_map is None:
+    if label_map is None or isinstance(label_map, enum.Enum):
         conf_mat = np.zeros(shape=2 * (model.nclasses,))
+        labels = (ds.dataset.labels if label_map is None else
+                  {band.id: {'label': band.name.replace('_', ' '),
+                             'color': band.color}
+                   for band in label_map})
     else:
         conf_mat = np.zeros(shape=2 * (len(ds.dataset.labels),))
+        labels = ds.dataset.labels
 
     # create the dataloader
     dataloader = DataLoader(ds, batch_size=1, shuffle=False, drop_last=False)
@@ -185,13 +191,22 @@ def predict_samples(ds, model, label_map=None, cm=False, plot=False, **kwargs):
 
             # plot inputs, ground truth and model predictions
             sname = fname + '_{}_{}.pt'.format(ds.name, batch)
-            _ = plot_sample(inputs.numpy().squeeze().clip(0, 1),
-                            ds.dataset.use_bands,
-                            ds.dataset.labels,
-                            y=labels.numpy().squeeze(),
-                            y_pred=prd.numpy(),
-                            state=sname,
-                            **kwargs)
+
+            if isinstance(label_map, enum.Enum):
+                _ = plot_sample(inputs.numpy().squeeze().clip(0, 1),
+                                ds.dataset.use_bands,
+                                labels,
+                                y=prd.numpy(),
+                                state=sname,
+                                **kwargs)
+            else:
+                _ = plot_sample(inputs.numpy().squeeze().clip(0, 1),
+                                ds.dataset.use_bands,
+                                labels,
+                                y=labels.numpy().squeeze(),
+                                y_pred={'SegNet': prd.numpy()},
+                                state=sname,
+                                **kwargs)
 
     return output, conf_mat
 
@@ -266,14 +281,22 @@ def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
     fname = model.state_file.stem
 
     # initialize confusion matrix
-    if label_map is None:
+    if label_map is None or isinstance(label_map, enum.EnumMeta):
         conf_mat = np.zeros(shape=2 * (model.nclasses,))
+        plot_labels = (ds.dataset.labels if label_map is None else
+                       {band.id: {'label': band.name.replace('_', ' '),
+                                  'color': band.color}
+                        for band in label_map})
     else:
         conf_mat = np.zeros(shape=2 * (len(ds.dataset.labels),))
+        plot_labels = ds.dataset.labels
 
     # check whether a scene id is provided
     if scene_id is None:
-        scene_ids = ds.ids
+        # sort the scene ids in ascending order
+        scene_ids = sorted(ds.ids,
+                           key=lambda x: ds.dataset.parse_scene_id(x)['date'])
+
     else:
         # the name of the selected scene
         scene_ids = [scene_id]
@@ -324,7 +347,7 @@ def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
                 prd = F.softmax(model(inp), dim=1).argmax(dim=1).squeeze()
 
             # map model labels to dataset labels
-            if label_map is not None:
+            if isinstance(label_map, dict):
                 for k, v in label_map.items():
                     prd[torch.where(prd == k)] = v
 
@@ -339,8 +362,11 @@ def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
         prdctn = reconstruct_scene(prd)
 
         # print progress
-        LOGGER.info('Scene {:d}/{:d}, Id: {}, Accuracy: {:.2f}'.format(
-            i + 1, len(scene_ids), sid, accuracy_function(prdctn, labels)))
+        progress = 'Scene {:d}/{:d}, Id: {}'.format(i + 1, len(scene_ids), sid)
+        if not isinstance(label_map, enum.EnumMeta):
+            progress += ', Accuracy: {:.2f}'.format(accuracy_function(prdctn,
+                                                                      labels))
+        LOGGER.info(progress)
 
         # save outputs to dictionary
         output[sid] = {'input': inputs, 'labels': labels, 'prediction': prdctn}
@@ -348,15 +374,26 @@ def predict_scenes(ds, model, label_map=None, scene_id=None, cm=False,
         # plot current scene
         if plot:
             # plot inputs, ground truth and model predictions
-            _ = plot_sample(inputs.clip(0, 1),
-                            ds.dataset.use_bands,
-                            ds.dataset.labels,
-                            y=labels,
-                            y_pred=prdctn,
-                            date=date,
-                            state=sname,
-                            fig=fig,
-                            **kwargs)
+            if isinstance(label_map, enum.EnumMeta):
+                _ = plot_sample(inputs.clip(0, 1),
+                                ds.dataset.use_bands,
+                                plot_labels,
+                                y_pred={model.__class__.__name__: prdctn},
+                                state=sname,
+                                date=date,
+                                fig=fig,
+                                **kwargs)
+            else:
+                _ = plot_sample(inputs.clip(0, 1),
+                                ds.dataset.use_bands,
+                                plot_labels,
+                                y=labels,
+                                y_pred={model.__class__.__name__: prdctn},
+                                state=sname,
+                                date=date,
+                                fig=fig,
+                                **kwargs)
+
             # save current figure state as frame for animation
             if animate:
                 anim.frame(fig.axes)

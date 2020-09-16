@@ -205,12 +205,13 @@ class ImageDataset(Dataset):
         self.transforms = [None] + self.transforms
 
         # when padding, add a new "no data" label to the ground truth
-        self.cval = 0
+        self.cval = self.get_labels().No_data.id
         if self.pad and sum(self.padding) > 0:
-            self.cval = max(self.labels) + 1
-            self.labels[self.cval] = {'label': 'No data', 'color': 'black'}
             LOGGER.info('Adding label "No data" with value={} to ground truth.'
                         .format(self.cval))
+        else:
+            self.labels.pop(self.cval)
+            self.cval = 0
 
         # list of ground truth images
         self.gt = []

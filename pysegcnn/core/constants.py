@@ -99,6 +99,7 @@ class SparcsLabels(Label):
     Land = 4, 'sienna'
     Cloud = 5, 'white'
     Flooded = 6, 'yellow'
+    No_data = 7, 'black'
 
 
 # labels of the Cloud95 dataset
@@ -121,6 +122,7 @@ class ProSnowLabels(Label):
     Cloud = 0, 'white'
     Snow = 1, 'lightblue'
     Snow_free = 2, 'sienna'
+    No_data = 3, 'black'
 
 
 def map_labels(source, target):
@@ -148,14 +150,23 @@ def map_labels(source, target):
     # mapping from Sparcs to ProSnow
     if source is SparcsLabels and target is ProSnowLabels:
         # label transformation mapping
-        label_map = {0: ProSnowLabels.Snow_free.id,  # Shadow = Snow Free
-                     1: ProSnowLabels.Snow_free.id,  # Shadow ow = Snow Free
-                     2: ProSnowLabels.Snow_free.id,  # Water = Snow Free
-                     3: ProSnowLabels.Snow.id,       # Snow = Snow
-                     4: ProSnowLabels.Snow_free.id,  # Land = Snow Free
-                     5: ProSnowLabels.Cloud.id,      # Cloud = Cloud
-                     6: ProSnowLabels.Snow_free.id,  # Flooded = Snow Free
-                     7: 3                            # No data = No data
-                     }
+        label_map = {
+            # Shadow = Snow Free
+            SparcsLabels.Shadow.id: ProSnowLabels.Snow_free.id,
+            # Shadow ow = Snow Free
+            SparcsLabels.Shadow_over_water: ProSnowLabels.Snow_free.id,
+            # Water = Snow Free
+            SparcsLabels.Water.id: ProSnowLabels.Snow_free.id,
+            # Snow = Snow
+            SparcsLabels.Snow.id: ProSnowLabels.Snow.id,
+            # Land = Snow Free
+            SparcsLabels.Land.id: ProSnowLabels.Snow_free.id,
+            # Cloud = Cloud
+            SparcsLabels.Cloud.id: ProSnowLabels.Cloud.id,
+            # Flooded = Snow Free
+            SparcsLabels.Flooded.id: ProSnowLabels.Snow_free.id,
+            # No data = No data
+            SparcsLabels.No_data.id: ProSnowLabels.No_data.id
+            }
 
     return label_map

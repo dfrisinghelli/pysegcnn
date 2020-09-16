@@ -38,4 +38,4 @@ if __name__ == '__main__':
     ec = EvalConfig(**eval_config)
 
     # evaluate model
-    ec.evaluate()
+    scenes, cm = ec.evaluate()

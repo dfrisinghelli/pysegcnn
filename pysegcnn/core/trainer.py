@@ -980,6 +980,9 @@ class EvalConfig(BaseConfig):
     test : `bool` or `None`
         Whether to evaluate the model on the training(``test=None``), the
         validation (``test=False``) or the test set (``test=True``).
+    map_labels : `bool`
+        Whether to map the model labels from the model source domain to the
+        defined ``domain`` in case the domain class labels differ.
     ds : `dict`
         The dataset configuration dictionary passed to
         :py:class:`pysegcnn.core.trainer.DatasetConfig` when evaluating on
@@ -1030,11 +1033,6 @@ class EvalConfig(BaseConfig):
         Path to store animations.
     kwargs : `dict`
         Keyword arguments for :py:func:`pysegcnn.core.graphics.plot_sample`
-    label_map : `dict` [`int`, `int`] or `None`
-        Dictionary with labels of the dataset to evaluate as keys and
-        model labels as values. If specified, ``label_map`` is used to map the
-        model label predictions to the actual labels of the dataset. The
-        default is `None`, i.e. model and dataset share the same labels.
 
     """
 
@@ -1042,6 +1040,7 @@ class EvalConfig(BaseConfig):
     implicit: bool
     domain: str
     test: object
+    map_labels: bool
     ds: dict = dataclasses.field(default_factory={})
     ds_split: dict = dataclasses.field(default_factory={})
     predict_scene: bool = False
@@ -1094,9 +1093,6 @@ class EvalConfig(BaseConfig):
         self.kwargs = {'bands': self.plot_bands,
                        'alpha': self.alpha,
                        'figsize': self.figsize}
-
-        # label mapping
-        self.label_map = None
 
     @staticmethod
     def replace_dataset_path(ds, drive_path):
@@ -1195,8 +1191,8 @@ class EvalConfig(BaseConfig):
                                  )
 
             # log dataset representation
-            LOGGER.info('Evaluating on {} set of {} domain defined at training'
-                        ' time.'.format(ds_set, self.domain))
+            LOGGER.info('Evaluating on {} set of the {} domain defined at '
+                        'training time.'.format(ds_set, self.domain))
 
         else:
             # explicitly defined dataset
@@ -1226,29 +1222,39 @@ class EvalConfig(BaseConfig):
         # check the dataset path: replace by path on current machine
         self.replace_dataset_path(ds, DRIVE_PATH)
 
-        # model labels: class labels the model was trained with
-        model_labels = model_state['src_train_dl'].dataset.dataset.get_labels()
+        # model label class: class labels the model was trained with
+        src_ds = model_state['src_train_dl'].dataset.dataset
+        model_label_class = src_ds.get_labels()
 
         # dataset labels: class labels of the selected dataset
-        ds_labels = ds.dataset.get_labels()
+        ds_label_class = ds.dataset.get_labels()
 
         # check whether the model labels are the same as the dataset labels:
         # e.g, for unsupervised domain adaptation, the model is trained with
         # labels from the source domain, which may be different from the labels
         # on the target domain
-        self.label_map = map_labels(model_labels, ds_labels)
-        if self.label_map is not None:
-            LOGGER.info('Mapping model labels ({}) to dataset labels ({}) ...'
-                        .format(
-                            ', '.join([label.name for label in model_labels]),
-                            ', '.join([label.name for label in ds_labels])))
+        label_map = map_labels(model_label_class, ds_label_class)
+        if label_map is not None:
+            if self.map_labels:
+                LOGGER.info(
+                    'Mapping model labels ({}) to dataset labels ({}) ...'
+                    .format(
+                        ', '.join([label.name for label in model_label_class]),
+                        ', '.join([label.name for label in ds_label_class]))
+                    )
+            else:
+                LOGGER.info('Retaining model labels ({}) ...'.format(
+                    ', '.join([label.name for label in model_label_class]))
+                    )
+                self.cm = False
+                label_map = model_label_class
 
         # evaluate the model
 
         # whether to predict each sample or each scene individually
         if self.predict_scene:
             # reconstruct and predict the scenes in the validation/test set
-            scenes, cm = predict_scenes(ds, model, label_map=self.label_map,
+            scenes, cm = predict_scenes(ds, model, label_map=label_map,
                                         scene_id=None, cm=self.cm,
                                         plot=self.plot_scenes,
                                         animate=self.animate,
@@ -1258,16 +1264,18 @@ class EvalConfig(BaseConfig):
 
         else:
             # predict the samples in the validation/test set
-            samples, cm = predict_samples(ds, model, label_map=self.label_map,
-                                          cm=self.cm, plot=self.plot_samples,
-                                          plot_path=self.sample_path,
-                                          **self.kwargs)
+            scenes, cm = predict_samples(ds, model, label_map=label_map,
+                                         cm=self.cm, plot=self.plot_samples,
+                                         plot_path=self.sample_path,
+                                         **self.kwargs)
 
         # whether to plot the confusion matrix
         if self.cm:
             plot_confusion_matrix(cm, ds.dataset.labels,
                                   state_file=self.state_file,
                                   outpath=self.perfmc_path)
+
+        return scenes, cm
 
 
 @dataclasses.dataclass

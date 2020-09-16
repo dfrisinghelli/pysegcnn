@@ -71,7 +71,7 @@ class ImageDataset(Dataset):
         List of :py:class:`pysegcnn.core.transforms.Augment` instances.
     size : `tuple` [`int`]
         The size of an image of the dataset.
-    sensor : :py:class:`enum.Enum`
+    sensor : :py:class:`enum.EnumMeta`
         An enumeration of the bands of sensor the dataset is derived from,
         see e.g. :py:class:`pysegcnn.core.constants.Landsat8`.
     bands : `dict` [`int`, `str`]

@@ -129,6 +129,17 @@ src_ds_config = {
     #         FlipUd(p=0.5)
     #         ]),
     #     ],
+
+    # The label mapping dictionary, where each (key, value) pair represents a
+    # distinct label mapping. The keys are the labels to be mapped and the
+    # values are the corresponding labels to be mapped to.
+    # NOTE: Passing an empty dictionary means all labels are preserved as is
+    # 'merge_labels': {}
+    'merge_labels': {'Shadow_over_water': 'Shadow',
+                     'Flooded': 'Water'}
+
+    # EXAMPLE: merge label class 'Shadow over Water' to label class 'Shadow'
+    # 'merge_labels': {'Shadow_over_water': 'Shadow'}
 }
 
 # the target dataset configuration dictionary
@@ -142,6 +153,7 @@ trg_ds_config = {
     'seed': 0,
     'sort': True,
     'transforms': [],
+    'merge_labels': {}
 }
 
 # the source dataset split configuration dictionary

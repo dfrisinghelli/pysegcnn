@@ -27,7 +27,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
@@ -116,7 +116,7 @@ def running_mean(x, w):
 
 def plot_sample(x, use_bands, labels,
                 y=None,
-                y_pred=None,
+                y_pred={},
                 date=None,
                 figsize=(16, 9),
                 bands=['nir', 'red', 'green'],
@@ -146,7 +146,7 @@ def plot_sample(x, use_bands, labels,
     y_pred : `dict` [`str`, :py:class:`numpy.ndarray`], optional
         Dictionary of predictions. The keys indicate the prediction method and
         the values are the predicted classes for tile ``x``,
-        shape=(height, width). The default is `None`, i.e. no prediction is
+        shape=(height, width). The default is `{}`, i.e. no prediction is
         plotted.
     date : :py:class:`datetime.datetime` or `None`
         The date of the sample. If specified, ``date`` is plotted as title of
@@ -202,16 +202,19 @@ def plot_sample(x, use_bands, labels,
     rgb = np.dstack([contrast_stretching(x[use_bands.index(band), ...], alpha)
                      for band in bands])
 
-    # get labels and corresponding colors
-    ulabels = [label['label'] for label in labels.values()]
-    colors = [label['color'] for label in labels.values()]
+    # sort the labels in ascending order
+    sorted_labels = {k: v for k, v in sorted(labels.items())}
 
-    # create a ListedColormap
-    cmap = ListedColormap(colors)
+    # create a ListedColormap: sort the colors
+    cmap = ListedColormap([v['color'] for k, v in sorted_labels.items()])
+
+    # create a BoundaryNorm instance to map the integers to their corresponding
+    # colors and add an upper boundary
+    norm = BoundaryNorm(list(sorted_labels.keys()) + [255], cmap.N)
 
     # create a patch (proxy artist) for every color
-    patches = [mpatches.Patch(color=c, label=l) for c, l in
-               zip(colors, ulabels)]
+    patches = [mpatches.Patch(color=v['color'], label=v['label']) for _, v in
+               sorted_labels.items()]
 
     # number of required axes
     naxes = len(y_pred) + 2
@@ -247,8 +250,8 @@ def plot_sample(x, use_bands, labels,
     if y is not None:
         removed = 2
         # plot ground thruth mask
-        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest',
-                           vmin=0, vmax=len(colors))
+        fig.axes[1].imshow(y, cmap=cmap, interpolation='nearest', norm=norm)
+
         fig.axes[1].text(0.5, 1.04, 'Ground truth',
                          transform=fig.axes[1].transAxes, ha='center',
                          va='bottom')
@@ -267,8 +270,7 @@ def plot_sample(x, use_bands, labels,
             k += ' ({:.2f}%)'.format(acc * 100)
 
         # plot model prediction
-        ax.imshow(v, cmap=cmap, interpolation='nearest', vmin=0,
-                  vmax=len(colors))
+        ax.imshow(v, cmap=cmap, interpolation='nearest', norm=norm)
         ax.text(0.5, 1.04, k, transform=ax.transAxes, ha='center', va='bottom')
 
     # remove empty axes
@@ -286,26 +288,6 @@ def plot_sample(x, use_bands, labels,
                     dpi=300, bbox_inches='tight')
 
     return fig
-
-
-# def _del_axis(fig, idx):
-#     """Quietly remove an axis from a figure.
-
-#     Parameters
-#     ----------
-#     fig : :py:class:`matplotlib.figure.Figure`
-#         An instance of :py:class:`matplotlib.figure.Figure`.
-#     idx : `int`
-#         The number of the axis to remove.
-
-#     """
-#     # remove axis ``idx``
-#     try:
-#         fig.delaxes(fig.axes[idx])
-#     # an IndexError is raised, if the axis ``idx`` does not exist
-#     except IndexError:
-#         # quietly pass
-#         return
 
 
 def plot_confusion_matrix(cm, labels, normalize=True,

@@ -69,6 +69,9 @@ class ImageDataset(Dataset):
         The random seed.
     transforms : `list`
         List of :py:class:`pysegcnn.core.transforms.Augment` instances.
+    merge_labels : `dict` [`str`, `str`]
+        The label mapping dictionary, where each (key, value) pair represents a
+        distinct label mapping.
     size : `tuple` [`int`]
         The size of an image of the dataset.
     sensor : :py:class:`enum.EnumMeta`
@@ -108,7 +111,8 @@ class ImageDataset(Dataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         r"""Initialize.
 
         Parameters
@@ -145,6 +149,11 @@ class ImageDataset(Dataset):
             original untransformed dataset together with each transformed
             version of it. If ``transforms=[]``, only the original dataset is
             used. The default is `[]`.
+        merge_labels : `dict` [`str`, `str`], optional
+            The label mapping dictionary, where each (key, value) pair
+            represents a distinct label mapping. The keys are the labels to
+            be mapped and the values are the corresponding labels to be mapped
+            to. The default is `{}`, which means each label is preserved as is.
 
         """
         super().__init__()
@@ -158,6 +167,7 @@ class ImageDataset(Dataset):
         self.sort = sort
         self.seed = seed
         self.transforms = transforms
+        self.merge_labels = merge_labels
 
         # initialize instance attributes
         self._init_attributes()
@@ -177,9 +187,9 @@ class ImageDataset(Dataset):
         self._assert_get_sensor()
         self.bands = {band.value: band.name for band in self.sensor}
 
-        # the class labels
+        # the original class labels
         self._assert_get_labels()
-        self.labels = self._build_labels()
+        self._labels = self._build_labels()
 
         # check which bands to use
         self.use_bands = (self.use_bands if self.use_bands else
@@ -210,8 +220,18 @@ class ImageDataset(Dataset):
             LOGGER.info('Adding label "No data" with value={} to ground truth.'
                         .format(self.cval))
         else:
-            self.labels.pop(self.cval)
+            self._labels.pop(self.cval)
             self.cval = 0
+
+        # remove labels to merge from dataset instance labels
+        for k, v in self.merge_labels.items():
+            self._labels.pop(getattr(self.get_labels(), k).id)
+            LOGGER.info('Merging label: {} -> {}.'.format(k, v))
+
+        # create model class labels
+        # map the original class labels to an ascending sequence of integers
+        # starting from 0 as required by PyTorch, i.e. [0, 1, 2, ..., nclasses]
+        self.labels = {i: v for i, (_, v) in enumerate(self._labels.items())}
 
         # list of ground truth images
         self.gt = []
@@ -336,6 +356,10 @@ class ImageDataset(Dataset):
         # preprocess samples
         x, y = self.preprocess(data, gt)
 
+        # transform original ground truth class labels to the model class
+        # labels
+        y = self.transform_gt(y)
+
         # apply transformation
         if scene['transform'] is not None:
             x, y = scene['transform'](x, y)
@@ -354,8 +378,8 @@ class ImageDataset(Dataset):
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         Returns
         -------
@@ -389,8 +413,8 @@ class ImageDataset(Dataset):
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         Returns
         -------
@@ -410,12 +434,12 @@ class ImageDataset(Dataset):
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         Returns
         -------
-        sensor : `enum.Enum`
+        sensor : :py:class:`enum.EnumMeta`
             An enumeration of the bands of the sensor.
 
         """
@@ -431,12 +455,12 @@ class ImageDataset(Dataset):
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         Returns
         -------
-        labels : `enum.Enum`
+        labels : :py:class:`enum.EnumMeta`
             The class labels.
 
         """
@@ -448,27 +472,52 @@ class ImageDataset(Dataset):
 
         Parameters
         ----------
-        data : `numpy.ndarray`
+        data : :py:class:`numpy.ndarray`
             The sample input data.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The sample ground truth.
 
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
-
-        Returns
-        -------
-        data : `numpy.ndarray`
-            The preprocessed input data.
-        gt : `numpy.ndarray`
-            The preprocessed ground truth data.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         """
         raise NotImplementedError('Inherit the ImageDataset class and '
                                   'implement the method.')
+
+    def transform_gt(self, gt):
+        """Map the original class labels to the model class labels.
+
+        Modify the values of the class labels in the ground truth mask to match
+        the PyTorch standard. The class labels should be represented by an
+        increasing sequence of integers starting from 0.
+
+        Parameters
+        ----------
+        gt : :py:class:`numpy.ndarray`
+            The ground truth data.
+
+        Returns
+        -------
+        gt : :py:class:`numpy.ndarray`
+            The modified truth data.
+
+        """
+        # check whether to merge labels
+        for k, v in self.merge_labels.items():
+            old_id = getattr(self.get_labels(), k).id
+            new_id = getattr(self.get_labels(), v).id
+
+            # replace merged label id in ground truth mask
+            gt[np.where(gt == old_id)] = new_id
+
+        # replace the original labels by an increasing sequence of class labels
+        for old_id, new_id in zip(self._labels.keys(), self.labels.keys()):
+            gt[np.where(gt == old_id)] = new_id
+
+        return gt
 
     @staticmethod
     def parse_scene_id(scene_id):
@@ -482,8 +531,8 @@ class ImageDataset(Dataset):
         Raises
         ------
         NotImplementedError
-            Raised if the `pysegcnn.core.dataset.ImageDataset` class is not
-            inherited.
+            Raised if the :py:class:`pysegcnn.core.dataset.ImageDataset` class
+            is not inherited.
 
         Returns
         -------
@@ -508,13 +557,13 @@ class ImageDataset(Dataset):
         scene_data : `dict`
             The sample data dictionary with keys:
                 ``'band_name_1'``
-                    data of band_1 (`numpy.ndarray`).
+                    data of band_1 (:py:class:`numpy.ndarray`).
                 ``'band_name_2'``
-                    data of band_2 (`numpy.ndarray`).
+                    data of band_2 (:py:class:`numpy.ndarray`).
                 ``'band_name_n'``
-                    data of band_n (`numpy.ndarray`).
+                    data of band_n (:py:class:`numpy.ndarray`).
                 ``'gt'``
-                    data of the ground truth (`numpy.ndarray`).
+                    data of the ground truth (:py:class:`numpy.ndarray`).
                 ``'date'``
                     The date of the sample.
                 ``'tile'``
@@ -551,13 +600,13 @@ class ImageDataset(Dataset):
         scene : `dict`
             The sample data dictionary with keys:
                 ``'band_name_1'``
-                    data of band_1 (`numpy.ndarray`).
+                    data of band_1 (:py:class:`numpy.ndarray`).
                 ``'band_name_2'``
-                    data of band_2 (`numpy.ndarray`).
+                    data of band_2 (:py:class:`numpy.ndarray`).
                 ``'band_name_n'``
-                    data of band_n (`numpy.ndarray`).
+                    data of band_n (:py:class:`numpy.ndarray`).
                 ``'gt'``
-                    data of the ground truth (`numpy.ndarray`).
+                    data of the ground truth (:py:class:`numpy.ndarray`).
                 ``'date'``
                     The date of the sample.
                 ``'tile'``
@@ -569,9 +618,9 @@ class ImageDataset(Dataset):
 
         Returns
         -------
-        stack : `numpy.ndarray`
+        stack : :py:class:`numpy.ndarray`
             The input data of the sample.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The ground truth of the sample.
 
         """
@@ -589,7 +638,7 @@ class ImageDataset(Dataset):
         ----------
         x : array_like
             The input data.
-        dtype : `torch.dtype`
+        dtype : :py:class:`torch.dtype`
             The data type used to convert ``x``.
 
         Returns
@@ -675,10 +724,11 @@ class StandardEoDataset(ImageDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class ImageDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
     def _get_band_number(self, path):
         """Return the band number of a scene .tif file.
@@ -746,21 +796,21 @@ class StandardEoDataset(ImageDataset):
         return scene_data
 
     def preprocess(self, data, gt):
-        """Preprocess dataset images.
+        """Preprocess a sample before feeding it to a model.
 
         Parameters
         ----------
-        data : `numpy.ndarray`
+        data : :py:class:`numpy.ndarray`
             The sample input data.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The sample ground truth.
 
         Returns
         -------
-        data : `numpy.ndarray`
-            The preprocessed input data.
-        gt : `numpy.ndarray`
-            The preprocessed ground truth data.
+        data : :py:class:`numpy.ndarray`
+            The preprocessed sample input data.
+        gt : :py:class:`numpy.ndarray`
+            The preprocessed sample ground truth.
 
         """
         return data, gt
@@ -842,10 +892,11 @@ class SparcsDataset(StandardEoDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
     @staticmethod
     def get_size():
@@ -865,7 +916,7 @@ class SparcsDataset(StandardEoDataset):
 
         Returns
         -------
-        sensor : `enum.Enum`
+        sensor : :py:class:`enum.EnumMeta`
             An enumeration of the bands of the sensor.
 
         """
@@ -877,7 +928,7 @@ class SparcsDataset(StandardEoDataset):
 
         Returns
         -------
-        labels : `enum.Enum`
+        labels : :py:class:`enum.EnumMeta`
             The class labels.
 
         """
@@ -906,10 +957,11 @@ class ProSnowDataset(StandardEoDataset):
     """Class for the ProSnow datasets."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
     @staticmethod
     def get_sensor():
@@ -917,7 +969,7 @@ class ProSnowDataset(StandardEoDataset):
 
         Returns
         -------
-        sensor : `enum.Enum`
+        sensor : :py:class:`enum.EnumMeta`
             An enumeration of the bands of the sensor.
 
         """
@@ -929,7 +981,7 @@ class ProSnowDataset(StandardEoDataset):
 
         Returns
         -------
-        labels : `enum.Enum`
+        labels : :py:class:`enum.EnumMeta`
             The class labels.
 
         """
@@ -958,10 +1010,11 @@ class ProSnowGarmisch(ProSnowDataset):
     """Class for the ProSnow Garmisch dataset."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
     @staticmethod
     def get_size():
@@ -980,10 +1033,11 @@ class ProSnowObergurgl(ProSnowDataset):
     """Class for the ProSnow Obergurgl dataset."""
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
     @staticmethod
     def get_size():
@@ -1009,10 +1063,11 @@ class Cloud95Dataset(ImageDataset):
     """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[]):
+                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
+                 merge_labels={}):
         # initialize super class StandardEoDataset
         super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms)
+                         sort, seed, transforms, merge_labels)
 
         # the csv file containing the names of the informative patches
         # patches with more than 80% black pixels, i.e. patches resulting from
@@ -1037,7 +1092,7 @@ class Cloud95Dataset(ImageDataset):
 
         Returns
         -------
-        sensor : `enum.Enum`
+        sensor : :py:class:`enum.EnumMeta`
             An enumeration of the bands of the sensor.
 
         """
@@ -1049,7 +1104,7 @@ class Cloud95Dataset(ImageDataset):
 
         Returns
         -------
-        labels : `enum.Enum`
+        labels : :py:class:`enum.EnumMeta`
             The class labels.
 
         """
@@ -1060,16 +1115,16 @@ class Cloud95Dataset(ImageDataset):
 
         Parameters
         ----------
-        data : `numpy.ndarray`
+        data : :py:class:`numpy.ndarray`
             The sample input data.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The sample ground truth.
 
         Returns
         -------
-        data : `numpy.ndarray`
+        data : :py:class:`numpy.ndarray`
             The preprocessed input data.
-        gt : `numpy.ndarray`
+        gt : :py:class:`numpy.ndarray`
             The preprocessed ground truth data.
 
         """

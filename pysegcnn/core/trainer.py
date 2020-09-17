@@ -126,6 +126,11 @@ class DatasetConfig(BaseConfig):
         data is padded with a constant padding value of zero. For each
         image, the corresponding ground truth image is padded with a
         "no data" label. The default is `False`.
+    merge_labels : `dict` [`str`, `str`], optional
+        The label mapping dictionary, where each (key, value) pair represents a
+        distinct label mapping. The keys are the labels to be mapped and the
+        values are the corresponding labels to be mapped to. The default is
+        `{}`, which means each label is preserved as is.
     dataset_class : :py:class:`pysegcnn.core.dataset.ImageDataset`
         A subclass of :py:class:`pysegcnn.core.dataset.ImageDataset`.
 
@@ -138,8 +143,9 @@ class DatasetConfig(BaseConfig):
     gt_pattern: str
     seed: int
     sort: bool = False
-    transforms: list = dataclasses.field(default_factory=list)
+    transforms: list = dataclasses.field(default_factory=[])
     pad: bool = False
+    merge_labels: dict = dataclasses.field(default_factory={})
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -191,7 +197,8 @@ class DatasetConfig(BaseConfig):
                     sort=self.sort,
                     transforms=self.transforms,
                     pad=self.pad,
-                    gt_pattern=self.gt_pattern
+                    gt_pattern=self.gt_pattern,
+                    merge_labels=self.merge_labels
                     )
 
         return dataset
@@ -1259,7 +1266,7 @@ class EvalConfig(BaseConfig):
                     ', '.join([label.name for label in model_label_class]))
                     )
                 self.cm = False
-                label_map = model_label_class
+                label_map = src_ds.labels
 
         # evaluate the model
 

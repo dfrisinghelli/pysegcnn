@@ -130,9 +130,9 @@ def map_labels(source, target):
 
     Parameters
     ----------
-    source : :py:class:`enum.Enum`
+    source : :py:class:`enum.EnumMeta`
         The source domain labels, i.e. the labels a model is trained with.
-    target : :py:class:`enum.Enum`
+    target : :py:class:`enum.EnumMeta`
         The target domain labels, i.e. the labels of the dataset to apply the
         model to.
 
@@ -143,7 +143,8 @@ def map_labels(source, target):
         as values.
 
     """
-    # if source and target labels are equal, the label mapping is the identity
+    # if source and target labels are equal, the label mapping is the
+    # identity
     if source is target:
         label_map = None
 

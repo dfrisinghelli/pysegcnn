@@ -126,7 +126,7 @@ class ProSnowLabels(Label):
 
 
 def map_labels(source, target):
-    """Map labels from one dataset to another.
+    """Map labels from a source domain to a target domain.
 
     Parameters
     ----------

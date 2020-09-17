@@ -33,22 +33,24 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torch.optim import Optimizer
+import matplotlib.pyplot as plt
 
 # locals
 from pysegcnn.core.dataset import SupportedDatasets, ImageDataset
 from pysegcnn.core.transforms import Augment
-from pysegcnn.core.utils import img2np, item_in_enum, accuracy_function
+from pysegcnn.core.utils import (img2np, item_in_enum, accuracy_function,
+                                 reconstruct_scene)
 from pysegcnn.core.split import SupportedSplits, CustomSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
 from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss, UDA_POSITIONS
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
-from pysegcnn.core.graphics import plot_loss, plot_confusion_matrix
+from pysegcnn.core.graphics import (plot_loss, plot_confusion_matrix,
+                                    plot_sample, Animate)
 from pysegcnn.core.constants import map_labels
-from pysegcnn.core.predict import predict_samples, predict_scenes
 from pysegcnn.main.config import HERE, DRIVE_PATH
 
 # module level logger
@@ -981,7 +983,7 @@ class StateConfig(BaseConfig):
 
 
 @dataclasses.dataclass
-class EvalConfig(BaseConfig):
+class NetworkInference(BaseConfig):
     """Model inference configuration.
 
     Evaluate a model.
@@ -1097,6 +1099,10 @@ class EvalConfig(BaseConfig):
             raise ValueError('Expected "domain" to be "src" or "trg", got {}.'
                              .format(self.domain))
 
+        # the device to compute on, use gpu if available
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else
+                                   "cpu")
+
         # the output paths for the different graphics
         self.base_path = pathlib.Path(HERE)
         self.sample_path = self.base_path.joinpath('_samples')
@@ -1108,10 +1114,70 @@ class EvalConfig(BaseConfig):
         self.models_path = self.base_path.joinpath('_models')
         self.state_file = self.models_path.joinpath(self.state_file)
 
+        # initialize logging
+        log = LogConfig(self.state_file)
+        dictConfig(log_conf(log.log_file))
+        log.init_log('{}: ' + 'Evaluating model: {}.'
+                     .format(self.state_file.name))
+
         # plotting keyword arguments
         self.kwargs = {'bands': self.plot_bands,
                        'alpha': self.alpha,
                        'figsize': self.figsize}
+
+        # base filename for each plot
+        self.basename = self.state_file.stem
+
+        # load the model state
+        self.model, _, self.model_state = Network.load(self.state_file)
+
+        # load the target dataset: dataset to evaluate the model on
+        self.trg_ds = self.load_dataset()
+
+        # load the source dataset: dataset the model was trained on
+        self.src_ds = self.model_state['src_train_dl'].dataset.dataset
+
+    @staticmethod
+    def get_scene_tiles(ds, scene_id):
+        """Return the tiles of the scene with id ``scene_id``.
+
+        Parameters
+        ----------
+        ds : :py:class:`pysegcnn.core.split.CustomSubset`
+            A instance of a subclass of
+            :py:class:`pysegcnn.core.split.CustomSubset`.
+        scene_id : `str`
+            A valid scene identifier.
+
+        Raises
+        ------
+        ValueError
+            Raised if ``scene_id`` is not a valid scene identifier for the
+            dataset ``ds``.
+
+        Returns
+        -------
+        indices : `list` [`int`]
+            List of indices of the tiles of the scene with id ``scene_id`` in
+            ``ds``.
+        date : :py:class:`datetime.datetime`
+            The date of the scene with id ``scene_id``.
+
+        """
+        # check if the scene id is valid
+        scene_meta = ds.dataset.parse_scene_id(scene_id)
+        if scene_meta is None:
+            raise ValueError('{} is not a valid scene identifier'
+                             .format(scene_id))
+
+        # iterate over the scenes of the dataset
+        indices = []
+        for i, scene in enumerate(ds.scenes):
+            # if the scene id matches a given id, save the index of the scene
+            if scene['id'] == scene_id:
+                indices.append(i)
+
+        return indices, scene_meta['date']
 
     @staticmethod
     def replace_dataset_path(ds, drive_path):
@@ -1171,30 +1237,27 @@ class EvalConfig(BaseConfig):
                     if dpath != drive_path:
                         scene[k] = v.replace(str(dpath), drive_path)
 
-    def evaluate(self):
-        """Evaluate a pretrained model on a defined dataset.
+    def load_dataset(self):
+        """Load the defined dataset.
 
         Raises
         ------
         ValueError
-            Raised if the requested dataset was not defined at training time,
-            when ``implicit=True``.
+            Raised if the requested dataset was not available at training time,
+            if ``implicit=True``.
+
+            Raised if the dataset ``ds`` does not have the same spectral bands
+            as the model to evaluate, if ``implicit=False``.
+
+        Returns
+        -------
+        ds : :py:class:`pysegcnn.core.split.CustomSubset`
+            The dataset to evaluate the model on.
 
         """
-        # initialize logging
-        log = LogConfig(self.state_file)
-        dictConfig(log_conf(log.log_file))
-        log.init_log('{}: ' + 'Evaluating model: {}.'
-                     .format(self.state_file.name))
-
-        # load the model state
-        model, _, model_state = Network.load(self.state_file)
-
-        # plot loss and accuracy
-        plot_loss(self.state_file, outpath=self.perfmc_path)
-
         # check whether to evaluate on the datasets defined at training time
         if self.implicit:
+
             # check whether to evaluate the model on the training, validation
             # or test set
             if self.test is None:
@@ -1203,7 +1266,8 @@ class EvalConfig(BaseConfig):
                 ds_set = 'test' if self.test else 'valid'
 
             # the dataset to evaluate the model on
-            ds = model_state[self.domain + '_{}_dl'.format(ds_set)].dataset
+            ds = self.model_state[
+                self.domain + '_{}_dl'.format(ds_set)].dataset
             if ds is None:
                 raise ValueError('Requested dataset "{}" is not available.'
                                  .format(self.domain + '_{}_dl'.format(ds_set))
@@ -1218,10 +1282,10 @@ class EvalConfig(BaseConfig):
             ds = DatasetConfig(**self.ds).init_dataset()
 
             # check if the spectral bands match
-            if ds.use_bands != model_state['bands']:
+            if ds.use_bands != self.model_state['bands']:
                 raise ValueError('The model was trained with bands {}, not '
-                                 'with bands {}.'
-                                 .format(model_state['bands'], ds.use_bands))
+                                 'with bands {}.'.format(
+                                     self.model_state['bands'], ds.use_bands))
 
             # split configuration
             sc = SplitConfig(**self.ds_split)
@@ -1241,56 +1305,205 @@ class EvalConfig(BaseConfig):
         # check the dataset path: replace by path on current machine
         self.replace_dataset_path(ds, DRIVE_PATH)
 
-        # model label class: class labels the model was trained with
-        src_ds = model_state['src_train_dl'].dataset.dataset
-        model_label_class = src_ds.get_labels()
+        return ds
 
-        # dataset labels: class labels of the selected dataset
-        ds_label_class = ds.dataset.get_labels()
+    @property
+    def source_label_class(self):
+        """Class labels of the source domain the model was trained on.
 
-        # check whether the model labels are the same as the dataset labels:
-        # e.g, for unsupervised domain adaptation, the model is trained with
-        # labels from the source domain, which may be different from the labels
-        # on the target domain
-        label_map = map_labels(model_label_class, ds_label_class)
-        if label_map is not None:
+        Returns
+        -------
+        source_label_class : :py:class:`enum.EnumMeta`
+            The class labels of the source domain.
+
+        """
+        return self.src_ds.get_labels()
+
+    @property
+    def target_label_class(self):
+        """Class labels of the dataset to evaluate.
+
+        Returns
+        -------
+        target_label_class : :py:class:`enum.EnumMeta`
+            The class labels of the dataset to evaluate.
+
+        """
+        # target label class: class labels of the target dataset
+        return self.trg_ds.dataset.get_labels()
+
+    @property
+    def label_map(self):
+        """Label mapping from the source to the target domain.
+
+        See :py:func:`pysegcnn.core.constants.map_labels`.
+
+        Returns
+        -------
+        label_map : `dict` [`int`, `int`]
+            Dictionary with source labels as keys and corresponding target
+            labels as values.
+
+        """
+        # check whether the source domain labels are the same as the target
+        # domain labels
+        return map_labels(self.source_label_class, self.target_label_class)
+
+    def _init_confusion_matrix(self):
+
+        # initialize confusion matrix
+        cm = np.zeros(shape=2 * (self.model.nclasses,))
+        plot_labels = self.src_ds.labels
+
+        # check whether to apply label mapping
+        if self.label_map is not None:
+            # map source domain labels to target domain labels
             if self.map_labels:
-                LOGGER.info(
-                    'Mapping model labels ({}) to dataset labels ({}) ...'
-                    .format(
-                        ', '.join([label.name for label in model_label_class]),
-                        ', '.join([label.name for label in ds_label_class]))
-                    )
+                cm = np.zeros(shape=2 * (len(self.trg_ds.dataset.labels),))
+                plot_labels = self.trg_ds.dataset.labels
+                LOGGER.info('Mapping model labels ({}) to dataset labels ({}).'
+                            .format(
+                                ', '.join([label.name for label in
+                                           self.source_label_class]),
+                                ', '.join([label.name for label in
+                                           self.target_label_class])))
             else:
-                LOGGER.info('Retaining model labels ({}) ...'.format(
-                    ', '.join([label.name for label in model_label_class]))
-                    )
-                self.cm = False
-                label_map = src_ds.labels
+                # retain model source domain labels
+                LOGGER.info('Retaining model labels: ({}).'
+                            .format(', '.join([label.name for label in
+                                               self.source_label_class])))
 
-        # evaluate the model
+                # one cannot compute the confusion matrix if the target domain
+                # labels are different from the source domain labels
+                self.cm = False
+
+        return cm, plot_labels
+
+    def predict_scenes(self):
+        """Classify each scene of the target dataset."""
+        # names of the scenes in the dataset: sort in ascending order by date
+        scene_ids = sorted(self.trg_ds.ids,
+                           key=lambda x:
+                               self.trg_ds.dataset.parse_scene_id(x)['date'])
+
+        # initialize confusion matrix and target class labels
+        self.conf_mat, self.plot_labels = self._init_confusion_matrix()
+
+        # instanciate figure
+        fig, _ = plt.subplots(1, 3, figsize=self.kwargs['figsize'])
+
+        # check whether to animate figures
+        if self.animate:
+            # check whether the output path is valid
+            if not self.anim_path.exists():
+                # create output path
+                self.anim_path.mkdir(parents=True, exist_ok=True)
+            anim = Animate(self.anim_path)
+
+        # iterate over the scenes
+        output = {}
+        for i, sid in enumerate(scene_ids):
+
+            # filename for the current scene
+            sname = self.basename + '_{}_{}.pt'.format(self.trg_ds.name, sid)
+
+            # get the indices of the tiles of the scene
+            indices, date = self.get_scene_tiles(self.trg_ds, sid)
+            indices.sort()
+
+            # check whether the dataset is a time series
+            date = date if self.trg_ds.split_mode == 'date' else None
+
+            # create a subset of the dataset
+            scene_ds = Subset(self.trg_ds, indices)
+
+            # create the dataloader
+            scene_dl = DataLoader(scene_ds, batch_size=len(scene_ds),
+                                  shuffle=False, drop_last=False)
+
+            # predict the current scene
+            for b, (inp, lab) in enumerate(scene_dl):
+
+                # send inputs and labels to device
+                inp = inp.to(self.device)
+                lab = lab.to(self.device)
+
+                # apply forward pass: model prediction
+                with torch.no_grad():
+                    prd = F.softmax(self.model(inp),
+                                    dim=1).argmax(dim=1).squeeze()
+
+                # map model labels to dataset labels
+                # if isinstance(label_map, dict):
+                #     for k, v in label_map.items():
+                #         prd[torch.where(prd == k)] = v
+
+                # update confusion matrix
+                if self.cm:
+                    for ytrue, ypred in zip(lab.view(-1), prd.view(-1)):
+                        self.conf_mat[ytrue.long(), ypred.long()] += 1
+
+            # reconstruct the entire scene
+            inputs = reconstruct_scene(inp)
+            labels = reconstruct_scene(lab)
+            prdctn = reconstruct_scene(prd)
+
+            # print progress
+            progress = 'Scene {:d}/{:d}, Id: {}'.format(i + 1, len(scene_ids), sid)
+            # if not isinstance(label_map, enum.EnumMeta):
+            #     progress += ', Accuracy: {:.2f}'.format(accuracy_function(prdctn,
+            #                                                               labels))
+            LOGGER.info(progress)
+
+            # save outputs to dictionary
+            output[sid] = {'input': inputs, 'labels': labels,
+                           'prediction': prdctn}
+
+            # plot current scene
+            if self.plot_scenes:
+                # plot inputs, ground truth and model predictions
+                plot_sample(inputs.clip(0, 1),
+                            self.trg_ds.dataset.use_bands,
+                            self.plot_labels,
+                            y_pred={self.model.__class__.__name__: prdctn},
+                            state=sname,
+                            date=date,
+                            fig=fig)
+
+                # save current figure state as frame for animation
+                if self.animate:
+                    anim.frame(fig.axes)
+
+        # save animation
+        if self.animate:
+            anim.animate(fig, interval=1000, repeat=True, blit=True)
+            anim.save(self.basename + '_{}.gif'.format(self.trg_ds.name),
+                      dpi=200)
+
+        return output
+
+    def evaluate(self):
+        """Evaluate a pretrained model on a defined dataset."""
+        # plot loss and accuracy
+        plot_loss(self.state_file, outpath=self.perfmc_path)
+
+        # set the model to evaluation mode
+        LOGGER.info('Setting model to evaluation mode ...')
+        self.model.eval()
+        self.model.to(self.device)
 
         # whether to predict each sample or each scene individually
         if self.predict_scene:
             # reconstruct and predict the scenes in the validation/test set
-            scenes, cm = predict_scenes(ds, model, label_map=label_map,
-                                        scene_id=None, cm=self.cm,
-                                        plot=self.plot_scenes,
-                                        animate=self.animate,
-                                        anim_path=self.animtn_path,
-                                        plot_path=self.scenes_path,
-                                        **self.kwargs)
+            scenes, cm = self.predict_scenes()
 
         else:
             # predict the samples in the validation/test set
-            scenes, cm = predict_samples(ds, model, label_map=label_map,
-                                         cm=self.cm, plot=self.plot_samples,
-                                         plot_path=self.sample_path,
-                                         **self.kwargs)
+            scenes, cm = self.predict_samples()
 
         # whether to plot the confusion matrix
         if self.cm:
-            plot_confusion_matrix(cm, ds.dataset.labels,
+            plot_confusion_matrix(cm, self.plot_labels,
                                   state_file=self.state_file,
                                   outpath=self.perfmc_path)
 

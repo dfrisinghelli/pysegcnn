@@ -270,6 +270,16 @@ model_config = {
     # whether to start domain adaptation from a pretrained model
     'uda_from_pretrained': False,
 
+    # the layer where to compute the domain adaptation loss
+    # currently, the following positions are supported:
+    #   - 'enc': compute the domain adaptation loss with the encoder features
+    #   - 'dec': compute the domain adaptation loss with the decoder features
+    #   - 'cla': compute the domain adaptation loss with the classifier
+    #            features
+    'uda_pos': 'enc',
+    # 'uda_pos': 'dec',
+    # 'uda_pos': 'cla',
+
     # The weight of the domain adaptation, trading off adaptation with
     # classification accuracy on the source domain.
     # NOTE: the domain adaptation weight increases every epoch reaching the

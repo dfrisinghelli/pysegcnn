@@ -43,7 +43,7 @@ from pysegcnn.core.utils import img2np, item_in_enum, accuracy_function
 from pysegcnn.core.split import SupportedSplits, CustomSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
-from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss
+from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss, UDA_POSITIONS
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
 from pysegcnn.core.graphics import plot_loss, plot_confusion_matrix
@@ -441,6 +441,8 @@ class ModelConfig(BaseConfig):
     uda_lambda : `float`
         The weight of the domain adaptation, trading off adaptation with
         classification accuracy on the source domain.
+    uda_pos : `str`
+        The layer where to compute the domain adaptation loss.
     freeze : `bool`
         Whether to freeze the pretrained weights.
     lr : `float`
@@ -504,6 +506,7 @@ class ModelConfig(BaseConfig):
     pretrained_model: str = ''
     uda_from_pretrained: bool = False
     uda_lambda: float = 0.5
+    uda_pos: str = 'enc'
     freeze: bool = True
     lr: float = 0.001
     early_stop: bool = False
@@ -544,6 +547,14 @@ class ModelConfig(BaseConfig):
         if self.transfer and not self.supervised:
             self.uda_loss_class = item_in_enum(self.uda_loss,
                                                SupportedUdaMethods)
+
+            # check whether the position to compute the domain adaptation loss
+            # is supported
+            if self.uda_pos not in UDA_POSITIONS:
+                raise ValueError('Position {} to compute domain adaptation '
+                                 'loss is not supported. Valid positions are '
+                                 '{}.'.format(self.uda_pos,
+                                              ', '.join(UDA_POSITIONS)))
 
         # path to model states
         self.state_path = pathlib.Path(HERE).joinpath('_models/')
@@ -896,8 +907,9 @@ class StateConfig(BaseConfig):
             else:
                 # state file for models trained via unsupervised domain
                 # adaptation
-                state = state_src.replace('.pt', '_uda{}'.format(
-                    state_trg.replace(self.mc.model_name, '')))
+                state = state_src.replace('.pt', '_uda_{}{}'.format(
+                    self.mc.uda_pos, state_trg.replace(self.mc.model_name, ''))
+                    )
 
                 # check whether unsupervised domain adaptation is initialized
                 # from a pretrained model state
@@ -1498,6 +1510,10 @@ class NetworkTrainer(BaseConfig):
     uda_lambda : `float`
         The weight of the domain adaptation, trading off adaptation with
         classification accuracy on the source domain. The default is `0`.
+    uda_pos : `str`
+        The layer where to compute the domain adaptation loss. The default
+        is `'enc'`, i.e. compute the domain adaptation loss using the output of
+        the model encoder.
     epochs : `int`
         The maximum number of epochs to train. The default is `1`.
     nthreads : `int`
@@ -1564,6 +1580,7 @@ class NetworkTrainer(BaseConfig):
     trg_test_dl: DataLoader = DataLoader(None)
     uda_loss_function: nn.Module = CoralLoss
     uda_lambda: float = 0
+    uda_pos: str = 'enc'
     epochs: int = 1
     nthreads: int = torch.get_num_threads()
     early_stop: bool = False
@@ -1615,6 +1632,9 @@ class NetworkTrainer(BaseConfig):
 
             # train using deep domain adaptation
             self.uda = True
+
+            # forward function for deep domain adaptation
+            self.uda_forward = self._uda_frwd()
 
         # initialize metric tracker
         self.tracker.initialize()
@@ -1753,6 +1773,61 @@ class NetworkTrainer(BaseConfig):
             self.tracker.batch_update(self.tracker.train_metrics,
                                       [loss.item(), acc])
 
+    def _enc_uda(self, src_input, trg_input):
+
+        # perform forward pass: encoded source domain features
+        src_feature = self.model.encoder(src_input)
+        src_dec_feature = self.model.decoder(src_feature,
+                                             self.model.encoder.cache)
+        # model logits on source domain
+        src_prdctn = self.model.classifier(src_dec_feature)
+        del self.model.encoder.cache  # clear intermediate encoder outputs
+
+        # perform forward pass: encoded target domain features
+        trg_feature = self.model.encoder(trg_input)
+
+        return src_feature, trg_feature, src_prdctn
+
+    def _dec_uda(self, src_input, trg_input):
+
+        # perform forward pass: decoded source domain features
+        src_feature = self.model.encoder(src_input)
+        src_feature = self.model.decoder(src_feature,
+                                         self.model.encoder.cache)
+        # model logits on source domain
+        src_prdctn = self.model.classifier(src_feature)
+        del self.model.encoder.cache  # clear intermediate encoder outputs
+
+        # perform forward pass: decoded target domain features
+        trg_feature = self.model.encoder(trg_input)
+        trg_feature = self.model.decoder(trg_feature,
+                                         self.model.encoder.cache)
+        del self.model.encoder.cache
+
+        return src_feature, trg_feature, src_prdctn
+
+    def _cla_uda(self, src_input, trg_input):
+
+        # perform forward pass: classified source domain features
+        src_feature = self.model(src_input)
+
+        # perform forward pass: target domain features
+        trg_feature = self.model(trg_input)
+
+        return src_feature, trg_feature, src_feature
+
+    def _uda_frwd(self):
+        if self.uda_pos == 'enc':
+            forward = self._enc_uda
+
+        if self.uda_pos == 'dec':
+            forward = self._enc_dec
+
+        if self.uda_pos == 'cla':
+            forward = self._cla_uda
+
+        return forward
+
     def _train_domain_adaptation(self, epoch):
         """Train a model for an epoch on the source and target domain.
 
@@ -1791,24 +1866,17 @@ class NetworkTrainer(BaseConfig):
             # reset the gradients
             self.optimizer.zero_grad()
 
-            # perform forward pass: encoded source domain features
-            src_enc_feature = self.model.encoder(src_input)
-            src_dec_feature = self.model.decoder(src_enc_feature,
-                                                 self.model.encoder.cache)
-            # model logits on source domain
-            src_preds = self.model.classifier(src_dec_feature)
-            del self.model.encoder.cache  # clear intermediate encoder outputs
-
-            # perform forward pass: target domain features
-            trg_enc_feature = self.model.encoder(trg_input)
+            # forward pass
+            src_feature, trg_feature, src_prdctn = self.uda_forward(src_input,
+                                                                    trg_input)
 
             # compute classification loss
-            cla_loss = self.cla_loss_function(src_preds, src_label.long())
+            cla_loss = self.cla_loss_function(src_prdctn, src_label.long())
 
             # compute domain adaptation loss:
             # the difference between source and target domain is computed
             # from the compressed representation of the model encoder
-            uda_loss = self.uda_loss_function(src_enc_feature, trg_enc_feature)
+            uda_loss = self.uda_loss_function(src_feature, trg_feature)
 
             # total loss
             tot_loss = cla_loss + uda_lambda * uda_loss
@@ -1821,7 +1889,7 @@ class NetworkTrainer(BaseConfig):
             self.optimizer.step()
 
             # calculate predicted class labels
-            ypred = F.softmax(src_preds, dim=1).argmax(dim=1)
+            ypred = F.softmax(src_prdctn, dim=1).argmax(dim=1)
 
             # calculate accuracy on current batch
             acc = accuracy_function(ypred, src_label)
@@ -2085,6 +2153,7 @@ class NetworkTrainer(BaseConfig):
                                          trg_test_dl,
                                          uda_loss_function,
                                          mdlcfg.uda_lambda,
+                                         mdlcfg.uda_pos,
                                          mdlcfg.epochs,
                                          mdlcfg.nthreads,
                                          mdlcfg.early_stop,

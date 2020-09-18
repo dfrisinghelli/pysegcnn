@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -63,7 +63,7 @@ src_ds_config = {
     # or [], which corresponds to using all available bands
     # IMPORTANT: the list of bands should be equal for the source and target
     #            domains, when using any sort of transfer learning
-    'bands': ['red', 'green', 'blue', 'nir'],
+    'bands': ['red', 'green', 'blue', 'nir', 'swir1', 'swir2'],
 
     # define the size of the network input
     # if None, the size will default to the size of a scene
@@ -136,7 +136,7 @@ src_ds_config = {
     # NOTE: Passing an empty dictionary means all labels are preserved as is
     # 'merge_labels': {}
     'merge_labels': {'Shadow_over_water': 'Shadow',
-                     'Flooded': 'Water'}
+                     'Flooded': 'Land'}
 
     # EXAMPLE: merge label class 'Shadow over Water' to label class 'Shadow'
     # 'merge_labels': {'Shadow_over_water': 'Shadow'}
@@ -147,7 +147,7 @@ trg_ds_config = {
     'dataset_name': TRG_DS,
     'root_dir': DATASETS[TRG_DS],
     'gt_pattern': '(.*)class\\.img',
-    'bands': ['red', 'green', 'blue', 'nir'],
+    'bands': ['red', 'green', 'blue', 'nir', 'swir1', 'swir2'],
     'tile_size': 128,
     'pad': True,
     'seed': 0,
@@ -379,8 +379,8 @@ eval_config = {
     # (un)labelled target domain
     # if domain='trg',  target domain
     # if domain='src',  source domain
-    'domain': 'src',
-    # 'domain': 'trg',
+    # 'domain': 'src',
+    'domain': 'trg',
 
     # the subset to evaluate the model on
     # test=False, 0 means evaluating on the validation set

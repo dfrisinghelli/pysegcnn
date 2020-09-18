@@ -42,7 +42,7 @@ from pysegcnn.core.dataset import SupportedDatasets, ImageDataset
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import (img2np, item_in_enum, accuracy_function,
                                  reconstruct_scene)
-from pysegcnn.core.split import SupportedSplits, CustomSubset
+from pysegcnn.core.split import SupportedSplits, CustomSubset, SceneSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
 from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss, UDA_POSITIONS
@@ -1039,7 +1039,8 @@ class NetworkInference(BaseConfig):
         compsite. The default is `0`, i.e. no stretching.
     animate : `bool`
         Whether to create an animation of (input, ground truth, prediction) for
-        the scenes in the train/validation/test dataset.
+        the scenes in the train/validation/test dataset. Only works if
+        ``predict_scene=True`` and ``plot_scene=True``.
     base_path : :py:class:`pathlib.Path`
         Root path to store model output.
     sample_path : :py:class:`pathlib.Path`
@@ -1136,6 +1137,23 @@ class NetworkInference(BaseConfig):
 
         # load the source dataset: dataset the model was trained on
         self.src_ds = self.model_state['src_train_dl'].dataset.dataset
+
+        # check if the animate parameter is correctly specified
+        self.fig = None
+        if self.animate:
+            if not self.plot:
+                LOGGER.warning('animate requires plot_scenes=True or '
+                               'plot_samples=True. Can not create animation.')
+            else:
+                # check whether the output path is valid
+                if not self.anim_path.exists():
+                    # create output path
+                    self.anim_path.mkdir(parents=True, exist_ok=True)
+                    self.anim = Animate(self.anim_path)
+
+                # create a figure to animate
+                self.fig, _ = plt.subplots(1, 3,
+                                           figsize=self.kwargs['figsize'])
 
     @staticmethod
     def get_scene_tiles(ds, scene_id):
@@ -1308,29 +1326,28 @@ class NetworkInference(BaseConfig):
         return ds
 
     @property
-    def source_label_class(self):
+    def source_labels(self):
         """Class labels of the source domain the model was trained on.
 
         Returns
         -------
-        source_label_class : :py:class:`enum.EnumMeta`
+        source_labels : `dict` [`int`, `dict`]
             The class labels of the source domain.
 
         """
-        return self.src_ds.get_labels()
+        return self.src_ds.labels
 
     @property
-    def target_label_class(self):
+    def target_labels(self):
         """Class labels of the dataset to evaluate.
 
         Returns
         -------
-        target_label_class : :py:class:`enum.EnumMeta`
+        target_labels :  `dict` [`int`, `dict`]
             The class labels of the dataset to evaluate.
 
         """
-        # target label class: class labels of the target dataset
-        return self.trg_ds.dataset.get_labels()
+        return self.trg_ds.dataset.labels
 
     @property
     def label_map(self):
@@ -1347,143 +1364,365 @@ class NetworkInference(BaseConfig):
         """
         # check whether the source domain labels are the same as the target
         # domain labels
-        return map_labels(self.source_label_class, self.target_label_class)
+        return map_labels(self.src_ds.get_labels(),
+                          self.trg_ds.dataset.get_labels())
 
-    def _init_confusion_matrix(self):
+    @property
+    def source_is_target(self):
+        """Whether the source and target domain labels are the same.
 
-        # initialize confusion matrix
-        cm = np.zeros(shape=2 * (self.model.nclasses,))
-        plot_labels = self.src_ds.labels
+        Returns
+        -------
+        source_is_target : `bool`
+            `True` if the source and target domain labels are the same, `False`
+            if not.
 
-        # check whether to apply label mapping
-        if self.label_map is not None:
-            # map source domain labels to target domain labels
-            if self.map_labels:
-                cm = np.zeros(shape=2 * (len(self.trg_ds.dataset.labels),))
-                plot_labels = self.trg_ds.dataset.labels
-                LOGGER.info('Mapping model labels ({}) to dataset labels ({}).'
-                            .format(
-                                ', '.join([label.name for label in
-                                           self.source_label_class]),
-                                ', '.join([label.name for label in
-                                           self.target_label_class])))
-            else:
-                # retain model source domain labels
-                LOGGER.info('Retaining model labels: ({}).'
-                            .format(', '.join([label.name for label in
-                                               self.source_label_class])))
+        """
+        return self.label_map is None
 
-                # one cannot compute the confusion matrix if the target domain
-                # labels are different from the source domain labels
-                self.cm = False
+    @property
+    def apply_label_map(self):
+        """Whether to map source labels to target labels.
 
-        return cm, plot_labels
+        Returns
+        -------
+        apply_label_map : `bool`
+            `True` if source and target labels differ and label mapping is
+            requested, `False` otherwise.
 
-    def predict_scenes(self):
-        """Classify each scene of the target dataset."""
-        # names of the scenes in the dataset: sort in ascending order by date
-        scene_ids = sorted(self.trg_ds.ids,
-                           key=lambda x:
-                               self.trg_ds.dataset.parse_scene_id(x)['date'])
+        """
+        return not self.source_is_target and self.map_labels
 
-        # initialize confusion matrix and target class labels
-        self.conf_mat, self.plot_labels = self._init_confusion_matrix()
+    @property
+    def use_labels(self):
+        """Labels to be predicted.
 
-        # instanciate figure
-        fig, _ = plt.subplots(1, 3, figsize=self.kwargs['figsize'])
+        Returns
+        -------
+        use_labels : `dict` [`int`, `dict`]
+            The labels of the classes to be predicted.
 
-        # check whether to animate figures
-        if self.animate:
-            # check whether the output path is valid
-            if not self.anim_path.exists():
-                # create output path
-                self.anim_path.mkdir(parents=True, exist_ok=True)
-            anim = Animate(self.anim_path)
+        """
+        return (self.target_labels if self.apply_label_map else
+                self.source_labels)
 
-        # iterate over the scenes
+    @property
+    def bands(self):
+        """Spectral bands the model was trained with.
+
+        Returns
+        -------
+        bands : `list` [`str`]
+            A list of the named spectral bands used to train the model.
+
+        """
+        return self.src_ds.use_bands
+
+    @property
+    def compute_cm(self):
+        """Whether to compute the confusion matrix.
+
+        Returns
+        -------
+        compute_cm : `bool`
+            Whether the confusion matrix can be computed. For datasets with
+            labels different from the source domain labels, the confusion
+            matrix can not be computed.
+
+        """
+        return (False if not self.source_is_target and not self.map_labels
+                else self.cm)
+
+    @property
+    def plot(self):
+        """Whether to save plots of (input, ground truth, prediction).
+
+        Returns
+        -------
+        plot : `bool`
+            Save plots for each sample or for each scene of the target dataset,
+            depending on ``self.predict_scene``.
+
+        """
+        return self.plot_scenes if self.predict_scene else self.plot_samples
+
+    @property
+    def is_scene_subset(self):
+        """Check the type of the target dataset.
+
+        Whether ``self.trg_ds`` is an instance of
+        :py:class:`pysegcnn.core.split.SceneSubset`, as required when
+        ``self.predict_scene=True``.
+
+        Returns
+        -------
+        is_scene_subset : `bool`
+            Whether ``self.trg_ds`` is an instance of
+            :py:class:`pysegcnn.core.split.SceneSubset`.
+
+        """
+        return isinstance(self.trg_ds, SceneSubset)
+
+    @property
+    def _original_source_labels(self):
+        """Original source domain labels.
+
+        Since PyTorch requires class labels to be an ascending sequence
+        starting from 0, the actual class labels in the ground truth may differ
+        from the class labels fed to the model.
+
+        Returns
+        -------
+        original_source_labels : `dict` [`int`, `dict`]
+            The original class labels of the source domain.
+
+        """
+        return self.src_ds._labels
+
+    @property
+    def _original_target_labels(self):
+        """Original target domain labels.
+
+        Returns
+        -------
+        original_target_labels : `dict` [`int`, `dict`]
+            The original class labels of the target domain.
+
+        """
+        return self.trg_ds.dataset._labels
+
+    @property
+    def _label_log(self):
+        """Log if a label mapping is applied.
+
+        Returns
+        -------
+        log : `str`
+            Represenation of the label mapping.
+
+        """
+        log = 'Retaining model labels ({})'.format(
+            ', '.join([v['label'] for _, v in self.source_labels.items()]))
+        if self.apply_label_map:
+            log = (log.replace('Retaining', 'Mapping') + ' to target labels '
+                   '({}).'.format(', '.join([v['label'] for _, v in
+                                  self.target_labels.items()])))
+        return log
+
+    @property
+    def _batch_size(self):
+        """Batch size of the inference dataloader.
+
+        Returns
+        -------
+        batch_size : `int`
+            The batch size of the dataloader used for model inference. Depends
+            on whether to predict each sample of the target dataset
+            individually or whether to reconstruct each scene in the target
+            dataset.
+
+        """
+        return (self.trg_ds.dataset.tiles if self.predict_scene and
+                self.is_scene_subset else 1)
+
+    def build_dataloader(self):
+        """Build the dataset for model inference.
+
+        Returns
+        -------
+        dataloader : :py:class:`torch.utils.data.DataLoader`
+            The dataset for model inference.
+
+        """
+        if self._batch_size > 1:
+
+            # the scene identifiers for the target dataset
+            self.scene_ids = self.trg_ds.ids.tolist()
+
+            # if split by date, sort by date
+            if self.trg_ds.split_mode == 'date':
+                self.trg_ds.dataset.scenes.sort(key=lambda x: x['date'])
+                self.scene_ids.sort(
+                    key=lambda x: self.trg_ds.dataset.parse_scene_id(x)['date']
+                    )
+
+            # if randomly split by scene, sort by scene identifier
+            if self.trg_ds.split_mode == 'scene':
+                self.trg_ds.dataset.scenes.sort(key=lambda x: x['id'])
+                self.scene_ids.sort()
+
+        # build the dataloader for model inference
+        dataloader = DataLoader(self.trg_ds, batch_size=self._batch_size,
+                                shuffle=False, drop_last=False)
+
+        return dataloader
+
+    def map_to_target(self, prd):
+        """Map source domain labels to target domain labels.
+
+        Parameters
+        ----------
+        prd : :py:class:`torch.Tensor`
+            The source domain class labels as predicted by ```self.model``.
+
+        Returns
+        -------
+        prd : :py:class:`torch.Tensor`
+            The predicted target domain labels.
+
+        """
+        # map actual source labels to original source labels
+        for aid, oid in zip(self.source_labels.keys(),
+                            self._original_source_labels.keys()):
+            prd[torch.where(prd == aid)] = oid
+
+        # apply the label mapping
+        for src_label, trg_label in self.label_map.items():
+            prd[torch.where(prd == src_label)] = trg_label
+
+        # map original target labels to actual target labels
+        for oid, aid in zip(self._original_target_labels.keys(),
+                            self.target_labels.keys()):
+            prd[torch.where(prd == oid)] = aid
+
+        return prd
+
+    def predict(self):
+        """Classify the samples of the target dataset.
+
+        Returns
+        -------
+        output : `dict` [`str`, `dict`]
+            The inference output dictionary. The keys are either the number of
+            the samples (``self.predict_scene=False``) or the name of the
+            scenes of the target dataset (``self.predict_scene=True``). The
+            values are dictionaries with keys:
+                ``'input'``
+                    Model input data of the sample (:py:class:`numpy.ndarray`).
+                ``'labels'
+                    Ground truth class labels (:py:class:`numpy.ndarray`).
+                ``'prediction'``
+                    Model prediction class labels (:py:class:`numpy.ndarray`).
+
+        """
+        dataloader = self.build_dataloader()
+
+        # iterate over the samples of the target dataset
         output = {}
-        for i, sid in enumerate(scene_ids):
+        for batch, (inputs, labels) in enumerate(dataloader):
 
-            # filename for the current scene
-            sname = self.basename + '_{}_{}.pt'.format(self.trg_ds.name, sid)
+            # send inputs and labels to device
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
 
-            # get the indices of the tiles of the scene
-            indices, date = self.get_scene_tiles(self.trg_ds, sid)
-            indices.sort()
+            # compute model predictions
+            with torch.no_grad():
+                prdctn = F.softmax(self.model(inputs),
+                                   dim=1).argmax(dim=1).squeeze()
 
-            # check whether the dataset is a time series
-            date = date if self.trg_ds.split_mode == 'date' else None
+            # map source labels to target dataset labels
+            if self.apply_label_map:
+                prdctn = self.map_to_target(prdctn)
 
-            # create a subset of the dataset
-            scene_ds = Subset(self.trg_ds, indices)
+            # update confusion matrix
+            if self.compute_cm:
+                for ytrue, ypred in zip(labels.view(-1), prdctn.view(-1)):
+                    self.conf_mat[ytrue.long(), ypred.long()] += 1
 
-            # create the dataloader
-            scene_dl = DataLoader(scene_ds, batch_size=len(scene_ds),
-                                  shuffle=False, drop_last=False)
+            # convert torch tensors to numpy arrays
+            inputs = inputs.numpy()
+            labels = labels.numpy()
+            prdctn = prdctn.numpy()
 
-            # predict the current scene
-            for b, (inp, lab) in enumerate(scene_dl):
+            # progress string to log
+            progress = 'Sample: {:d}/{:d}'.format(batch + 1, len(dataloader))
 
-                # send inputs and labels to device
-                inp = inp.to(self.device)
-                lab = lab.to(self.device)
+            # check whether to reconstruct the scene
+            date = None
+            if dataloader.batch_size > 1:
 
-                # apply forward pass: model prediction
-                with torch.no_grad():
-                    prd = F.softmax(self.model(inp),
-                                    dim=1).argmax(dim=1).squeeze()
+                # id of the current scene
+                batch = self.scene_ids[batch]
 
-                # map model labels to dataset labels
-                # if isinstance(label_map, dict):
-                #     for k, v in label_map.items():
-                #         prd[torch.where(prd == k)] = v
+                date = self.trg_ds.dataset.parse_scene_id(batch)['date']
 
-                # update confusion matrix
-                if self.cm:
-                    for ytrue, ypred in zip(lab.view(-1), prd.view(-1)):
-                        self.conf_mat[ytrue.long(), ypred.long()] += 1
+                # modify the progress string
+                progress = progress.replace('Sample', 'Scene')
+                progress += ' Id: {}'.format(batch)
 
-            # reconstruct the entire scene
-            inputs = reconstruct_scene(inp)
-            labels = reconstruct_scene(lab)
-            prdctn = reconstruct_scene(prd)
+                # reconstruct the entire scene
+                inputs = reconstruct_scene(inputs)
+                labels = reconstruct_scene(labels)
+                prdctn = reconstruct_scene(prdctn)
 
-            # print progress
-            progress = 'Scene {:d}/{:d}, Id: {}'.format(i + 1, len(scene_ids), sid)
-            # if not isinstance(label_map, enum.EnumMeta):
-            #     progress += ', Accuracy: {:.2f}'.format(accuracy_function(prdctn,
-            #                                                               labels))
+            # save current batch to output dictionary
+            output[batch] = {'input': inputs, 'labels': labels,
+                             'prediction': prdctn}
+
+            # filename for the plot of the current batch
+            batch_name = self.basename + '_{}_{}.pt'.format(self.trg_ds.name,
+                                                            batch)
+
+            # in case the source and target class labels are the same or a
+            # label mapping is applied, the accuracy of the prediction can be
+            # calculated
+            if self.source_is_target or self.apply_label_map:
+                progress += ', Accuracy: {:.2f}'.format(
+                    accuracy_function(prdctn, labels))
             LOGGER.info(progress)
 
-            # save outputs to dictionary
-            output[sid] = {'input': inputs, 'labels': labels,
-                           'prediction': prdctn}
-
             # plot current scene
-            if self.plot_scenes:
+            if self.plot:
+
+                # in case the source and target class labels are the same or a
+                # label mapping is applied, plot the ground truth, otherwise
+                # just plot the model prediction
+                gt = None
+                if self.source_is_target or self.apply_label_map:
+                    gt = labels
+
                 # plot inputs, ground truth and model predictions
                 plot_sample(inputs.clip(0, 1),
-                            self.trg_ds.dataset.use_bands,
-                            self.plot_labels,
+                            self.bands,
+                            self.use_labels,
+                            y=gt,
                             y_pred={self.model.__class__.__name__: prdctn},
-                            state=sname,
+                            state=batch_name,
                             date=date,
-                            fig=fig)
+                            fig=self.fig,
+                            plot_path=self.scenes_path,
+                            **self.kwargs)
 
                 # save current figure state as frame for animation
                 if self.animate:
-                    anim.frame(fig.axes)
+                    self.anim.frame(self.fig.axes)
 
         # save animation
         if self.animate:
-            anim.animate(fig, interval=1000, repeat=True, blit=True)
-            anim.save(self.basename + '_{}.gif'.format(self.trg_ds.name),
-                      dpi=200)
+            self.anim.animate(self.fig, interval=1000, repeat=True, blit=True)
+            self.anim.save(self.basename + '_{}.gif'.format(self.trg_ds.name),
+                           dpi=200)
 
         return output
 
     def evaluate(self):
-        """Evaluate a pretrained model on a defined dataset."""
+        """Evaluate a pretrained model on a defined dataset.
+
+        Returns
+        -------
+        output : `dict` [`str`, `dict`]
+            The inference output dictionary. The keys are either the number of
+            the samples (``self.predict_scene=False``) or the name of the
+            scenes of the target dataset (``self.predict_scene=True``). The
+            values are dictionaries with keys:
+                ``'input'``
+                    Model input data of the sample (:py:class:`numpy.ndarray`).
+                ``'labels'
+                    Ground truth class labels (:py:class:`numpy.ndarray`).
+                ``'prediction'``
+                    Model prediction class labels (:py:class:`numpy.ndarray`).
+
+        """
         # plot loss and accuracy
         plot_loss(self.state_file, outpath=self.perfmc_path)
 
@@ -1492,22 +1731,22 @@ class NetworkInference(BaseConfig):
         self.model.eval()
         self.model.to(self.device)
 
-        # whether to predict each sample or each scene individually
-        if self.predict_scene:
-            # reconstruct and predict the scenes in the validation/test set
-            scenes, cm = self.predict_scenes()
+        # initialize confusion matrix
+        self.conf_mat = np.zeros(shape=2 * (len(self.use_labels), ))
 
-        else:
-            # predict the samples in the validation/test set
-            scenes, cm = self.predict_samples()
+        # log which labels the model predicts
+        LOGGER.info(self._label_log)
+
+        # evaluate the model on the target dataset
+        output = self.predict()
 
         # whether to plot the confusion matrix
-        if self.cm:
-            plot_confusion_matrix(cm, self.plot_labels,
+        if self.compute_cm:
+            plot_confusion_matrix(self.conf_mat, self.use_labels,
                                   state_file=self.state_file,
                                   outpath=self.perfmc_path)
 
-        return scenes, cm
+        return output
 
 
 @dataclasses.dataclass

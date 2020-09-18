@@ -28,14 +28,14 @@ License
 # -*- coding: utf-8 -*-
 
 # locals
-from pysegcnn.core.trainer import EvalConfig
+from pysegcnn.core.trainer import NetworkInference
 from pysegcnn.main.config import eval_config
 
 
 if __name__ == '__main__':
 
-    # instanciate the evaluation configuration
-    ec = EvalConfig(**eval_config)
+    # instanciate the network inference class
+    inference = NetworkInference(**eval_config)
 
     # evaluate model
-    scenes, cm = ec.evaluate()
+    scenes, cm = inference.evaluate()

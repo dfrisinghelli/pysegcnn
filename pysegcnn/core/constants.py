@@ -136,6 +136,11 @@ def map_labels(source, target):
         The target domain labels, i.e. the labels of the dataset to apply the
         model to.
 
+    Raises
+    ------
+    ValueError
+        Raised if no label mapping from ``source`` to ``target`` is defined.
+
     Returns
     -------
     label_map : `dict` [`int`, `int`]
@@ -149,13 +154,13 @@ def map_labels(source, target):
         label_map = None
 
     # mapping from Sparcs to ProSnow
-    if source is SparcsLabels and target is ProSnowLabels:
+    elif source is SparcsLabels and target is ProSnowLabels:
         # label transformation mapping
         label_map = {
             # Shadow = Snow Free
             SparcsLabels.Shadow.id: ProSnowLabels.Snow_free.id,
             # Shadow ow = Snow Free
-            SparcsLabels.Shadow_over_water: ProSnowLabels.Snow_free.id,
+            SparcsLabels.Shadow_over_water.id: ProSnowLabels.Snow_free.id,
             # Water = Snow Free
             SparcsLabels.Water.id: ProSnowLabels.Snow_free.id,
             # Snow = Snow
@@ -169,5 +174,9 @@ def map_labels(source, target):
             # No data = No data
             SparcsLabels.No_data.id: ProSnowLabels.No_data.id
             }
+
+    else:
+        raise ValueError('Unknown label mapping from {} to {}'.
+                         format(source.__name__, target.__name__))
 
     return label_map

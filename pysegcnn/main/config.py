@@ -359,7 +359,8 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    'state_file': 'Segnet_SparcsDataset_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5_uda_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5_uda_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
+    'state_file': 'Segnet_SparcsDataset_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_ProSnowGarmisch_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -378,15 +379,16 @@ eval_config = {
     # (un)labelled target domain
     # if domain='trg',  target domain
     # if domain='src',  source domain
-    # 'domain': 'src',
-    'domain': 'trg',
+    'domain': 'src',
+    # 'domain': 'trg',
 
     # the subset to evaluate the model on
     # test=False, 0 means evaluating on the validation set
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
-    'test': False,
+    # 'test': True,
     # 'test': None,
+    'test': False,
 
     # whether to map the model labels from the model source domain to the
     # defined 'domain'

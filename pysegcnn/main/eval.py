@@ -38,4 +38,4 @@ if __name__ == '__main__':
     inference = NetworkInference(**eval_config)
 
     # evaluate model
-    scenes, cm = inference.evaluate()
+    output = inference.evaluate()

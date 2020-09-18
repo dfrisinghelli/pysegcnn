@@ -33,7 +33,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Dataset
 from torch.optim import Optimizer
 import matplotlib.pyplot as plt
 
@@ -972,7 +972,8 @@ class StateConfig(BaseConfig):
 
         # model state filename
         file = state_file.format(mc.model_name,
-                                 dc.dataset_class.__name__,
+                                 dc.dataset_class.__name__ +
+                                 '_m{}'.format(len(dc.merge_labels)),
                                  sc.split_mode.capitalize(),
                                  split_params,
                                  dc.tile_size,

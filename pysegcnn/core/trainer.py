@@ -1042,6 +1042,8 @@ class NetworkInference(BaseConfig):
         Whether to create an animation of (input, ground truth, prediction) for
         the scenes in the train/validation/test dataset. Only works if
         ``predict_scene=True`` and ``plot_scene=True``.
+    device : `str`
+        The device to evaluate the model on, i.e. `cpu` or `cuda`.
     base_path : :py:class:`pathlib.Path`
         Root path to store model output.
     sample_path : :py:class:`pathlib.Path`
@@ -1050,12 +1052,30 @@ class NetworkInference(BaseConfig):
         Path to store plots of model predictions for entire scenes.
     perfmc_path : :py:class:`pathlib.Path`
         Path to store plots of model performance, e.g. confusion matrix.
-    models_path : :py:class:`pathlib.Path`
-        Path to search for model state files, i.e. pretrained models.
     animtn_path : :py:class:`pathlib.Path`
         Path to store animations.
+    models_path : :py:class:`pathlib.Path`
+        Path to search for model state files, i.e. pretrained models.
     kwargs : `dict`
         Keyword arguments for :py:func:`pysegcnn.core.graphics.plot_sample`
+    basename : `str`
+        Base filename for each plot.
+    model : :py:class:`pysegcnn.core.models.Network`
+        The model to use for inference.
+    model_state : `dict`
+        The model state as saved by
+        :py:class:`pysegcnn.core.trainer.NetworkTrainer`.
+    trg_ds : :py:class:`pysegcnn.core.split.CustomSubset`
+        The dataset to evaluate ``model`` on.
+    src_ds : :py:class:`pysegcnn.core.split.CustomSubset`
+        The model source domain training dataset.
+    fig : :py:class:`matplotlib.figure.Figure`
+        A :py:class:`matplotlib.figure.Figure` instance to iteratively plot to.
+    anim : :py:class:`pysegcnn.core.graphics.Animate`
+        An instance :py:class:`pysegcnn.core.graphics.Animate` Used to create
+        animations if ``animate=True``.
+    conf_mat : :py:class:`numpy.ndarray`
+        The model confusion matrix.
 
     """
 

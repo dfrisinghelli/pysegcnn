@@ -1886,9 +1886,11 @@ class MetricTracker(BaseConfig):
             observed during training with shape=(mini_batch, epoch).
 
         """
-        return {**{k: np.asarray(getattr(self, k)).reshape(tmbatch, -1)
+        return {**{k: np.asarray(getattr(self, k)).reshape(tmbatch, -1,
+                                                           order='F')
                    for k in self.train_metrics},
-                **{k: np.asarray(getattr(self, k)).reshape(vmbatch, -1)
+                **{k: np.asarray(getattr(self, k)).reshape(vmbatch, -1,
+                                                           order='F')
                    for k in self.valid_metrics}}
 
 
@@ -2107,63 +2109,6 @@ class NetworkTrainer(BaseConfig):
         LOGGER.info('Device: {}'.format(self.device))
         LOGGER.info('Number of cpu threads: {}'.format(self.nthreads))
 
-    def train(self):
-        """Train the model.
-
-        Returns
-        -------
-        training_state : `dict` [`str`, :py:class:`numpy.ndarray`]
-            The training state dictionary. The keys describe the type of the
-            training metric. See
-            :py:meth:`~pysegcnn.core.trainer.NetworkTrainer.training_state`.
-
-        """
-        # initialize the training: iterate over the entire training dataset
-        for epoch in range(self.epochs):
-
-            # set the model to training mode
-            LOGGER.info('Setting model to training mode ...')
-            self.model.train()
-
-            # train model for a single epoch
-            self.train_epoch(epoch)
-
-            # update the number of epochs trained
-            self.model.epoch += 1
-
-            # whether to evaluate model performance on the validation set and
-            # early stop the training process
-            if self.early_stop:
-
-                # model predictions on the validation set
-                valid_accu, valid_loss = self.predict(self.src_valid_dl)
-
-                # update validation metrics
-                self.tracker.batch_update(self.tracker.valid_metrics,
-                                          [valid_loss, valid_accu])
-
-                # metric to assess model performance on the validation set
-                epoch_acc = np.mean(valid_accu)
-
-                # whether the model improved with respect to the previous epoch
-                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
-                    self.max_accuracy = epoch_acc
-
-                    # save model state if the model improved with
-                    # respect to the previous epoch
-                    self.save_state()
-
-                # whether the early stopping criterion is met
-                if self.es.stop(epoch_acc):
-                    break
-
-            else:
-                # if no early stopping is required, the model state is
-                # saved after each epoch
-                self.save_state()
-
-        return self.training_state
-
     def _train_source_domain(self, epoch):
         """Train a model for an epoch on the source domain.
 
@@ -2366,6 +2311,63 @@ class NetworkTrainer(BaseConfig):
             self._train_domain_adaptation(epoch)
         else:
             self._train_source_domain(epoch)
+
+    def train(self):
+        """Train the model.
+
+        Returns
+        -------
+        training_state : `dict` [`str`, :py:class:`numpy.ndarray`]
+            The training state dictionary. The keys describe the type of the
+            training metric. See
+            :py:meth:`~pysegcnn.core.trainer.NetworkTrainer.training_state`.
+
+        """
+        # initialize the training: iterate over the entire training dataset
+        for epoch in range(self.epochs):
+
+            # set the model to training mode
+            LOGGER.info('Setting model to training mode ...')
+            self.model.train()
+
+            # train model for a single epoch
+            self.train_epoch(epoch)
+
+            # update the number of epochs trained
+            self.model.epoch += 1
+
+            # whether to evaluate model performance on the validation set and
+            # early stop the training process
+            if self.early_stop:
+
+                # model predictions on the validation set
+                valid_accu, valid_loss = self.predict(self.src_valid_dl)
+
+                # update validation metrics
+                self.tracker.batch_update(self.tracker.valid_metrics,
+                                          [valid_loss, valid_accu])
+
+                # metric to assess model performance on the validation set
+                epoch_acc = np.mean(valid_accu)
+
+                # whether the model improved with respect to the previous epoch
+                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
+                    self.max_accuracy = epoch_acc
+
+                    # save model state if the model improved with
+                    # respect to the previous epoch
+                    self.save_state()
+
+                # whether the early stopping criterion is met
+                if self.es.stop(epoch_acc):
+                    break
+
+            else:
+                # if no early stopping is required, the model state is
+                # saved after each epoch
+                self.save_state()
+
+        return self.training_state
 
     def predict(self, dataloader):
         """Model inference at training time.

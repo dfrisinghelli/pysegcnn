@@ -2225,7 +2225,7 @@ class NetworkTrainer(BaseConfig):
             forward = self._enc_uda
 
         if self.uda_pos == 'dec':
-            forward = self._enc_dec
+            forward = self._dec_uda
 
         if self.uda_pos == 'cla':
             forward = self._cla_uda

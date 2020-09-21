@@ -289,8 +289,8 @@ model_config = {
     #   - 'cla': compute the domain adaptation loss with the classifier
     #            features
     # 'uda_pos': 'enc',
-    'uda_pos': 'dec',
-    # 'uda_pos': 'cla',
+    # 'uda_pos': 'dec',
+    'uda_pos': 'cla',
 
     # The weight of the domain adaptation, trading off adaptation with
     # classification accuracy on the source domain.
@@ -304,7 +304,7 @@ model_config = {
     # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
     #            domain and the less weight on the classification accuracy on
     #            the source domain.
-    'uda_lambda': 0.1,
+    'uda_lambda': 0.01,
 
     # ----------------------------- Training  ---------------------------------
 

@@ -114,6 +114,44 @@ def running_mean(x, w):
     return (cumsum[w:] - cumsum[:-w]) / w
 
 
+def ceil_decimal(x, decimal=0):
+    """Ceil to arbitrary decimal place.
+
+    Parameters
+    ----------
+    x : `float`
+        The floating point number to ceil.
+    decimal : `int`, optional
+        The decimal place to ceil. The default is 0.
+
+    Returns
+    -------
+    ceiled : `float`
+        The ceiled floating point number ``x``.
+
+    """
+    return np.round(x + 0.5 * 10 ** (-decimal), decimal)
+
+
+def floor_decimal(x, decimal=0):
+    """Floor to arbitrary decimal place.
+
+    Parameters
+    ----------
+    x : `float`
+        The floating point number to floor.
+    decimal : `int`, optional
+        The decimal place to floor. The default is 0.
+
+    Returns
+    -------
+    floored : `float`
+        The floored floating point number ``x``.
+
+    """
+    return np.round(x - 0.5 * 10 ** (-decimal), decimal)
+
+
 def plot_sample(x, use_bands, labels,
                 y=None,
                 y_pred={},
@@ -425,19 +463,24 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     # get all non-zero elements, i.e. get number of epochs trained before
     # early stop
-    loss = {k: v[np.nonzero(v)].reshape(v.shape[0], -1) for k, v in
-            model_state['state'].items()}
+    loss = {k: v for k, v in model_state['state'].items() if k in METRICS}
 
     # compute running mean with a window equal to the number of batches in
     # an epoch
-    rm = {k: running_mean(v.flatten('F'), v.shape[0]) for k, v in loss.items()
-          if k in METRICS}
+    rm = {k: running_mean(v.flatten('F'), v.shape[0]) for k, v in loss.items()}
 
     # sort the keys of the dictionary alphabetically
     rm = {k: rm[k] for k in sorted(rm)}
 
     # number of epochs trained
-    epochs = np.arange(0, loss['train_loss'].shape[1])
+    epochs = np.arange(0, loss['train_loss'].shape[1] + 1)
+
+    # compute number of mini-batches in training and validation set
+    ntbatches = loss['train_loss'].shape[0]
+    nvbatches = loss['valid_loss'].shape[0]
+
+    # the mean loss/accuraries at each epoch
+    markers = [ntbatches, ntbatches, nvbatches, nvbatches]
 
     # instanciate figure
     fig, ax1 = plt.subplots(1, 1, figsize=figsize)
@@ -450,46 +493,49 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
     # list of axes
     axes = [ax2, ax1, ax4, ax3]
 
-    # plot running mean loss and accuracy of the training dataset
-    [ax.plot(v, color=c) for (k, v), ax, c in zip(rm.items(), axes, colors)
-     if v.any()]
+    # plot running mean loss and accuracy
+    [ax.plot(v, 'o', ls='-', color=c, markevery=marker) for (k, v), ax, c,
+     marker in zip(rm.items(), axes, colors, markers) if v.any()]
 
     # axes properties and labels: clear redundant axes labels
     ax3.set(xticks=[], xticklabels=[])
     ax4.set(xticks=[], xticklabels=[])
 
-    # loss x-axis limits: compute number of mini-batches in training set
-    nbatches = loss['train_loss'].shape[0]
-
-    # loss y-axis limits
-    ymax, ymin = (np.ceil(max(rm['train_loss'].max(), rm['valid_loss'].max())),
-                  np.floor(min(rm['train_loss'].min(), rm['valid_loss'].min()))
-                  )
-    ax1.set(xticks=np.arange(0, nbatches * epochs[-1] + 1, nbatches * step),
+    # y-axis limits
+    max_loss = max(rm['train_loss'].max(), rm['valid_loss'].max())
+    min_loss = min(rm['train_loss'].min(), rm['valid_loss'].min())
+    max_accu = max(rm['train_accu'].max(), rm['valid_accu'].max())
+    min_accu = min(rm['train_accu'].min(), rm['valid_accu'].min())
+    yl_max, yl_min = (ceil_decimal(max_loss, decimal=1),
+                      floor_decimal(min_loss, decimal=1))
+    ya_max, ya_min = (ceil_decimal(max_accu, decimal=1),
+                      floor_decimal(min_accu, decimal=1))
+    ax1.set(xticks=np.arange(-ntbatches, ntbatches * epochs[-1],
+                             ntbatches * step),
             xticklabels=epochs[::step], xlabel='Epoch', ylabel='Loss',
-            ylim=(ymin, ymax))
+            ylim=(yl_min, yl_max))
 
     # accuracy y-axis limits
-    ax2.set(ylabel='Accuracy', ylim=(0, 1))
+    ax2.set(ylabel='Accuracy', ylim=(ya_min, ya_max))
 
     # compute early stopping point
     if loss['valid_accu'].any():
-        esepoch = np.argmax(loss['valid_accu'].mean(axis=0)) * nbatches + 1
+        esepoch = np.argmax(loss['valid_accu'].mean(axis=0))
         esacc = np.max(loss['valid_accu'].mean(axis=0))
-        ax1.vlines(esepoch, ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
+        ax3.vlines(esepoch * nvbatches,
+                   ymin=ax1.get_ylim()[0], ymax=ax1.get_ylim()[1],
                    ls='--', color='grey')
-        ax1.text(esepoch - 1, ax1.get_ylim()[0] + 0.01,
+        ax3.text(esepoch * nvbatches - 1, ax1.get_ylim()[0] + 0.005,
                  'epoch = {}, accuracy = {:.1f}%'
-                 .format(int(esepoch / nbatches) + 1, esacc * 100),
-                 ha='right', color='grey')
+                 .format(esepoch + 1, esacc * 100), ha='right', color='grey')
 
     # create a patch (proxy artist) for every color
-    ulabels = ['Training accuracy', 'Training loss',
-               'Validation accuracy', 'Validation loss']
+    ulabels = ['Train accuracy', 'Train loss',
+               'Valid accuracy', 'Valid loss']
     patches = [mlines.Line2D([], [], color=c, label=l) for c, l in
                zip(colors, ulabels)]
     # plot patches as legend
-    ax1.legend(handles=patches, loc='lower left', frameon=False)
+    ax1.legend(handles=patches, loc='upper left', frameon=False, ncol=4)
 
     # save figure
     os.makedirs(outpath, exist_ok=True)

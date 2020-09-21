@@ -304,7 +304,7 @@ model_config = {
     # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
     #            domain and the less weight on the classification accuracy on
     #            the source domain.
-    'uda_lambda': 0.5,
+    'uda_lambda': 0.1,
 
     # ----------------------------- Training  ---------------------------------
 

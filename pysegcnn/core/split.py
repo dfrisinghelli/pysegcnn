@@ -431,8 +431,11 @@ class Split(object):
         ds_split = []
         for name, sub in self.subsets().items():
 
-            # the scene identifiers of the current subset
-            ids = np.unique([s['id'] for s in sub.values()])
+            # the scene identifiers of the current subset: preserve the order
+            # of the scene identifiers
+            ids, idx = np.unique([s['id'] for s in sub.values()],
+                                 return_index=True)
+            ids = ids[np.argsort(idx)]
 
             # build the subset
             sbst = self.subset_type()(self.ds, self.split_mode,

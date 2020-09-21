@@ -1139,8 +1139,10 @@ class NetworkInference(BaseConfig):
         # load the source dataset: dataset the model was trained on
         self.src_ds = self.model_state['src_train_dl'].dataset.dataset
 
+        # create a figure to use for plotting
+        self.fig, _ = plt.subplots(1, 3, figsize=self.kwargs['figsize'])
+
         # check if the animate parameter is correctly specified
-        self.fig = None
         if self.animate:
             if not self.plot:
                 LOGGER.warning('animate requires plot_scenes=True or '
@@ -1151,10 +1153,6 @@ class NetworkInference(BaseConfig):
                     # create output path
                     self.anim_path.mkdir(parents=True, exist_ok=True)
                     self.anim = Animate(self.anim_path)
-
-                # create a figure to animate
-                self.fig, _ = plt.subplots(1, 3,
-                                           figsize=self.kwargs['figsize'])
 
     @staticmethod
     def get_scene_tiles(ds, scene_id):
@@ -1465,6 +1463,20 @@ class NetworkInference(BaseConfig):
         return isinstance(self.trg_ds, SceneSubset)
 
     @property
+    def dataloader(self):
+        """Dataloader instance for model inference.
+
+        Returns
+        -------
+        dataloader : :py:class:`torch.utils.data.DataLoader`
+            The dataset for model inference.
+
+        """
+        # build the dataloader for model inference
+        return DataLoader(self.trg_ds, batch_size=self._batch_size,
+                          shuffle=False, drop_last=False)
+
+    @property
     def _original_source_labels(self):
         """Original source domain labels.
 
@@ -1526,38 +1538,6 @@ class NetworkInference(BaseConfig):
         return (self.trg_ds.dataset.tiles if self.predict_scene and
                 self.is_scene_subset else 1)
 
-    def build_dataloader(self):
-        """Build the dataset for model inference.
-
-        Returns
-        -------
-        dataloader : :py:class:`torch.utils.data.DataLoader`
-            The dataset for model inference.
-
-        """
-        if self._batch_size > 1:
-
-            # the scene identifiers for the target dataset
-            self.scene_ids = self.trg_ds.ids.tolist()
-
-            # if split by date, sort by date
-            if self.trg_ds.split_mode == 'date':
-                self.trg_ds.dataset.scenes.sort(key=lambda x: x['date'])
-                self.scene_ids.sort(
-                    key=lambda x: self.trg_ds.dataset.parse_scene_id(x)['date']
-                    )
-
-            # if randomly split by scene, sort by scene identifier
-            if self.trg_ds.split_mode == 'scene':
-                self.trg_ds.dataset.scenes.sort(key=lambda x: x['id'])
-                self.scene_ids.sort()
-
-        # build the dataloader for model inference
-        dataloader = DataLoader(self.trg_ds, batch_size=self._batch_size,
-                                shuffle=False, drop_last=False)
-
-        return dataloader
-
     def map_to_target(self, prd):
         """Map source domain labels to target domain labels.
 
@@ -1606,11 +1586,9 @@ class NetworkInference(BaseConfig):
                     Model prediction class labels (:py:class:`numpy.ndarray`).
 
         """
-        dataloader = self.build_dataloader()
-
         # iterate over the samples of the target dataset
         output = {}
-        for batch, (inputs, labels) in enumerate(dataloader):
+        for batch, (inputs, labels) in enumerate(self.dataloader):
 
             # send inputs and labels to device
             inputs = inputs.to(self.device)
@@ -1636,16 +1614,17 @@ class NetworkInference(BaseConfig):
             prdctn = prdctn.numpy()
 
             # progress string to log
-            progress = 'Sample: {:d}/{:d}'.format(batch + 1, len(dataloader))
+            progress = 'Sample: {:d}/{:d}'.format(batch + 1,
+                                                  len(self.dataloader))
 
             # check whether to reconstruct the scene
             date = None
-            if dataloader.batch_size > 1:
+            if self.dataloader.batch_size > 1:
 
-                # id of the current scene
-                batch = self.scene_ids[batch]
-
-                date = self.trg_ds.dataset.parse_scene_id(batch)['date']
+                # id and date of the current scene
+                batch = self.trg_ds.ids[batch]
+                if self.trg_ds.split_mode == 'date':
+                    date = self.trg_ds.dataset.parse_scene_id(batch)['date']
 
                 # modify the progress string
                 progress = progress.replace('Sample', 'Scene')

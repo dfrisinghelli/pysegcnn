@@ -2039,7 +2039,7 @@ class NetworkTrainer(BaseConfig):
     trg_train_dl: DataLoader = DataLoader(None)
     trg_valid_dl: DataLoader = DataLoader(None)
     trg_test_dl: DataLoader = DataLoader(None)
-    uda_loss_function: nn.Module = CoralLoss
+    uda_loss_function: nn.Module = CoralLoss(uda_lambda=0)
     uda_lambda: float = 0
     uda_pos: str = 'enc'
     epochs: int = 1

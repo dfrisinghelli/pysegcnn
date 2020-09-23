@@ -2535,9 +2535,8 @@ class NetworkTrainer(BaseConfig):
         logcfg = LogConfig(state_file)
         dictConfig(log_conf(logcfg.log_file))
 
-        # (vi) instanciate the source and target domain datasets
+        # (vi) instanciate the source domain dataset
         src_ds = src_dc.init_dataset()
-        trg_ds = trg_dc.init_dataset()
 
         # (vii) instanciate the training, validation and test datasets and
         # dataloaders for the source domain
@@ -2555,10 +2554,13 @@ class NetworkTrainer(BaseConfig):
         # (viii) instanciate the loss function
         cla_loss_function = mdlcfg.init_cla_loss_function()
 
-        # (x) check whether to apply transfer learning
+        # (ix) check whether to apply transfer learning
         if mdlcfg.transfer:
 
-            # (a) instanciate the training, validation and test datasets and
+            # (a) instanciate the target domain dataset
+            trg_ds = trg_dc.init_dataset()
+
+            # (b) instanciate the training, validation and test datasets and
             # dataloaders for the target domain
             (trg_train_ds,
              trg_valid_ds,
@@ -2571,12 +2573,12 @@ class NetworkTrainer(BaseConfig):
                                                batch_size=mdlcfg.batch_size,
                                                shuffle=True, drop_last=False)
 
-            # (b) instanciate the model: supervised transfer learning
+            # (c) instanciate the model: supervised transfer learning
             if mdlcfg.supervised:
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     trg_ds, state_file)
 
-                # (xi) instanciate the network trainer
+                # (x) instanciate the network trainer
                 trainer = NetworkTrainer(model,
                                          optimizer,
                                          state_file,
@@ -2598,11 +2600,11 @@ class NetworkTrainer(BaseConfig):
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     src_ds, state_file)
 
-                # (xi) instanciate the domain adaptation loss
+                # (x) instanciate the domain adaptation loss
                 uda_loss_function = mdlcfg.init_uda_loss_function(
                     mdlcfg.uda_lambda)
 
-                # (xii) instanciate the network trainer
+                # (xi) instanciate the network trainer
                 trainer = NetworkTrainer(model,
                                          optimizer,
                                          state_file,

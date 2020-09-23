@@ -2555,9 +2555,6 @@ class NetworkTrainer(BaseConfig):
         # (viii) instanciate the loss function
         cla_loss_function = mdlcfg.init_cla_loss_function()
 
-        # (ix) instanciate the domain adaptation loss
-        uda_loss_function = mdlcfg.init_uda_loss_function(mdlcfg.uda_lambda)
-
         # (x) check whether to apply transfer learning
         if mdlcfg.transfer:
 
@@ -2601,7 +2598,11 @@ class NetworkTrainer(BaseConfig):
                 model, optimizer, checkpoint_state = mdlcfg.init_model(
                     src_ds, state_file)
 
-                # (xi) instanciate the network trainer
+                # (xi) instanciate the domain adaptation loss
+                uda_loss_function = mdlcfg.init_uda_loss_function(
+                    mdlcfg.uda_lambda)
+
+                # (xii) instanciate the network trainer
                 trainer = NetworkTrainer(model,
                                          optimizer,
                                          state_file,

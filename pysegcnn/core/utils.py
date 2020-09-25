@@ -24,6 +24,7 @@ import tarfile
 import zipfile
 import datetime
 import warnings
+import platform
 
 # externals
 import gdal
@@ -35,6 +36,9 @@ LOGGER = logging.getLogger(__name__)
 
 # suffixes for radiometrically calibrated scenes
 SUFFIXES = ['toa_ref', 'toa_rad', 'toa_brt']
+
+# maximum number of filename characters on Windows
+MAX_FILENAME_CHARS_WINDOWS = 260
 
 
 def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
@@ -1272,3 +1276,30 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
             LOGGER.info('rm {}'.format(toremove))
 
     return
+
+
+def check_filename_length(filename):
+    """Extended-length paths on Windows.
+
+    See the official Microsoft `documentation`_ for more details.
+
+    Parameters
+    ----------
+    filename : `str` or :py:class:`pathlib.Path`
+        Absolute path to a file.
+
+    Returns
+    -------
+    filename : :py:class:`pathlib.Path`
+        The extended length path by using the prefix `//?/` in case
+        ``filename`` has more than 260 characters.
+
+    .. _documentation:
+        https://docs.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation
+
+    """
+    # check if we are on Windows
+    if platform.system() == 'Windows':
+        filename = (pathlib.Path('//?/' + str(filename)) if len(str(filename))
+                    >= MAX_FILENAME_CHARS_WINDOWS else filename)
+    return filename

@@ -32,7 +32,7 @@ from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
 # locals
-from pysegcnn.core.utils import accuracy_function
+from pysegcnn.core.utils import accuracy_function, check_filename_length
 from pysegcnn.main.config import HERE
 
 # plot font size configuration
@@ -322,8 +322,11 @@ def plot_sample(x, use_bands, labels,
                             frameon=False)
     # save figure
     if state is not None:
-        fig.savefig(plot_path.joinpath(state.replace('.pt', '.png')),
-                    dpi=300, bbox_inches='tight')
+        # check for maximum path lenght: Windows allows a maximum of 260
+        # characters
+        filename = check_filename_length(
+            plot_path.joinpath(state.replace('.pt', '.png')))
+        fig.savefig(filename, dpi=300, bbox_inches='tight')
 
     return fig
 
@@ -424,9 +427,9 @@ def plot_confusion_matrix(cm, labels, normalize=True,
     # save figure
     if state_file is not None:
         os.makedirs(outpath, exist_ok=True)
-        fig.savefig(os.path.join(
-            outpath, os.path.basename(state_file).replace('.pt', '_cm.png')),
-                    dpi=300, bbox_inches='tight')
+        filename = check_filename_length(os.path.join(
+            outpath, os.path.basename(state_file).replace('.pt', '_cm.png')))
+        fig.savefig(filename, dpi=300, bbox_inches='tight')
 
     return fig, ax
 
@@ -539,9 +542,9 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     # save figure
     os.makedirs(outpath, exist_ok=True)
-    fig.savefig(os.path.join(
-        outpath, os.path.basename(state_file).replace('.pt', '_loss.png')),
-                dpi=300, bbox_inches='tight')
+    filename = check_filename_length(os.path.join(
+        outpath, os.path.basename(state_file).replace('.pt', '_loss.png')))
+    fig.savefig(filename, dpi=300, bbox_inches='tight')
 
     return fig
 

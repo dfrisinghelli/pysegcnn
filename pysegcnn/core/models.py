@@ -28,6 +28,7 @@ import torch.optim as optim
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, ConvBnReluMaxPool,
                                   ConvBnReluMaxUnpool, Conv2dSame)
+from pysegcnn.core.utils import check_filename_length
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -129,7 +130,7 @@ class Network(nn.Module):
 
         """
         # check if the output path exists and if not, create it
-        state_file = pathlib.Path(state_file)
+        state_file = check_filename_length(state_file)
         if not state_file.parent.is_dir():
             state_file.parent.mkdir(parents=True, exist_ok=True)
 

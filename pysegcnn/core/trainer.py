@@ -923,8 +923,8 @@ class StateConfig(BaseConfig):
                 # check whether unsupervised domain adaptation is initialized
                 # from a pretrained model state
                 if self.mc.uda_from_pretrained:
-                    state.replace('.pt', '_pretrained_{}'.format(
-                        self.mc.pretrained_model))
+                    state = state.replace('.pt', '_pretrained_{}'.format(
+                            self.mc.pretrained_model))
 
         # path to model state
         state = self.mc.state_path.joinpath(state)

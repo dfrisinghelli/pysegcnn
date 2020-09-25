@@ -331,8 +331,8 @@ def plot_sample(x, use_bands, labels,
     return fig
 
 
-def plot_confusion_matrix(cm, labels, normalize=True,
-                          figsize=(10, 10), cmap='Blues', state_file=None,
+def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
+                          cmap='Blues', state_file=None, subset=None,
                           outpath=os.path.join(HERE, '_graphics/')):
     """Plot the confusion matrix ``cm``.
 
@@ -357,6 +357,10 @@ def plot_confusion_matrix(cm, labels, normalize=True,
         Filename to save the plot to. ``state`` should be an existing model
         state file ending with `'.pt'`. The default is `None`, i.e. the plot is
         not saved to disk.
+    subset : `str` or `None`, optional
+        Name of the subset ``cm`` was computed on. If ``subset`` is not `None`,
+        it is added to the filename of the confusion matrix plot. The default
+        is `None`.
     outpath : `str` or :py:class:`pathlib.Path`, optional
         Output path. The default is `'pysegcnn/main/_graphics/'`.
 
@@ -427,8 +431,10 @@ def plot_confusion_matrix(cm, labels, normalize=True,
     # save figure
     if state_file is not None:
         os.makedirs(outpath, exist_ok=True)
-        filename = check_filename_length(os.path.join(
-            outpath, os.path.basename(state_file).replace('.pt', '_cm.png')))
+        basename = os.path.basename(state_file).replace(
+            '.pt', '_cm_{}.png'.format(subset) if subset is not None else
+            '_cm.png')
+        filename = check_filename_length(os.path.join(outpath, basename))
         fig.savefig(filename, dpi=300, bbox_inches='tight')
 
     return fig, ax

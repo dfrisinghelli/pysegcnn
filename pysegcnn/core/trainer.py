@@ -1744,6 +1744,7 @@ class NetworkInference(BaseConfig):
         if self.compute_cm:
             plot_confusion_matrix(self.conf_mat, self.use_labels,
                                   state_file=self.state_file,
+                                  subset=self.domain + '_' + self.trg_ds.name,
                                   outpath=self.perfmc_path)
 
         return output

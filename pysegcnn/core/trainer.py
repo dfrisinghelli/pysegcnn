@@ -41,7 +41,7 @@ import matplotlib.pyplot as plt
 from pysegcnn.core.dataset import SupportedDatasets, ImageDataset
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import (img2np, item_in_enum, accuracy_function,
-                                 reconstruct_scene)
+                                 reconstruct_scene, check_filename_length)
 from pysegcnn.core.split import SupportedSplits, CustomSubset, SceneSubset
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   SupportedLossFunctions, Network)
@@ -1724,7 +1724,8 @@ class NetworkInference(BaseConfig):
 
         """
         # plot loss and accuracy
-        plot_loss(self.state_file, outpath=self.perfmc_path)
+        plot_loss(check_filename_length(self.state_file),
+                  outpath=self.perfmc_path)
 
         # set the model to evaluation mode
         LOGGER.info('Setting model to evaluation mode ...')
@@ -1780,8 +1781,8 @@ class LogConfig(BaseConfig):
         self.log_path = pathlib.Path(HERE).joinpath('_logs')
 
         # the log file of the current model
-        self.log_file = self.log_path.joinpath(
-            self.state_file.name.replace('.pt', '.log'))
+        self.log_file = check_filename_length(self.log_path.joinpath(
+            self.state_file.name.replace('.pt', '.log')))
 
     @staticmethod
     def now():

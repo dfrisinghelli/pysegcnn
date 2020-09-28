@@ -27,8 +27,8 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-# DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
-DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
@@ -215,7 +215,7 @@ trg_split_config = {
     # 'split_mode': 'scene',
     'ttratio': 1,
     'tvratio': 0.8,
-    'date': '20161231',
+    'date': '20171231',
     'dateformat': '%Y%m%d',
     'drop': 0,
     }
@@ -362,7 +362,12 @@ eval_config = {
     # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
     # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
     # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
-    'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5s6s7_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
+    'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    # 'state_file': 'Segnet_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -370,7 +375,8 @@ eval_config = {
     #                 and test datasets defined at training time
     # implicit=False, models are evaluated on an explicitly defined dataset
     #                 'ds'
-    'implicit': True,
+    # 'implicit': True,
+    'implicit': False,
 
     # The options 'domain' and 'test' define on which domain (source, target)
     # and on which set (training, validation, test) to evaluate the model.

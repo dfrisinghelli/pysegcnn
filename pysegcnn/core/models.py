@@ -201,7 +201,7 @@ class Network(nn.Module):
 
         """
         # load the pretrained model
-        state_file = pathlib.Path(state_file)
+        state_file = check_filename_length(pathlib.Path(state_file))
         if not state_file.exists():
             raise FileNotFoundError('{} does not exist.'.format(state_file))
         LOGGER.info('Loading pretrained weights from: {}'.format(state_file))

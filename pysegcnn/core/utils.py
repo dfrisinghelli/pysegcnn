@@ -1300,6 +1300,7 @@ def check_filename_length(filename):
     """
     # check if we are on Windows
     if platform.system() == 'Windows':
-        filename = (pathlib.Path('//?/' + str(filename)) if len(str(filename))
-                    >= MAX_FILENAME_CHARS_WINDOWS else filename)
+        filename = (pathlib.Path('\\\\?\\' + str(filename)) if
+                    len(str(filename)) >= MAX_FILENAME_CHARS_WINDOWS else
+                    filename)
     return filename

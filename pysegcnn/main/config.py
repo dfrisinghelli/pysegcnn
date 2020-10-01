@@ -27,7 +27,7 @@ import os
 HERE = os.path.abspath(os.path.dirname(__file__))
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/_Datasets/'
+DRIVE_PATH = 'C:/Eurac/2020/CCISNOW/_Datasets/'
 # DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
 
 # name and paths to the datasets
@@ -364,10 +364,10 @@ eval_config = {
     # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
     # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
     # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5s6s7_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
-    # 'state_file': 'Segnet_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    # 'state_file': 'Segnet_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
     # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -375,8 +375,8 @@ eval_config = {
     #                 and test datasets defined at training time
     # implicit=False, models are evaluated on an explicitly defined dataset
     #                 'ds'
-    # 'implicit': True,
-    'implicit': False,
+    'implicit': True,
+    # 'implicit': False,
 
     # The options 'domain' and 'test' define on which domain (source, target)
     # and on which set (training, validation, test) to evaluate the model.
@@ -395,8 +395,8 @@ eval_config = {
     # test=True, 1 means evaluating on the test set
     # test=None means evaluating on the training set
     # 'test': True,
-    # 'test': None,
-    'test': False,
+    'test': None,
+    # 'test': False,
 
     # whether to map the model labels from the model source domain to the
     # defined 'domain'
@@ -423,7 +423,8 @@ eval_config = {
 
     # whether to compute and plot the confusion matrix
     # output path is: pysegcnn/main/_graphics/
-    'cm': True,
+    # 'cm': True,
+    'cm': False,
 
     # whether to predict each sample or each scene individually
     # False: each sample is predicted individually and the scenes are not

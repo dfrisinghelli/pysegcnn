@@ -322,8 +322,7 @@ def plot_sample(x, use_bands, labels,
                             frameon=False)
     # save figure
     if state is not None:
-        # check for maximum path lenght: Windows allows a maximum of 260
-        # characters
+        # chech maximum filename length of 260 characters on Windows
         filename = check_filename_length(
             plot_path.joinpath(state.replace('.pt', '.png')))
         fig.savefig(filename, dpi=300, bbox_inches='tight')

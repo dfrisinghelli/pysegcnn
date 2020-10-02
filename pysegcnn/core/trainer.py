@@ -1558,6 +1558,35 @@ class NetworkInference(BaseConfig):
         return (self.trg_ds.dataset.tiles if self.predict_scene and
                 self.is_scene_subset else 1)
 
+    def _check_long_filename(self, filename):
+        """Modify filenames that exceed Windows' maximum filename length.
+
+        Parameters
+        ----------
+        filename : `str`
+            The filename to check.
+
+        Returns
+        -------
+        filename : `str`
+            The modified filename, in case ``filename`` exceeds 255 characters.
+
+        """
+        # check for maximum path component length: Windows allows a maximum
+        # of 255 characters for each component in a path
+        if len(filename) >= 255:
+            # try to parse the scene identifier
+            scene_metadata = self.trg_ds.dataset.parse_scene_id(filename)
+            if scene_metadata is not None:
+                # new, shorter name for the current batch
+                batch_name = '_'.join([scene_metadata['satellite'],
+                                       scene_metadata['tile'],
+                                       datetime.datetime.strftime(
+                                           scene_metadata['date'], '%Y%m%d')])
+                filename = filename.replace(scene_metadata['id'], batch_name)
+
+        return filename
+
     def map_to_target(self, prd):
         """Map source domain labels to target domain labels.
 
@@ -1662,6 +1691,10 @@ class NetworkInference(BaseConfig):
             # filename for the plot of the current batch
             batch_name = self.basename + '_{}_{}.pt'.format(self.trg_ds.name,
                                                             batch)
+
+            # check if the current batch name exceeds the Windows limit of
+            # 255 characters
+            batch_name = self._check_long_filename(batch_name)
 
             # in case the source and target class labels are the same or a
             # label mapping is applied, the accuracy of the prediction can be

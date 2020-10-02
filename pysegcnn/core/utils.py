@@ -610,14 +610,15 @@ def parse_sentinel2_scene(scene_id):
 
         # the metadata of the scene identifier
         scene['id'] = match
-        scene['satellite'] = 'Sentinel {}'.format(parts[1:])
+        scene['satellite'] = parts[0]
         scene['file class'] = parts[1]
         scene['file category'] = parts[2]
-        scene['file semantic'] = parts[3]
-        scene['site'] = parts[4]
-        scene['orbit'] = parts[6]
+        scene['file semantic'] = '_'.join([parts[3], parts[4]])
+        scene['site'] = parts[5]
+        scene['orbit'] = parts[8]
         scene['date'] = datetime.datetime.strptime(
            parts[7].split('T')[0].replace('V', ''), '%Y%m%d')
+        scene['tile'] = parts[9]
 
     elif S2_L1C_New.search(scene_id):
 
@@ -629,7 +630,7 @@ def parse_sentinel2_scene(scene_id):
 
         # the metadata of the scene identifier
         scene['id'] = match
-        scene['satellite'] = 'Sentinel {}'.format(parts[1:])
+        scene['satellite'] = parts[0]
         scene['product'] = parts[1]
         scene['date'] = datetime.datetime.strptime(parts[2].split('T')[0],
                                                    '%Y%m%d')
@@ -647,7 +648,7 @@ def parse_sentinel2_scene(scene_id):
 
         # the metadata of the scene identifier
         scene['id'] = match
-        scene['satellite'] = 'Sentinel 2'
+        scene['satellite'] = 'S2'
         scene['tile'] = parts[0]
         scene['date'] = datetime.datetime.strptime(parts[1].split('T')[0],
                                                    '%Y%m%d')

@@ -134,7 +134,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
         width = img.shape[2]
 
     else:
-        raise TypeError('Input of type {} not supported'.format(type(img)))
+        raise TypeError('Input of type {} not supported'.format(type(path)))
 
     # check whether to read the image in tiles
     if tile_size is None:

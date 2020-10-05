@@ -79,7 +79,7 @@ deep convolutional neural networks."""
 # that file directly:
 HERE = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
-with codecs.open(os.path.join(HERE, 'README.md'), encoding='utf-8') as f:
+with codecs.open(os.path.join(HERE, 'README.rst'), encoding='utf-8') as f:
     LONG_DESCRIPTION = f.read()
 # This field corresponds to the "Description" metadata field:
 # https://packaging.python.org/specifications/core-metadata/#description-optional

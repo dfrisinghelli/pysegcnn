@@ -17,8 +17,10 @@ License
 # builtins
 import enum
 
+# externals
+import numpy as np
 
-# Landsat 8 bands
+
 class Landsat8(enum.Enum):
     """The spectral bands of the `Landsat-8`_ sensors.
 
@@ -44,7 +46,6 @@ class Landsat8(enum.Enum):
     tir2 = 11
 
 
-# Sentinel 2 bands
 class Sentinel2(enum.Enum):
     """The spectral bands of the `Sentinel-2`_ MultiSpectral Instrument (MSI).
 
@@ -68,7 +69,24 @@ class Sentinel2(enum.Enum):
     swir2 = 12
 
 
-# generic class label enumeration class
+class Gdal2Numpy(enum.Enum):
+    """Data type mapping from gdal to numpy."""
+
+    Byte = np.byte
+    UInt8 = np.uint8
+    Int8 = np.int8
+    UInt16 = np.uint16
+    Int16 = np.int16
+    UInt32 = np.uint32
+    Int32 = np.int32
+    Float32 = np.float32
+    Float64 = np.float64
+    CInt16 = np.complex64
+    CInt32 = np.complex64
+    CFloat32 = np.complex64
+    CFloat64 = np.complex64
+
+
 class Label(enum.Enum):
     """Generic enumeration for class labels."""
 
@@ -83,7 +101,6 @@ class Label(enum.Enum):
         return self.value[1]
 
 
-# labels of the Sparcs dataset
 class SparcsLabels(Label):
     """Class labels of the `Sparcs`_ dataset.
 
@@ -102,7 +119,6 @@ class SparcsLabels(Label):
     No_data = 7, 'black'
 
 
-# labels of the Cloud95 dataset
 class Cloud95Labels(Label):
     """Class labels of the `Cloud-95`_ dataset.
 
@@ -115,7 +131,6 @@ class Cloud95Labels(Label):
     Cloud = 1, 'white'
 
 
-# labels of the ProSnow datasets
 class ProSnowLabels(Label):
     """Class labels of the ProSnow datasets."""
 

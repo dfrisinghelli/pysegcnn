@@ -31,6 +31,9 @@ import gdal
 import torch
 import numpy as np
 
+# locals
+from pysegcnn.core.constants import Gdal2Numpy
+
 # module level logger
 LOGGER = logging.getLogger(__name__)
 
@@ -122,6 +125,12 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
         height = img.RasterYSize
         width = img.RasterXSize
 
+        # data type
+        dtype = getattr(Gdal2Numpy,
+                        gdal.GetDataTypeName(img.GetRasterBand(1).DataType))
+        dtype = dtype.value
+
+
     elif path is None:
         LOGGER.warning('Path is of NoneType, returning.')
         return
@@ -132,6 +141,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
         bands = img.shape[0]
         height = img.shape[1]
         width = img.shape[2]
+        dtype = img.dtype
 
     else:
         raise TypeError('Input of type {} not supported'.format(type(path)))
@@ -143,7 +153,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
         ntiles = 1
 
         # create empty numpy array to store whole image
-        image = np.empty(shape=(ntiles, bands, height, width))
+        image = np.empty(shape=(ntiles, bands, height, width), dtype=dtype)
 
         # iterate over the bands of the image
         for b in range(bands):
@@ -183,7 +193,8 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
             ntiles = 1
 
         # create empty numpy array to store the tiles
-        image = np.ones((ntiles, bands, tile_size, tile_size)) * cval
+        image = np.ones((ntiles, bands, tile_size, tile_size),
+                        dtype=dtype) * cval
 
         # iterate over the topleft corners of the tiles
         for k, corner in topleft.items():

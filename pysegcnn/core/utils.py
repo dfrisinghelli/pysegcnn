@@ -599,12 +599,20 @@ def parse_sentinel2_scene(scene_id):
     # Sentinel 2 Level-1C products naming convention before 6th December 2016
     file_class = '[A-Z]{4}_'
     file_category = '[A-Z]{3}_'
-    file_semantic = 'L[0-1]([ABC]|_)_[A-Z]{2}_'
+    file_semantic = '(MSI(L[0-1]([ABCP]|_)|CTI)|USER2A)_'
     site = '[A-Z_]{4}_'
-    aorbit = 'A[0-9]{6}_'
     S2_L1C_Old = re.compile(mission + file_class + file_category +
-                            file_semantic + site + 'V' + date + time + aorbit +
-                            tile.replace('_', ''))
+                            file_semantic + site + date + time + orbit + 'V' +
+                            date + time + date + time.replace('_', ''))
+
+    # Sentinel 2 granule naming convention before 6th December 2016
+    granule_semantic = 'L[0-1][ABC_]_(GR|DS|TL|TC|CO)_'
+    det_or_tile = '(D[0-1][1-2]|T[0-9]{2}[A-Z]{3})(_)?'
+    aorbit = '(A[0-9]{6}_' + '{}'.format('|S' + date + time + ')')
+    baseline = '(N[0-9]{2})?'
+    S2_L1C_Granule = re.compile(mission + file_class + file_category +
+                                granule_semantic + site + 'V' + date + time +
+                                aorbit + det_or_tile + baseline)
 
     # ProSnow project naming convention
     ProSnow = re.compile(tile + date + time.replace('_', ''))
@@ -624,12 +632,12 @@ def parse_sentinel2_scene(scene_id):
         scene['satellite'] = parts[0]
         scene['file class'] = parts[1]
         scene['file category'] = parts[2]
-        scene['file semantic'] = '_'.join([parts[3], parts[4]])
-        scene['site'] = parts[5]
-        scene['orbit'] = parts[8]
+        scene['file semantic'] = parts[3]
+        scene['site'] = parts[4]
+        scene['orbit'] = parts[6]
         scene['date'] = datetime.datetime.strptime(
            parts[7].split('T')[0].replace('V', ''), '%Y%m%d')
-        scene['tile'] = parts[9]
+        scene['tile'] = None
 
     elif S2_L1C_New.search(scene_id):
 
@@ -648,6 +656,26 @@ def parse_sentinel2_scene(scene_id):
         scene['baseline'] = parts[3]
         scene['orbit'] = parts[4]
         scene['tile'] = parts[5]
+
+    elif S2_L1C_Granule.search(scene_id):
+
+        # the match of the regular expression
+        match = S2_L1C_Granule.search(scene_id)[0]
+
+        # split scene into respective parts
+        parts = match.split('_')
+
+        # the metadata of the scene identifier
+        scene['id'] = match
+        scene['satellite'] = parts[0]
+        scene['file class'] = parts[1]
+        scene['file category'] = parts[2]
+        scene['file semantic'] = parts[3] + parts[4]
+        scene['site'] = parts[5]
+        scene['orbit'] = parts[8]
+        scene['date'] = datetime.datetime.strptime(
+           parts[7].split('T')[0].replace('V', ''), '%Y%m%d')
+        scene['tile'] = parts[9]
 
     elif ProSnow.search(scene_id):
 

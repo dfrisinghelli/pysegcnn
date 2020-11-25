@@ -1969,6 +1969,8 @@ class NetworkTrainer(BaseConfig):
         :py:class:`torch.optim.Optimizer`.
     state_file : :py:class:`pathlib.Path`
         Path to save the model state.
+    bands : `list` [`str`]
+        The spectral bands used to train ``model``.
     src_train_dl : :py:class:`torch.utils.data.DataLoader`
         The source domain training :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
@@ -2053,8 +2055,6 @@ class NetworkTrainer(BaseConfig):
         Number of mini-batches in the training dataset.
     vmbatch : `int`
         Number of mini-batches in the validation dataset.
-    bands : `list` [`str`]
-        The spectral bands used to train ``model``.
     training_state : `dict` [`str`, :py:class:`numpy.ndarray`]
         The training state dictionary. The keys describe the type of the
         training metric.
@@ -2067,6 +2067,7 @@ class NetworkTrainer(BaseConfig):
     model: Network
     optimizer: Optimizer
     state_file: pathlib.Path
+    bands: list
     src_train_dl: DataLoader
     src_valid_dl: DataLoader
     src_test_dl: DataLoader
@@ -2150,9 +2151,6 @@ class NetworkTrainer(BaseConfig):
         # number of mini-batches in the training and validation sets
         self.tmbatch = len(self.src_train_dl)
         self.vmbatch = len(self.src_valid_dl)
-
-        # the spectral bands used for training
-        self.bands = self.src_train_dl.dataset.dataset.use_bands
 
         # log representation
         LOGGER.info(repr(self))
@@ -2573,6 +2571,9 @@ class NetworkTrainer(BaseConfig):
         # (vi) instanciate the source domain dataset
         src_ds = src_dc.init_dataset()
 
+        # the spectral bands used to train the model
+        bands = src_ds.use_bands
+
         # (vii) instanciate the training, validation and test datasets and
         # dataloaders for the source domain
         (src_train_ds,
@@ -2617,6 +2618,7 @@ class NetworkTrainer(BaseConfig):
                 trainer = NetworkTrainer(model,
                                          optimizer,
                                          state_file,
+                                         bands,
                                          trg_train_dl,
                                          trg_valid_dl,
                                          trg_test_dl,
@@ -2643,6 +2645,7 @@ class NetworkTrainer(BaseConfig):
                 trainer = NetworkTrainer(model,
                                          optimizer,
                                          state_file,
+                                         bands,
                                          src_train_dl,
                                          src_valid_dl,
                                          src_test_dl,
@@ -2671,6 +2674,7 @@ class NetworkTrainer(BaseConfig):
             trainer = NetworkTrainer(model,
                                      optimizer,
                                      state_file,
+                                     bands,
                                      src_train_dl,
                                      src_valid_dl,
                                      src_test_dl,
@@ -2686,92 +2690,92 @@ class NetworkTrainer(BaseConfig):
 
         return trainer
 
-    def _build_ds_repr(self, train_dl, valid_dl, test_dl):
-        """Build the dataset representation.
+    # def _build_ds_repr(self, train_dl, valid_dl, test_dl):
+    #     """Build the dataset representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # dataset configuration
-        fs = '    (dataset):\n        '
-        fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
-                                                              '\n' + 8 * ' ')
-        fs += '\n    (batch):\n        '
-        fs += '- batch size: {}\n        '.format(train_dl.batch_size)
-        fs += '- mini-batch shape (b, c, h, w): {}'.format(
-            ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
-             2 * (train_dl.dataset.dataset.tile_size,)))
+    #     """
+    #     # dataset configuration
+    #     fs = '    (dataset):\n        '
+    #     fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
+    #                                                           '\n' + 8 * ' ')
+    #     fs += '\n    (batch):\n        '
+    #     fs += '- batch size: {}\n        '.format(train_dl.batch_size)
+    #     fs += '- mini-batch shape (b, c, h, w): {}'.format(
+    #         ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
+    #          2 * (train_dl.dataset.dataset.tile_size,)))
 
-        # dataset split
-        fs += '\n    (split):'
-        for dl in [train_dl, valid_dl, test_dl]:
-            if dl.dataset is not None:
-                fs += '\n' + 8 * ' ' + repr(dl.dataset)
+    #     # dataset split
+    #     fs += '\n    (split):'
+    #     for dl in [train_dl, valid_dl, test_dl]:
+    #         if dl.dataset is not None:
+    #             fs += '\n' + 8 * ' ' + repr(dl.dataset)
 
-        return fs
+    #     return fs
 
-    def _build_model_repr_(self):
-        """Build the model representation.
+    # def _build_model_repr_(self):
+    #     """Build the model representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # model
-        fs = '\n    (model):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.model)).replace('\n', '\n' + 8 * ' ')
+    #     """
+    #     # model
+    #     fs = '\n    (model):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.model)).replace('\n', '\n' + 8 * ' ')
 
-        # optimizer
-        fs += '\n    (optimizer):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.optimizer)).replace('\n', '\n' + 8 * ' ')
+    #     # optimizer
+    #     fs += '\n    (optimizer):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.optimizer)).replace('\n', '\n' + 8 * ' ')
 
-        # early stopping
-        fs += '\n    (early stop):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
+    #     # early stopping
+    #     fs += '\n    (early stop):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
 
-        # domain adaptation
-        if self.uda:
-            fs += '\n    (adaptation)' + '\n' + 8 * ' '
-            fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
+    #     # domain adaptation
+    #     if self.uda:
+    #         fs += '\n    (adaptation)' + '\n' + 8 * ' '
+    #         fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
 
-        return fs
+    #     return fs
 
-    def __repr__(self):
-        """Representation.
+    # def __repr__(self):
+    #     """Representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # representation string to print
-        fs = self.__class__.__name__ + '(\n'
+    #     """
+    #     # representation string to print
+    #     fs = self.__class__.__name__ + '(\n'
 
-        # source domain
-        fs += '    (source domain)\n    '
-        fs += self._build_ds_repr(
-            self.src_train_dl, self.src_valid_dl, self.src_test_dl).replace(
-                '\n', '\n' + 4 * ' ')
+    #     # source domain
+    #     fs += '    (source domain)\n    '
+    #     fs += self._build_ds_repr(
+    #         self.src_train_dl, self.src_valid_dl, self.src_test_dl).replace(
+    #             '\n', '\n' + 4 * ' ')
 
-        # target domain
-        if self.uda:
-            fs += '\n    (target domain)\n    '
-            fs += self._build_ds_repr(
-                self.trg_train_dl,
-                self.trg_valid_dl,
-                self.trg_test_dl).replace('\n', '\n' + 4 * ' ')
+    #     # target domain
+    #     if self.uda:
+    #         fs += '\n    (target domain)\n    '
+    #         fs += self._build_ds_repr(
+    #             self.trg_train_dl,
+    #             self.trg_valid_dl,
+    #             self.trg_test_dl).replace('\n', '\n' + 4 * ' ')
 
-        # model configuration
-        fs += self._build_model_repr_()
+    #     # model configuration
+    #     fs += self._build_model_repr_()
 
-        fs += '\n)'
-        return fs
+    #     fs += '\n)'
+    #     return fs
 
 
 class EarlyStopping(object):

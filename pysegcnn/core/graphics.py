@@ -155,6 +155,7 @@ def floor_decimal(x, decimal=0):
 def plot_sample(x, use_bands, labels,
                 y=None,
                 y_pred={},
+                accuracy=False,
                 date=None,
                 figsize=(16, 9),
                 bands=['nir', 'red', 'green'],
@@ -186,6 +187,9 @@ def plot_sample(x, use_bands, labels,
         the values are the predicted classes for tile ``x``,
         shape=(height, width). The default is `{}`, i.e. no prediction is
         plotted.
+    accuracy : `bool`, optional
+        Whether to calculate the accuracy of the predictions ``y_pred`` with
+        respect to the ground truth ``y``. The default is `False`
     date : :py:class:`datetime.datetime` or `None`
         The date of the sample. If specified, ``date`` is plotted as title of
         the FCC. The default is `None`, i.e. ``date`` is not used as title.
@@ -303,7 +307,7 @@ def plot_sample(x, use_bands, labels,
         ax = fig.axes[int(i + removed)]
 
         # check whether the ground truth is specified and calculate accuracy
-        if y is not None:
+        if y is not None and accuracy:
             acc = accuracy_function(v, y)
             k += ' ({:.2f}%)'.format(acc * 100)
 

@@ -1720,6 +1720,7 @@ class NetworkInference(BaseConfig):
                             self.use_labels,
                             y=gt,
                             y_pred={self.model.__class__.__name__: prdctn},
+                            accuracy=True,
                             state=batch_name,
                             date=date,
                             fig=self.fig,

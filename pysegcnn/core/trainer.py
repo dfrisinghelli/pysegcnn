@@ -2690,92 +2690,92 @@ class NetworkTrainer(BaseConfig):
 
         return trainer
 
-    def _build_ds_repr(self, train_dl, valid_dl, test_dl):
-        """Build the dataset representation.
+    # def _build_ds_repr(self, train_dl, valid_dl, test_dl):
+    #     """Build the dataset representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # dataset configuration
-        fs = '    (dataset):\n        '
-        fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
-                                                              '\n' + 8 * ' ')
-        fs += '\n    (batch):\n        '
-        fs += '- batch size: {}\n        '.format(train_dl.batch_size)
-        fs += '- mini-batch shape (b, c, h, w): {}'.format(
-            ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
-              2 * (train_dl.dataset.dataset.tile_size,)))
+    #     """
+    #     # dataset configuration
+    #     fs = '    (dataset):\n        '
+    #     fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
+    #                                                           '\n' + 8 * ' ')
+    #     fs += '\n    (batch):\n        '
+    #     fs += '- batch size: {}\n        '.format(train_dl.batch_size)
+    #     fs += '- mini-batch shape (b, c, h, w): {}'.format(
+    #         ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
+    #           2 * (train_dl.dataset.dataset.tile_size,)))
 
-        # dataset split
-        fs += '\n    (split):'
-        for dl in [train_dl, valid_dl, test_dl]:
-            if dl.dataset is not None:
-                fs += '\n' + 8 * ' ' + repr(dl.dataset)
+    #     # dataset split
+    #     fs += '\n    (split):'
+    #     for dl in [train_dl, valid_dl, test_dl]:
+    #         if dl.dataset is not None:
+    #             fs += '\n' + 8 * ' ' + repr(dl.dataset)
 
-        return fs
+    #     return fs
 
-    def _build_model_repr_(self):
-        """Build the model representation.
+    # def _build_model_repr_(self):
+    #     """Build the model representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # model
-        fs = '\n    (model):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.model)).replace('\n', '\n' + 8 * ' ')
+    #     """
+    #     # model
+    #     fs = '\n    (model):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.model)).replace('\n', '\n' + 8 * ' ')
 
-        # optimizer
-        fs += '\n    (optimizer):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.optimizer)).replace('\n', '\n' + 8 * ' ')
+    #     # optimizer
+    #     fs += '\n    (optimizer):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.optimizer)).replace('\n', '\n' + 8 * ' ')
 
-        # early stopping
-        fs += '\n    (early stop):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
+    #     # early stopping
+    #     fs += '\n    (early stop):' + '\n' + 8 * ' '
+    #     fs += ''.join(repr(self.es)).replace('\n', '\n' + 8 * ' ')
 
-        # domain adaptation
-        if self.uda:
-            fs += '\n    (adaptation)' + '\n' + 8 * ' '
-            fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
+    #     # domain adaptation
+    #     if self.uda:
+    #         fs += '\n    (adaptation)' + '\n' + 8 * ' '
+    #         fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
 
-        return fs
+    #     return fs
 
-    def __repr__(self):
-        """Representation.
+    # def __repr__(self):
+    #     """Representation.
 
-        Returns
-        -------
-        fs : `str`
-            Representation string.
+    #     Returns
+    #     -------
+    #     fs : `str`
+    #         Representation string.
 
-        """
-        # representation string to print
-        fs = self.__class__.__name__ + '(\n'
+    #     """
+    #     # representation string to print
+    #     fs = self.__class__.__name__ + '(\n'
 
-        # source domain
-        fs += '    (source domain)\n    '
-        fs += self._build_ds_repr(
-            self.src_train_dl, self.src_valid_dl, self.src_test_dl).replace(
-                '\n', '\n' + 4 * ' ')
+    #     # source domain
+    #     fs += '    (source domain)\n    '
+    #     fs += self._build_ds_repr(
+    #         self.src_train_dl, self.src_valid_dl, self.src_test_dl).replace(
+    #             '\n', '\n' + 4 * ' ')
 
-        # target domain
-        if self.uda:
-            fs += '\n    (target domain)\n    '
-            fs += self._build_ds_repr(
-                self.trg_train_dl,
-                self.trg_valid_dl,
-                self.trg_test_dl).replace('\n', '\n' + 4 * ' ')
+    #     # target domain
+    #     if self.uda:
+    #         fs += '\n    (target domain)\n    '
+    #         fs += self._build_ds_repr(
+    #             self.trg_train_dl,
+    #             self.trg_valid_dl,
+    #             self.trg_test_dl).replace('\n', '\n' + 4 * ' ')
 
-        # model configuration
-        fs += self._build_model_repr_()
+    #     # model configuration
+    #     fs += self._build_model_repr_()
 
-        fs += '\n)'
-        return fs
+    #     fs += '\n)'
+    #     return fs
 
 
 class EarlyStopping(object):

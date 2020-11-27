@@ -571,13 +571,15 @@ class ModelConfig(BaseConfig):
         # path to pretrained model
         self.pretrained_path = self.state_path.joinpath(self.pretrained_model)
 
-    def init_optimizer(self, model):
+    def init_optimizer(self, model, **kwargs):
         """Instanciate the optimizer.
 
         Parameters
         ----------
         model : :py:class:`torch.nn.Module`
             An instance of :py:class:`torch.nn.Module`.
+        **kwargs:
+            Additional keyword arguments passed to ``self.optim_class``.
 
         Returns
         -------
@@ -588,7 +590,7 @@ class ModelConfig(BaseConfig):
         LOGGER.info('Optimizer: {}.'.format(repr(self.optim_class)))
 
         # initialize the optimizer for the specified model
-        optimizer = self.optim_class(model.parameters(), self.lr)
+        optimizer = self.optim_class(model.parameters(), self.lr, **kwargs)
 
         return optimizer
 
@@ -2511,7 +2513,7 @@ class NetworkTrainer(BaseConfig):
         if self.save:
             _ = self.model.save(self.state_file,
                                 self.optimizer,
-                                self.bands,
+                                bands=self.bands,
                                 src_train_dl=self.src_train_dl,
                                 src_valid_dl=self.src_valid_dl,
                                 src_test_dl=self.src_test_dl,

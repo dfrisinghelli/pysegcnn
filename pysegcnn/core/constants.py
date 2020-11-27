@@ -100,6 +100,11 @@ class Label(enum.Enum):
         """Return the color to plot a class."""
         return self.value[1]
 
+    def to_dict(self):
+        """Return the enumeration as a nested dictionary."""
+        return {label.id: {'label': label.name, 'color': label.color}
+                for label in self}
+
 
 class SparcsLabels(Label):
     """Class labels of the `Sparcs`_ dataset.

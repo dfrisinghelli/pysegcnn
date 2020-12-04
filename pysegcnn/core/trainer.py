@@ -141,7 +141,7 @@ class DatasetConfig(BaseConfig):
     dataset_name: str
     root_dir: pathlib.Path
     bands: list
-    tile_size: int
+    tile_size: object
     gt_pattern: str
     seed: int
     sort: bool = False

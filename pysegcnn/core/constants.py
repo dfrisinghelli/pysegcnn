@@ -21,7 +21,15 @@ import enum
 import numpy as np
 
 
-class Landsat8(enum.Enum):
+class MultiSpectralSensor(enum.Enum):
+    """A generic class for a multispectral sensor."""
+
+    @classmethod
+    def band_dict(cls):
+        return {band.value: band.name for band in cls}
+
+
+class Landsat8(MultiSpectralSensor):
     """The spectral bands of the `Landsat-8`_ sensors.
 
     sensors:
@@ -46,7 +54,7 @@ class Landsat8(enum.Enum):
     tir2 = 11
 
 
-class Sentinel2(enum.Enum):
+class Sentinel2(MultiSpectralSensor):
     """The spectral bands of the `Sentinel-2`_ MultiSpectral Instrument (MSI).
 
     .. _Sentinel-2:
@@ -100,10 +108,12 @@ class Label(enum.Enum):
         """Return the color to plot a class."""
         return self.value[1]
 
-    def to_dict(self):
+    @classmethod
+    def label_dict(cls):
         """Return the enumeration as a nested dictionary."""
-        return {label.id: {'label': label.name, 'color': label.color}
-                for label in self}
+        return {label.id: {'label': label.name.replace('_', ' '),
+                           'color': label.color}
+                for _, label in cls.__members__.items()}
 
 
 class SparcsLabels(Label):
@@ -118,7 +128,7 @@ class SparcsLabels(Label):
     Shadow_over_water = 1, 'darkblue'
     Water = 2, 'blue'
     Snow = 3, 'lightblue'
-    Land = 4, 'sienna'
+    Land = 4, 'forestgreen'
     Cloud = 5, 'white'
     Flooded = 6, 'yellow'
     No_data = 7, 'black'

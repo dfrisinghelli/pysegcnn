@@ -162,7 +162,8 @@ def plot_sample(x, use_bands, labels,
                 alpha=0,
                 state=None,
                 fig=None,
-                plot_path=os.path.join(HERE, '_samples/')
+                plot_path=os.path.join(HERE, '_samples/'),
+                hide_labels=False
                 ):
     """Plot false color composite (FCC), ground truth and model prediction.
 
@@ -218,6 +219,8 @@ def plot_sample(x, use_bands, labels,
     plot_path : `str` or :py:class:`pathlib.Path`, optional
         Output path for static plots. The default is
         `'pysegcnn/main/_samples'`.
+    hide_labels : `bool`
+        Whether to show the axis and axis labels. The default is `False`.
 
     Raises
     ------
@@ -241,8 +244,9 @@ def plot_sample(x, use_bands, labels,
         plot_path.mkdir(parents=True, exist_ok=True)
 
     # check whether to apply constrast stretching
-    rgb = np.dstack([contrast_stretching(x[use_bands.index(band), ...], alpha)
-                     for band in bands])
+    rgb = np.dstack([np.clip(
+        contrast_stretching(x[use_bands.index(band), ...], alpha), 0, 1)
+        for band in bands])
 
     # sort the labels in ascending order
     sorted_labels = {k: v for k, v in sorted(labels.items())}
@@ -315,13 +319,27 @@ def plot_sample(x, use_bands, labels,
         ax.imshow(v, cmap=cmap, interpolation='nearest', norm=norm)
         ax.text(0.5, 1.04, k, transform=ax.transAxes, ha='center', va='bottom')
 
-    # remove empty axes
+    # remove empty axes and check whether to hide axis labels
     for ax in fig.axes:
+
+        # remove empty axes
         if not ax.images:
             fig.delaxes(ax)
 
+        # hide axis and labels
+        if hide_labels:
+
+            # hide axis ticks, labels and text artists
+            ax.axis('off')
+            for t in ax.texts:
+                t.set_visible(False)
+
+    # adjust spacing when hiding labels
+    if hide_labels:
+        fig.subplots_adjust(wspace=0.02)
+
     # if a ground truth or a model prediction is plotted, add legend
-    if len(fig.axes) > 1:
+    if len(fig.axes) > 1 and not hide_labels:
         fig.axes[-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
                             frameon=False)
     # save figure

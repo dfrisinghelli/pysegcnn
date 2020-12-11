@@ -365,31 +365,35 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
     # read the hdf dataset
     hdf = gdal.Open(str(path)).GetSubDatasets()
 
-    # iterate over the different subdatasets in the hdf
-    for ds in hdf:
+    # check if the dataset is not empty
+    if hdf:
 
-        # name of the current subdataset
-        name = ds[0].split(':')[-1]
+        # iterate over the different subdatasets in the hdf
+        for ds in hdf:
 
-        # filename of the GeoTIFF
-        tif_name = outpath.joinpath(path.name.replace(path.suffix,
-                                                      '_{}.tif'.format(name)))
+            # name of the current subdataset
+            name = ds[0].split(':')[-1]
 
-        # convert hdf subdataset to GeoTIFF
-        gdal.Translate(str(tif_name), gdal.Open(ds[0]), **kwargs)
+            # filename of the GeoTIFF
+            tif_name = outpath.joinpath(
+                path.name.replace(path.suffix, '_{}.tif'.format(name)))
 
-    # check whether to create a GeoTIFF stack
-    if create_stack:
-        # filename for the GeoTIFF stack
-        stk = tif_name.parent.joinpath(path.name.replace(path.suffix, '.tif'))
-        LOGGER.info('Creating GeoTIFF stack: {}'.format(stk))
+            # convert hdf subdataset to GeoTIFF
+            gdal.Translate(str(tif_name), gdal.Open(ds[0]), **kwargs)
 
-        # generated GeoTIFF files
-        tifs = [str(f) for f in outpath.iterdir() if f.suffix in
-                ['.tif', '.TIF']]
+        # check whether to create a GeoTIFF stack
+        if create_stack:
+            # filename for the GeoTIFF stack
+            stk = tif_name.parent.joinpath(
+                path.name.replace(path.suffix, '.tif'))
+            LOGGER.info('Creating GeoTIFF stack: {}'.format(stk))
 
-        # create stacked GeoTIFF
-        stack_tifs(str(stk), tifs)
+            # generated GeoTIFF files
+            tifs = [str(f) for f in outpath.iterdir() if f.suffix in
+                    ['.tif', '.TIF']]
+
+            # create stacked GeoTIFF
+            stack_tifs(str(stk), tifs)
 
     return
 

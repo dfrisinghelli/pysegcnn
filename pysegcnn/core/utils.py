@@ -82,7 +82,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
 
     Parameters
     ----------
-    path : `str` or `None` or :py:class:`numpy.ndarray`
+    path : `str` or :py:class:`pathlib.Path` or :py:class:`numpy.ndarray`
         The image to read.
     tile_size : `None` or `int`, optional
         The size of a tile. The default is `None`.
@@ -113,11 +113,10 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
 
     """
     # check the type of path
-    if isinstance(path, str):
-        if not os.path.exists(path):
-            raise FileNotFoundError('{} does not exist.'.format(path))
+    if isinstance(path, str) or isinstance(path, pathlib.Path):
+
         # the image dataset as returned by gdal
-        img = gdal.Open(path)
+        img = gdal.Open(str(path))
 
         # number of bands
         bands = img.RasterCount
@@ -251,6 +250,171 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     # return the image
     return image
 
+
+def read_hdf(path, **kwargs):
+    """Read a file in Hierarchical Data Format (HDF) to a dictionary.
+
+    Parameters
+    ----------
+    path : `str` or py:class:`pathlib.Path`
+        The path to the hdf file to read.
+    **kwargs:
+        Additional keyword arguments passed to
+        :py:func:`pysegcnn.core.utils.img2np`.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``path`` is not an hdf file.
+
+    Returns
+    -------
+    hdf_ds : `dict` [`str`, :py:class:`numpy.ndarray`]
+        The hdf file as a dictionary. The keys are the names of the
+        different datasets in the hdf file and the values are the corresponding
+        data as a :py:class:`numpy.ndarray`.
+
+    """
+    # check if the path points to an hdf file
+    if not str(path).endswith(('.h4', '.hdf', '.hdf4', '.hdf5', '.he2', '.h5',
+                               '.he5')):
+        raise ValueError('{} is not an hdf file.'.format(path))
+
+    # read the hdf dataset
+    hdf = gdal.Open(str(path)).GetSubDatasets()
+
+    # iterate over the different subsets and store arrays in dictionary
+    hdf_ds = {}
+    for ds in hdf:
+        # name of the current dataset
+        name = ds[0].split(':')[-1]
+
+        # read the dataset to a numpy array
+        data = img2np(ds[0], **kwargs)
+
+        # store in dictionary
+        hdf_ds[name] = data
+
+    return hdf_ds
+
+
+def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
+    """Convert a file in Hierarchical Data Format (HDF) to GeoTIFFs.
+
+    The GeoTIFFs share the same filename as ``path``, appended by the name of
+    the respective subdatasets.
+
+    The default (``outpath=None``) is to save the GeoTIFFs in a directory named
+    after the filename of ``path``, within the parent directory of ``path``.
+
+    Parameters
+    ----------
+    path : `str` or py:class:`pathlib.Path`
+        The path to the hdf file to convert.
+    outpath : `str` or py:class:`pathlib.Path`, optional
+        Path to save the GeoTIFF files. The default is `None`.
+    overwrite : `bool`, optional
+        Whether to overwrite existing GeoTIFF files in ``outpath``. The default
+        is `False`.
+    create_stack : `bool`, optional
+        Whether to create a GeoTIFF stack of all the subdatasets in ``path``.
+        The default is `True`.
+    **kwargs :
+        Additional keyword arguments passed to :py:func:`gdal.Translate`.
+
+    """
+    # check if the path points to an hdf file
+    path = pathlib.Path(path)
+    if not str(path).endswith(('.h4', '.hdf', '.hdf4', '.hdf5', '.he2', '.h5',
+                               '.he5')):
+        raise ValueError('{} is not an hdf file.'.format(path))
+
+    # check whether an output path is defined
+    if outpath is None:
+        outpath = path.parent
+    else:
+        outpath = pathlib.Path(outpath)
+
+    # create the output directory
+    outpath = outpath.joinpath(path.stem.replace('.', '_'))
+
+    # check whether the output path exists
+    if not outpath.exists():
+        LOGGER.info('mkdir {}'.format(str(outpath)))
+        outpath.mkdir(parents=True, exist_ok=True)
+
+    # check whether the output path contains GeoTIFF files
+    tifs = [f for f in outpath.iterdir() if f.suffix in ['.tif', '.TIF']]
+
+    # check whether to overwrite existing files
+    if tifs:
+        LOGGER.info('The following files already exist in {}'
+                    .format(str(outpath)))
+        LOGGER.info('\n'.join(['{}'.format(str(tif.name)) for tif in tifs])
+                    )
+        if not overwrite:
+            # return if not overwriting
+            LOGGER.info('Aborting...')
+            return
+
+        # remove existing files and prepare to overwrite
+        LOGGER.info('Overwrite {}'.format(str(outpath)))
+        for tif in tifs:
+            tif.unlink()
+
+    # read the hdf dataset
+    hdf = gdal.Open(str(path)).GetSubDatasets()
+
+    # iterate over the different subdatasets in the hdf
+    for ds in hdf:
+
+        # name of the current subdataset
+        name = ds[0].split(':')[-1]
+
+        # filename of the GeoTIFF
+        tif_name = outpath.joinpath(path.name.replace(path.suffix,
+                                                      '_{}.tif'.format(name)))
+
+        # convert hdf subdataset to GeoTIFF
+        gdal.Translate(str(tif_name), gdal.Open(ds[0]), **kwargs)
+
+    # check whether to create a GeoTIFF stack
+    if create_stack:
+        # filename for the GeoTIFF stack
+        stk = tif_name.parent.joinpath(path.name.replace(path.suffix, '.tif'))
+        LOGGER.info('Creating GeoTIFF stack: {}'.format(stk))
+
+        # generated GeoTIFF files
+        tifs = [str(f) for f in outpath.iterdir() if f.suffix in
+                ['.tif', '.TIF']]
+
+        # create stacked GeoTIFF
+        stack_tifs(str(stk), tifs)
+
+    return
+
+
+def stack_tifs(filename, tifs, **kwargs):
+    """Create a stacked GeoTIFF from a list of single-band GeoTIFFs.
+
+    Parameters
+    ----------
+    filename : `str` or py:class:`pathlib.Path`
+        The filename of the stacked GeoTIFF ending with `.tif`.
+    tifs : `list` [`str`]
+        The list of the paths to the GeoTIFF files to stack.
+    **kwargs :
+        Additional keyword arguments passed to :py:func:`gdal.Translate`.
+
+    """
+    # build virtual raster dataset
+    vrt = str(filename).replace('.tif', '.vrt')
+    vrt_ds = gdal.BuildVRT(str(vrt), tifs, separate=True)
+
+    # create GeoTIFF stack
+    gdal.Translate(str(filename), vrt_ds, **kwargs)
+
+    return
 
 def is_divisible(img_size, tile_size, pad=False):
     """Check whether an image is evenly divisible into square tiles.

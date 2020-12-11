@@ -80,7 +80,7 @@ class Sentinel2(MultiSpectralSensor):
 class Gdal2Numpy(enum.Enum):
     """Data type mapping from gdal to numpy."""
 
-    Byte = np.byte
+    Byte = np.uint8
     UInt8 = np.uint8
     Int8 = np.int8
     UInt16 = np.uint16

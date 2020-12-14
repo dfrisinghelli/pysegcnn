@@ -1698,7 +1698,7 @@ def check_filename_length(filename):
 
 
 def get_epsg(ras_ds):
-    """Get the EPSG code of a raster coordinate reference system.
+    """Get the `EPSG`_ code of a raster coordinate reference system.
 
     Parameters
     ----------
@@ -1709,6 +1709,9 @@ def get_epsg(ras_ds):
     -------
     ras_epsg : `str`
         The EPSG code of the raster coordinate reference system.
+
+    .. _EPSG:
+        https://epsg.io/
 
     """
     # input raster spatial reference
@@ -1723,7 +1726,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     """Reproject a raster to a defined coordinate reference system.
 
     Reproject ``src_ds`` to ``trg_ds`` using either:
-        - a defined EPSG code
+        - a defined `EPSG`_ code
         - a reference raster dataset ``ref_ds``, whose coordinate reference
         system is used for the reprojection
 
@@ -1754,6 +1757,9 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         `(None, None)`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+
+    .. _EPSG:
+        https://epsg.io/
 
     """
     # convert path to source dataset to pathlib.Path object

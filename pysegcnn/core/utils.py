@@ -1722,7 +1722,7 @@ def get_epsg(ras_ds):
 
 
 def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
-                     pixel_size=(None, None), overwrite=False):
+                     pixel_size=(None, None), nodata=0, overwrite=False):
     """Reproject a raster to a defined coordinate reference system.
 
     Reproject ``src_ds`` to ``trg_ds`` using either:
@@ -1755,6 +1755,8 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     pixel_size : `tuple` [`int`, `int`], optional
         The spatial pixel size of the target dataset. The default is
         `(None, None)`.
+    nodata : `int` or `float`
+        The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
 
@@ -1783,8 +1785,9 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     # read the source dataset
     src_ds = gdal.Open(str(src_path))
 
-    # the source dataset top left corner and spatial resolution
-    # src_gt = src_ds.GetGeoTransform()
+    # encode the NoData value to the output data type
+    out_type = src_ds.GetRasterBand(1).DataType
+    nodata = getattr(Gdal2Numpy, gdal.GetDataTypeName(out_type)).value(nodata)
 
     # get the projection of the source dataset
     src_epsg = get_epsg(src_ds)
@@ -1825,7 +1828,8 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     gdal.Warp(str(trg_path), str(src_path),
               srcSRS=src_proj,
               dstSRS=ref_proj,
-              dstNodata=0,
+              outputType=out_type,
+              dstNodata=nodata,
               xRes=ref_xres,
               yRes=ref_yres,
               resampleAlg=resample)

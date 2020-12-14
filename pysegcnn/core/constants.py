@@ -77,24 +77,6 @@ class Sentinel2(MultiSpectralSensor):
     swir2 = 12
 
 
-class Gdal2Numpy(enum.Enum):
-    """Data type mapping from gdal to numpy."""
-
-    Byte = np.uint8
-    UInt8 = np.uint8
-    Int8 = np.int8
-    UInt16 = np.uint16
-    Int16 = np.int16
-    UInt32 = np.uint32
-    Int32 = np.int32
-    Float32 = np.float32
-    Float64 = np.float64
-    CInt16 = np.complex64
-    CInt32 = np.complex64
-    CFloat32 = np.complex64
-    CFloat64 = np.complex64
-
-
 class Label(enum.Enum):
     """Generic enumeration for class labels."""
 
@@ -112,8 +94,34 @@ class Label(enum.Enum):
     def label_dict(cls):
         """Return the enumeration as a nested dictionary."""
         return {label.id: {'label': label.name.replace('_', ' '),
-                           'color': label.color}
-                for _, label in cls.__members__.items()}
+                           'color': label.color} for label in cls}
+
+
+class LabelMapping(enum.Enum):
+    """Generic enumeration for mapping label classes."""
+
+    @classmethod
+    def label_map(cls):
+        """Return the label mapping dictionary."""
+        return {label.name: label.value for label in cls}
+
+
+class Gdal2Numpy(LabelMapping):
+    """Data type mapping from gdal to numpy."""
+
+    Byte = np.uint8
+    UInt8 = np.uint8
+    Int8 = np.int8
+    UInt16 = np.uint16
+    Int16 = np.int16
+    UInt32 = np.uint32
+    Int32 = np.int32
+    Float32 = np.float32
+    Float64 = np.float64
+    CInt16 = np.complex64
+    CInt32 = np.complex64
+    CFloat32 = np.complex64
+    CFloat64 = np.complex64
 
 
 class SparcsLabels(Label):

@@ -1695,3 +1695,134 @@ def check_filename_length(filename):
                     len(str(filename)) >= MAX_FILENAME_CHARS_WINDOWS else
                     filename)
     return filename
+
+
+def get_epsg(ras_ds):
+    """Get the EPSG code of a raster coordinate reference system.
+
+    Parameters
+    ----------
+    ras_ds : :py:class:`osgeo.gdal.Dataset`
+        A georeferenced raster dataset.
+
+    Returns
+    -------
+    ras_epsg : `str`
+        The EPSG code of the raster coordinate reference system.
+
+    """
+    # input raster spatial reference
+    ras_sr = gdal.osr.SpatialReference(wkt=str(ras_ds.GetProjection()))
+    ras_epsg = ras_sr.GetAttrValue('AUTHORITY', 1)
+
+    return ras_epsg
+
+
+def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
+                     pixel_size=(None, None), overwrite=False):
+    """Reproject a raster to a defined coordinate reference system.
+
+    Reproject ``src_ds`` to ``trg_ds`` using either:
+        - a defined EPSG code
+        - a reference raster dataset ``ref_ds``, whose coordinate reference
+        system is used for the reprojection
+
+    The spatial resolution of ``trg_ds`` can be specified with the parameter
+    ``pixel_size``. If not specified, ``trg_ds`` shares the same spatial
+    resolution as ``src_ds``. However, if ``pixel_size`` is specified and
+    differs from the original spatial resolution of ``src_ds``, the spatial
+    resampling algorithm defined by ``resample`` is used to up/downsample
+    ``trg_ds``.
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The raster dataset to reproject.
+    trg_ds : `str` or :py:class:`pathlib.Path`
+        The target raster dataset.
+    ref_ds : `str` or :py:class:`pathlib.Path`, optional
+        A reference raster dataset, whose coordinate reference system is used
+        for reprojection. The default is `None`.
+    epsg : `int`, optional
+        The EPSG code of the target coordinate reference system. The default is
+        `None`.
+    resample : `str`, optional
+        Spatial resampling algorithm to use, if the target resolution differs
+        from the source resolution. The default is `'near'`.
+    pixel_size : `tuple` [`int`, `int`], optional
+        The spatial pixel size of the target dataset. The default is
+        `(None, None)`.
+    overwrite : `bool`, optional
+        Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+
+    """
+    # convert path to source dataset to pathlib.Path object
+    src_path = pathlib.Path(src_ds)
+
+    # check whether the source dataset exists
+    if not src_path.exists():
+        LOGGER.warning('{} does not exist.'.format(str(src_path)))
+
+    # check whether the output datasets exists
+    trg_path = pathlib.Path(trg_ds)
+    if not trg_path.exists():
+        LOGGER.info('mkdir {}'.format(str(trg_path.parent)))
+        trg_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        # check whether to overwrite existing files
+        if overwrite:
+            LOGGER.info('Overwrite {}'.format(str(trg_path)))
+            trg_path.unlink()
+
+    # read the source dataset
+    src_ds = gdal.Open(str(src_path))
+
+    # the source dataset top left corner and spatial resolution
+    # src_gt = src_ds.GetGeoTransform()
+
+    # get the projection of the source dataset
+    src_epsg = get_epsg(src_ds)
+    src_proj = 'epsg:{}'.format(src_epsg)
+
+    # check whether a reference raster is provided
+    if ref_ds is not None:
+        # read reference dataset
+        ref_path = pathlib.Path(ref_ds)
+        ref_ds = gdal.Open(str(ref_path))
+
+        # get the projection of the reference dataset
+        ref_epsg = get_epsg(ref_ds)
+        ref_proj = 'epsg:{}'.format(ref_epsg)
+
+        # get the spatial resolution of the reference dataset
+        ref_gt = ref_ds.GetGeoTransform()
+        ref_xres = ref_gt[1]
+        ref_yres = ref_gt[-1]
+
+    else:
+        # check whether an epsg code is provided
+        if epsg is None:
+            LOGGER.warning('Specify a reference raster or a valid epsg code. '
+                           'Aborting...')
+            return
+
+        # the specified projection
+        ref_proj = 'epsg:{}'.format(epsg)
+
+        # the specified spatial resolution
+        ref_xres = pixel_size[0]
+        ref_yres = pixel_size[1]
+
+    # reproject source dataset to target projection
+    LOGGER.info(
+        'Reproject {}: {} to {}'.format(src_path.name, src_proj, ref_proj))
+    gdal.Warp(str(trg_path), str(src_path),
+              srcSRS=src_proj,
+              dstSRS=ref_proj,
+              dstNodata=0,
+              xRes=ref_xres,
+              yRes=ref_yres,
+              resampleAlg=resample)
+
+    # clear gdal cache
+    del src_ds, ref_ds

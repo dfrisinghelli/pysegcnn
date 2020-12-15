@@ -98,7 +98,7 @@ class Label(enum.Enum):
 
 
 class LabelMapping(enum.Enum):
-    """Generic enumeration for mapping label classes."""
+    """Generic enumeration for mapping class labels."""
 
     @classmethod
     def label_map(cls):

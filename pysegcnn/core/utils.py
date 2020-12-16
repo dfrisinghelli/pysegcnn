@@ -31,6 +31,7 @@ import xml.etree.ElementTree as ET
 import gdal
 import torch
 import numpy as np
+from osgeo import ogr, osr
 
 # locals
 from pysegcnn.core.constants import Gdal2Numpy
@@ -1722,7 +1723,7 @@ def get_epsg(ras_ds):
 
 
 def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
-                     pixel_size=(None, None), nodata=0, overwrite=False):
+                     pixel_size=(None, None), no_data=0, overwrite=False):
     """Reproject a raster to a defined coordinate reference system.
 
     Reproject ``src_ds`` to ``trg_ds`` using either:
@@ -1753,9 +1754,9 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         Spatial resampling algorithm to use, if the target resolution differs
         from the source resolution. The default is `'near'`.
     pixel_size : `tuple` [`int`, `int`], optional
-        The spatial pixel size of the target dataset. The default is
+        The pixel size of the target dataset, (height, width). The default is
         `(None, None)`.
-    nodata : `int` or `float`
+    no_data : `int` or `float`
         The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
@@ -1787,7 +1788,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
 
     # encode the NoData value to the output data type
     out_type = src_ds.GetRasterBand(1).DataType
-    nodata = getattr(Gdal2Numpy, gdal.GetDataTypeName(out_type)).value(nodata)
+    nodata = getattr(Gdal2Numpy, gdal.GetDataTypeName(out_type)).value(no_data)
 
     # get the projection of the source dataset
     src_epsg = get_epsg(src_ds)
@@ -1836,3 +1837,201 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
 
     # clear gdal cache
     del src_ds, ref_ds
+
+
+def reproject_vector(src_ds, trg_ds, ref_ds=None, epsg=None, overwrite=False):
+    """Reproject a shapefile to a defined coordinate reference system.
+
+    Reproject ``src_ds`` to ``trg_ds`` using either:
+        - a defined `EPSG`_ code
+        - a reference raster dataset ``ref_ds``, whose coordinate reference
+        system is used for the reprojection
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The shapefile to reproject.
+    trg_ds : `str` or :py:class:`pathlib.Path`
+        The target shapefile.
+    ref_ds : `str` or :py:class:`pathlib.Path`, optional
+        A reference raster dataset, whose coordinate reference system is used
+        for reprojection. The default is `None`.
+    epsg : `int`, optional
+        The EPSG code of the target coordinate reference system. The default is
+        `None`.
+    overwrite : `bool`, optional
+        Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+
+    """
+    # convert path to source dataset to pathlib.Path object
+    src_path = pathlib.Path(src_ds)
+
+    # check whether the source dataset exists
+    if not src_path.exists():
+        LOGGER.warning('{} does not exist.'.format(str(src_path)))
+
+    # check whether the output datasets exists
+    trg_path = pathlib.Path(trg_ds)
+    if not trg_path.exists():
+        LOGGER.info('mkdir {}'.format(str(trg_path.parent)))
+        trg_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        # check whether to overwrite existing files
+        if overwrite:
+            LOGGER.info('Overwrite {}'.format(str(trg_path)))
+            trg_path.unlink()
+
+    # read the source vector dataset
+    src_ds = ogr.Open(str(src_path))
+    src_lr = src_ds.GetLayer()
+
+    # source spatial reference
+    src_sr = src_lr.GetSpatialRef()
+
+    # check whether a reference raster is provided
+    if ref_ds is not None:
+        # read reference dataset
+        ref_path = pathlib.Path(ref_ds)
+        ref_ds = gdal.Open(str(ref_path))
+
+        # get the projection of the reference dataset
+        epsg = np.int(get_epsg(ref_ds))
+
+    else:
+        # check whether an epsg code is provided
+        if epsg is None:
+            LOGGER.warning('Specify a reference raster or a valid epsg code. '
+                           'Aborting...')
+            return
+
+    # target spatial reference
+    trg_sr = osr.SpatialReference()
+    trg_sr.ImportFromEPSG(epsg)
+
+    # coordinate transformation
+    crs_tr = osr.CoordinateTransformation(src_sr, trg_sr)
+
+    # create target dataset
+    driver = ogr.GetDriverByName('ESRI Shapefile')
+    trg_ds = driver.CreateDataSource(str(trg_path))
+    trg_lr = trg_ds.CreateLayer(src_lr.GetName(), trg_sr, ogr.wkbPolygon)
+
+    # add source fields to target dataset
+    src_ld = src_lr.GetLayerDefn()
+    for i in range(src_ld.GetFieldCount()):
+        field = src_ld.GetFieldDefn(i)
+        trg_lr.CreateField(field)
+
+    # output layer feature definition
+    trg_ld = trg_lr.GetLayerDefn()
+
+    # iterate over the source features
+    src_ft = src_lr.GetNextFeature()
+    while src_ft:
+        # feature geometry type
+        geom = src_ft.GetGeometryRef()
+
+        # reproject geometry
+        geom.Transform(crs_tr)
+
+        # create target feature
+        trg_ft = ogr.Feature(trg_ld)
+        trg_ft.SetGeometry(geom)
+        for i in range(trg_ld.GetFieldCount()):
+            trg_ft.SetField(trg_ld.GetFieldDefn(i).GetNameRef(),
+                            src_ft.GetField(i))
+
+        # add feature to shapefile
+        trg_lr.CreateFeature(trg_ft)
+
+        # clear target feature
+        del trg_ft
+
+        # next input feature
+        src_ft = src_lr.GetNextFeature()
+
+    # clear source and target dataset
+    del src_ds, trg_ds
+
+
+def vector2raster(src_ds, trg_ds, attribute, pixel_size, out_type, no_data=0,
+                  overwrite=False):
+    """Convert a shapefile to a GeoTIFF.
+
+    The vector data in the shapefile is converted to a GeoTIFF with a spatial
+    resolution defined by ``pixel_size``. The values of the GeoTIFF correspond
+    to the values of ``attribute``, which should be an existing attribute in
+    ``src_ds``.
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The shapefile to convert.
+    trg_ds : `str` or :py:class:`pathlib.Path`
+        The target raster dataset.
+    attribute : `str`
+        The shapefile attribute to use for the GeoTIFF values. Note that an
+        error is raised if ``attribute`` does not exist in ``src_ds``.
+    pixel_size : `tuple` [`int`, `int`]
+        The pixel size of the target dataset, (height, width). The default is
+        `(None, None)`.
+    out_type : `int`
+        An integer describing the data type of the target raster dataset. See
+        :py:func:`gdal.GetDataTypeName` for an enumeration of the data types
+        corresponding to the different integers.
+    no_data : `int` or `float`
+        The value to assign to NoData values in ``src_ds``. The default is `0`.
+    overwrite : `bool`, optional
+        Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``attribute`` does not exist in ``src_ds``.
+
+    """
+    # convert path to source dataset to pathlib.Path object
+    src_path = pathlib.Path(src_ds)
+
+    # check whether the source dataset exists
+    if not src_path.exists():
+        LOGGER.warning('{} does not exist.'.format(str(src_path)))
+
+    # check whether the output datasets exists
+    trg_path = pathlib.Path(trg_ds)
+    if not trg_path.exists():
+        LOGGER.info('mkdir {}'.format(str(trg_path.parent)))
+        trg_path.parent.mkdir(parents=True, exist_ok=True)
+    else:
+        # check whether to overwrite existing files
+        if overwrite:
+            LOGGER.info('Overwrite {}'.format(str(trg_path)))
+            trg_path.unlink()
+
+    # read the source vector dataset
+    src_ds = ogr.Open(str(src_path))
+    src_lr = src_ds.GetLayer()
+
+    # the field names of the source vector dataset
+    field_names = [field.name for field in src_lr.schema]
+
+    # check if the defined attribute name is in the field names
+    if attribute not in field_names:
+        raise ValueError('"{}" is not a valid attribute. {} has the following '
+                         'attributes: \n{}'.format(
+                             attribute, src_path.name, '\n'.join(field_names))
+                         )
+
+    # get the source spatial extent
+    x_min, x_max, y_min, y_max = src_lr.GetExtent()
+
+    # encode the NoData value to the output data type
+    nodata = getattr(Gdal2Numpy, gdal.GetDataTypeName(out_type)).value(no_data)
+
+    # rasterize vector dataset to defined spatial resolution
+    gdal.Rasterize(str(trg_path), str(src_path),
+                   xRes=pixel_size[1], yRes=pixel_size[0], noData=nodata,
+                   outputType=out_type, attribute=attribute)
+
+    # clear source dataset
+    del src_ds

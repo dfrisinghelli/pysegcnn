@@ -252,6 +252,102 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     return image
 
 
+def np2tif(array, filename, src_ds=None, epsg=None, geotransform=None):
+    """Save a :py:class`numpy.ndarray` as a GeoTIFF.
+
+    The spatial coordinate reference system can be specified in two ways:
+        - by providing a source dataset (``src_ds``) from which the spatial
+        reference is inherited
+        - by providing the `EPSG`_ code (``epsg``) of the target coordinate
+        reference system together with a tuple (``geotransform``) describing
+        the spatial extent of the ``array``.
+
+    Parameters
+    ----------
+    array : :py:class:`numpy.ndarray`
+        The array to save as GeoTIFF. Two-dimensional arrays with shape
+        (height, width) and three-dimensional arrays with shape
+        (bands, height, width) are supported.
+    filename : `str` or :py:class:`pathlib.Path`
+        The filename of the GeoTIFF.
+    src_ds : :py:class:`osgeo.gdal.Dataset`
+        The source dataset from which the spatial reference is inherited. The
+        default is `None`.
+    epsg : `int`, optional
+        The EPSG code of the target coordinate reference system. The default is
+        `None`.
+    geotransform : `tuple`
+        A tuple with six elements of the form,
+        (x_top_left, x_res, x_shift, y_top_left, -y_res, y_shift), describing
+        the spatial reference.
+
+    .. _EPSG:
+        https://epsg.io/
+
+    Raises
+    ------
+    ValueError
+        Raised if ``filename`` is does not end with a file suffix, e.g. ".tif".
+
+        Raised if not both ``epsg`` and ``geotransform`` are specified when
+        ``src_ds=None``.
+
+    """
+    # create the GeoTIFF driver
+    driver = gdal.GetDriverByName('GTiff')
+
+    # shape of the input array
+    if array.ndim > 2:
+        # three-dimensional array
+        bands, height, width = array.shape
+    else:
+        # two-dimensional array: expand to three-dimensions
+        bands, height, width = (1,) + array.shape
+        array = np.expand_dims(array, 0)
+
+    # data type
+    dtype = gdal.GetDataTypeByName(array.dtype.name)
+
+    # check output filename
+    filename = pathlib.Path(filename)
+    if not filename.suffix:
+        raise ValueError('{} is not a file.'.format(filename))
+    filename = pathlib.Path(str(filename).replace(filename.suffix, '.tif'))
+
+    # create output GeoTIFF
+    trg_ds = driver.Create(str(filename), width, height, bands, dtype)
+
+    # iterate over the number of bands and write to output file
+    for b in range(bands):
+        trg_band = trg_ds.GetRasterBand(b + 1)
+        trg_band.WriteArray(array[b, ...])
+        trg_band.FlushCache()
+
+    # set spatial reference
+    if src_ds is not None:
+        # inherit spatial reference from source dataset
+        trg_ds.SetProjection(src_ds.GetProjection())
+        trg_ds.SetGeoTransform(src_ds.GetGeoTransform())
+    else:
+        # check whether both the epsg code and the geotransform tuple are
+        # specified
+        if epsg is not None and geotransform is not None:
+            # create the spatial reference from the epsg code
+            sr = osr.SpatialReference().ImportFromEPSG(epsg).ExporttoWkt()
+
+            # set spatial reference from epsg
+            trg_ds.SetProjection(sr)
+            trg_ds.SetGeoTransform(geotransform)
+        else:
+            raise ValueError('Both "epsg" and "geotransform" required to set '
+                             'spatial reference if "src_ds" is None.')
+
+    # clear dataset
+    del trg_band, trg_ds
+
+    return
+
+
 def read_hdf(path, **kwargs):
     """Read a file in Hierarchical Data Format (HDF) to a dictionary.
 
@@ -420,6 +516,7 @@ def stack_tifs(filename, tifs, **kwargs):
     gdal.Translate(str(filename), vrt_ds, **kwargs)
 
     return
+
 
 def is_divisible(img_size, tile_size, pad=False):
     """Check whether an image is evenly divisible into square tiles.
@@ -1207,6 +1304,34 @@ def extract_archive(inpath, outpath, overwrite=False):
     return target
 
 
+def search_files(directory, pattern):
+    """Recursively searches files matching a pattern.
+
+    Parameters
+    ----------
+    directory : `str` or :py:class:`pathlib.Path`
+        The directory to recursively search.
+    pattern : `str`
+        The pattern to match. Regular expressions are supported.
+
+    Returns
+    -------
+    matches : `list` [:py:class:`pathlib.Path`]
+        List of files in ``directory`` matching ``pattern``.
+
+    """
+    # create regular expression
+    pattern = re.compile(pattern)
+
+    # recursively search for files matching the pattern
+    matches = []
+    for dirpath, _, files in os.walk(directory):
+        matches.extend([pathlib.Path(dirpath).joinpath(file) for file in files
+                        if pattern.search(file)])
+
+    return matches
+
+
 def read_landsat_metadata(file):
     """Parse the Landsat metadata *_MTL.txt file.
 
@@ -1339,40 +1464,42 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
     if not scene.exists():
         raise FileNotFoundError('{} does not exist.'.format(scene))
 
+    # search the scene metadata file
+    try:
+        metafile = search_files(scene, '[mMtTlL].txt').pop()
+    except IndexError:
+        LOGGER.error('Can not calibrate scene: metadata file matching pattern '
+                     '"*_[mMtTlL].txt" does not exist.')
+        return
+
+    # parse metadata file
+    metadata = read_landsat_metadata(metafile)
+
+    # get the name of the scene
+    name = metadata['LANDSAT_SCENE_ID']
+
     # default: output directory is equal to the input directory
     if outpath is None:
         outpath = scene
     else:
-        outpath = pathlib.Path(outpath)
+        outpath = pathlib.Path(outpath).joinpath(name)
         # check if output directory exists
         if not outpath.exists():
             outpath.mkdir(parents=True, exist_ok=True)
-
-    # the scene metadata file
-    try:
-        mpattern = re.compile('[mMtTlL].txt')
-        metafile = [f for f in scene.iterdir() if mpattern.search(str(f))]
-        metadata = read_landsat_metadata(metafile.pop())
-    except IndexError:
-        LOGGER.error('Can not calibrate scene {}: {} does not exist.'
-                     .format(scene.name, scene.name + '_MTL.txt'))
-        return
 
     # radiometric calibration constants
     oli, tir = get_radiometric_constants(metadata)
 
     # log current Landsat scene ID
-    LOGGER.info('Landsat scene id: {}'.format(metadata['LANDSAT_SCENE_ID']))
+    LOGGER.info('Landsat scene id: {}'.format(name))
 
     # images to process
-    ipattern = re.compile('B\\d{1,2}(.*)\\.[tT][iI][fF]')
-    images = [file for file in scene.iterdir() if ipattern.search(str(file))]
-
-    # pattern to match calibrated images
-    cal_pattern = re.compile('({}|{}|{}).[tT][iI][fF]'.format(*SUFFIXES))
+    ipattern = 'B\\d{1,2}(.*)\\.[tT][iI][fF]'
+    images = search_files(scene, ipattern)
 
     # check if any images were already processe
-    processed = [file for file in images if cal_pattern.search(str(file))]
+    processed = search_files(
+        outpath, '({}|{}|{}).[tT][iI][fF]'.format(*SUFFIXES))
     if any(processed):
         LOGGER.info('The following images have already been processed:')
 
@@ -1385,13 +1512,18 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
             LOGGER.info('Preparing to overwrite ...')
 
             # remove processed images
-            for toremove in processed:
+            for file in processed:
                 # remove from disk
-                os.unlink(toremove)
-                LOGGER.info('rm {}'.format(toremove))
+                file.unlink()
+                LOGGER.info('rm {}'.format(file))
 
                 # remove from list to process
-                images.remove(toremove)
+                try:
+                    images.remove(file)
+                except ValueError:
+                    # catch ValueError raised by remove if the item is not
+                    # present in the list
+                    pass
 
         # not overwriting, terminate calibration
         else:
@@ -1399,24 +1531,20 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
 
     # exclude defined bands from the calibration procedure
     for i in images:
-        current_band = ipattern.search(str(i))[0].split('.')[0]
+        current_band = re.compile(ipattern).search(str(i))[0].split('.')[0]
         if current_band in exclude:
             images.remove(i)
-
-    # image driver
-    driver = gdal.GetDriverByName('GTiff')
-    driver.Register()
 
     # iterate over the different bands
     for image in images:
         LOGGER.info('Processing: {}'.format(image.name))
 
         # read the image
-        img = gdal.Open(str(image))
-        band = img.GetRasterBand(1)
+        src_ds = gdal.Open(str(image))
+        src_band = src_ds.GetRasterBand(1)
 
         # read data as array
-        data = band.ReadAsArray()
+        data = src_band.ReadAsArray()
 
         # mask of erroneous values, i.e. mask of values < 0
         mask = data < 0
@@ -1481,56 +1609,42 @@ def landsat_radiometric_calibration(scene, outpath=None, exclude=[],
         # mask erroneous values
         toa[mask] = np.nan
 
-        # output file
-        outDs = driver.Create(str(fname), img.RasterXSize, img.RasterYSize,
-                              img.RasterCount, gdal.GDT_Float32)
-        outband = outDs.GetRasterBand(1)
-
-        # write array
-        outband.WriteArray(toa)
-        outband.FlushCache()
-
-        # Set the geographic information
-        outDs.SetProjection(img.GetProjection())
-        outDs.SetGeoTransform(img.GetGeoTransform())
+        # write to output file
+        np2tif(toa, filename=fname, src_ds=src_ds)
 
         # clear memory
-        del outband, band, img, outDs, toa, mask
+        del src_band, src_ds, toa, mask
 
-    # check if raw images should be removed
+    # check whether to remove raw archive data
     if remove_raw:
 
-        # raw digital number images
-        _dn = [i for i in scene.iterdir() if ipattern.search(str(i)) and
-               not cal_pattern.search(str(i))]
-
         # remove raw digital number images
-        for toremove in _dn:
+        for image in images:
             # remove from disk
-            os.unlink(toremove)
-            LOGGER.info('rm {}'.format(toremove))
-
+            image.unlink()
+            LOGGER.info('rm {}'.format(str(image)))
     return
 
 
 def s2_l1c_toa_ref(scene, outpath=None, exclude=[], overwrite=False,
-                   remove_raw=True):
+                   remove_raw=False):
     """Convert a `Sentinel-2 L1C`_ product to top of atmosphere reflectance.
 
     Parameters
     ----------
     scene : `str` or :py:class:`pathlib.Path`
-        Path to a Landsat scene in digital number format.
+        Path to a Sentinel-2 Level 1C scene.
     outpath : `str` or :py:class:`pathlib.Path`, optional
         Path to save the calibrated images. The default is `None`, which means
-        saving in the same directory ``scene``.
+        saving in the same directory ``scene``. If specified, ``outpath`` is
+        appended with the Sentinel-2 Level 1C scene name.
     exclude : `list` [`str`], optional
         Bands to exclude from the radiometric calibration. The default is `[]`.
     overwrite : `bool`, optional
         Whether to overwrite the calibrated images. The default is `False`.
     remove_raw : `bool`, optional
-        Whether to remove the raw digitial number images. The default is `True`
-        .
+        Whether to remove the raw digitial number images. The default is
+        `False`.
 
     Raises
     ------
@@ -1546,42 +1660,43 @@ def s2_l1c_toa_ref(scene, outpath=None, exclude=[], overwrite=False,
     if not scene.exists():
         raise FileNotFoundError('{} does not exist.'.format(scene))
 
+    # search the scene metadata file
+    try:
+        metafile = search_files(scene, 'MTD_MSIL1C.xml').pop()
+    except IndexError:
+        LOGGER.error('Can not calibrate scene: metadata file matching pattern '
+                     '"*_[mMtTlL].txt" does not exist.')
+        return
+
+    # parse the metadata file
+    tree = ET.parse(metafile)
+    root = tree.getroot()
+
+    # get the name of the scene
+    name = root.find('.//PRODUCT_URI').text.replace('.SAFE', '')
+
     # default: output directory is equal to the input directory
     if outpath is None:
         outpath = scene
     else:
-        outpath = pathlib.Path(outpath)
+        outpath = pathlib.Path(outpath).joinpath(name)
         # check if output directory exists
         if not outpath.exists():
             outpath.mkdir(parents=True, exist_ok=True)
 
-    # search the metadata file
-    try:
-        mpattern = re.compile('MTD_MSIL1C.xml')
-        metafile = [f for f in scene.iterdir() if mpattern.search(str(f))].pop()
-    except IndexError:
-        LOGGER.error('Can not calibrate scene {}: {} does not exist.'
-                     .format(scene.name, mpattern.pattern))
-        return
-
     # get quantification value to convert to top of atmosphere reflectance
-    tree = ET.parse(metafile)
-    root = tree.getroot()
     Q = np.float(root.find('.//QUANTIFICATION_VALUE').text)
 
     # print current scene id
-    LOGGER.info('Sentinel 2 scene id: {}'.format(
-        parse_landsat_scene(scene.name)['id']))
+    LOGGER.info('Sentinel 2 scene id: {}'.format(name))
 
     # images to process
-    ipattern = re.compile('B[0-9](?:[0-9]|A)\.jp2')
-    images = [file for file in scene.iterdir() if ipattern.search(str(file))]
-
-    # pattern to match calibrated images
-    cal_pattern = re.compile('({}|{}|{}).[tT][iI][fF]'.format(*SUFFIXES))
+    ipattern = 'B[0-9](?:[0-9]|A)\.jp2'
+    images = search_files(scene, ipattern)
 
     # check if any images were already processed
-    processed = [file for file in images if cal_pattern.search(str(file))]
+    processed = search_files(
+        outpath, '({}|{}|{}).[tT][iI][fF]'.format(*SUFFIXES))
     if any(processed):
         LOGGER.info('The following images have already been processed:')
 
@@ -1594,13 +1709,18 @@ def s2_l1c_toa_ref(scene, outpath=None, exclude=[], overwrite=False,
             LOGGER.info('Preparing to overwrite ...')
 
             # remove processed images
-            for toremove in processed:
+            for file in processed:
                 # remove from disk
-                os.unlink(toremove)
-                LOGGER.info('rm {}'.format(toremove))
+                file.unlink()
+                LOGGER.info('rm {}'.format(file))
 
                 # remove from list to process
-                images.remove(toremove)
+                try:
+                    images.remove(file)
+                except ValueError:
+                    # catch ValueError raised by remove if the item is not
+                    # present in the list
+                    pass
 
         # not overwriting, terminate calibration
         else:
@@ -1608,24 +1728,20 @@ def s2_l1c_toa_ref(scene, outpath=None, exclude=[], overwrite=False,
 
     # exclude defined bands from the calibration procedure
     for i in images:
-        current_band = ipattern.search(str(i))[0].split('.')[0]
+        current_band = re.compile(ipattern).search(str(i))[0].split('.')[0]
         if current_band in exclude:
             images.remove(i)
-
-    # image driver
-    driver = gdal.GetDriverByName('GTiff')
-    driver.Register()
 
     # iterate over the different bands
     for image in images:
         LOGGER.info('Processing: {}'.format(image.name))
 
         # read the image
-        img = gdal.Open(str(image))
-        band = img.GetRasterBand(1)
+        src_ds = gdal.Open(str(image))
+        src_band = src_ds.GetRasterBand(1)
 
         # read data as array
-        data = band.ReadAsArray()
+        data = src_band.ReadAsArray()
 
         # mask of erroneous values, i.e. mask of values < 0
         mask = data < 0
@@ -1639,34 +1755,20 @@ def s2_l1c_toa_ref(scene, outpath=None, exclude=[], overwrite=False,
         # mask erroneous values
         toa[mask] = np.nan
 
-        # output file
-        outDs = driver.Create(str(fname), img.RasterXSize, img.RasterYSize,
-                              img.RasterCount, gdal.GDT_Float32)
-        outband = outDs.GetRasterBand(1)
-
-        # write array
-        outband.WriteArray(toa)
-        outband.FlushCache()
-
-        # Set the geographic information
-        outDs.SetProjection(img.GetProjection())
-        outDs.SetGeoTransform(img.GetGeoTransform())
+        # write to output file
+        np2tif(toa, filename=fname, src_ds=src_ds)
 
         # clear memory
-        del outband, band, img, outDs, toa, mask
+        del src_band, src_ds, toa, mask
 
     # check whether to remove raw archive data
     if remove_raw:
-        # raw digital number images
-        _dn = [i for i in scene.iterdir() if ipattern.search(str(i)) and
-               not cal_pattern.search(str(i))]
 
         # remove raw digital number images
-        for toremove in _dn:
+        for image in images:
             # remove from disk
-            os.unlink(toremove)
-            LOGGER.info('rm {}'.format(toremove))
-
+            image.unlink()
+            LOGGER.info('rm {}'.format(str(image)))
     return
 
 

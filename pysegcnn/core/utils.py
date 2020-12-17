@@ -1833,6 +1833,10 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         - a reference raster dataset ``ref_ds``, whose coordinate reference
         system is used for the reprojection
 
+    If neither a reference dataset (``ref_ds``) nor an epsg code (``epsg``) is
+    provided, the target raster inherits the spatial reference from the source
+    raster.
+
     The spatial resolution of ``trg_ds`` can be specified with the parameter
     ``pixel_size``. If not specified, ``trg_ds`` shares the same spatial
     resolution as ``src_ds``. However, if ``pixel_size`` is specified and
@@ -1914,9 +1918,11 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     else:
         # check whether an epsg code is provided
         if epsg is None:
-            LOGGER.warning('Specify a reference raster or a valid epsg code. '
-                           'Aborting...')
-            return
+            # if no epsg code is specified, use the source dataset spatial
+            # reference
+            epsg = src_epsg
+            LOGGER.info('Neither a reference dataset nor an epsg code provided'
+                        '. Using the source spatial reference.')
 
         # the specified projection
         ref_proj = 'epsg:{}'.format(epsg)

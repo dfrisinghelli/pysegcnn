@@ -2143,3 +2143,32 @@ def vector2raster(src_ds, trg_ds, attribute, pixel_size, out_type, no_data=0,
 
     # clear source dataset
     del src_ds
+
+
+def array_replace(array, lookup):
+    """Replace all values in an array using a lookup table.
+
+    Note that this function only works for replacing each value in an array and
+    is primarily intended for use with class labels.
+
+    Parameters
+    ----------
+    array : :py:class:`numpy.ndarray`
+        The array of values to replace.
+    lookup : :py:class:`numpy.ndarray`, shape=(nvals, 2)
+        The lookup table. The first column of ``lookup`` should contain all the
+        `nvals` unique values in ``array`` to replace and the second column the
+        values to use as replacement.
+
+    Returns
+    -------
+    :py:class:`numpy.ndarray`
+        The array with the replaced values.
+
+    """
+    # create an index array to replace the values in the lookup table
+    indices = np.arange(lookup[:, 0].max() + 1)
+    indices[lookup[:, 0]] = lookup[:, 1]
+
+    # the array with the replaced values
+    return indices[array]

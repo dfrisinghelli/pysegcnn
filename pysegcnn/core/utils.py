@@ -2172,3 +2172,34 @@ def array_replace(array, lookup):
 
     # the array with the replaced values
     return indices[array]
+
+
+def dec2bin(number, nbits=8):
+    """Convert a decimal number to binary.
+
+    Parameters
+    ----------
+    number : `int`
+        The decimal number to convert.
+    nbits : `int`, optional
+        The number of bits to encode ``number``. The default is `8`.
+
+    Returns
+    -------
+    binary : `str`
+        The binary representation of ``number``.
+
+    """
+    # the binary number as string
+    binary = ''
+
+    # iterate over the number of bits
+    for bit in range(nbits - 1, -1, -1):
+        pos = number >> bit
+        # append bit value to binary number
+        if (pos & 1):
+            binary += '1'
+        else:
+            binary += '0'
+
+    return binary

@@ -97,16 +97,15 @@ class Label(enum.Enum):
                            'color': label.color} for label in cls}
 
 
-class LabelMapping(enum.Enum):
-    """Generic enumeration for mapping class labels."""
+class LabelMapping(dict):
+    """Generic class for mapping class labels."""
 
-    @classmethod
-    def label_map(cls):
-        """Return the label mapping dictionary."""
-        return {label.name: label.value for label in cls}
+    def to_numpy(self):
+        """Return the label mapping dictionary as :py:class:`numpy.ndarray`."""
+        return np.array(list(self.items()))
 
 
-class Gdal2Numpy(LabelMapping):
+class Gdal2Numpy(enum.Enum):
     """Data type mapping from gdal to numpy."""
 
     Byte = np.uint8

@@ -252,7 +252,8 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     return image
 
 
-def np2tif(array, filename, src_ds=None, epsg=None, geotransform=None):
+def np2tif(array, filename, names=None, src_ds=None, epsg=None,
+           geotransform=None):
     """Save a :py:class`numpy.ndarray` as a GeoTIFF.
 
     The spatial coordinate reference system can be specified in two ways:
@@ -270,13 +271,16 @@ def np2tif(array, filename, src_ds=None, epsg=None, geotransform=None):
         (bands, height, width) are supported.
     filename : `str` or :py:class:`pathlib.Path`
         The filename of the GeoTIFF.
-    src_ds : :py:class:`osgeo.gdal.Dataset`
+    names : `list` [`str`], optional
+        The names of the bands in ``array`` in order. The default is `None`.
+        If `None`, no band description is added.
+    src_ds : :py:class:`osgeo.gdal.Dataset`, optional
         The source dataset from which the spatial reference is inherited. The
         default is `None`.
     epsg : `int`, optional
         The EPSG code of the target coordinate reference system. The default is
         `None`.
-    geotransform : `tuple`
+    geotransform : `tuple`, optional
         A tuple with six elements of the form,
         (x_top_left, x_res, x_shift, y_top_left, -y_res, y_shift), describing
         the spatial reference.
@@ -321,6 +325,10 @@ def np2tif(array, filename, src_ds=None, epsg=None, geotransform=None):
     for b in range(bands):
         trg_band = trg_ds.GetRasterBand(b + 1)
         trg_band.WriteArray(array[b, ...])
+
+        # set the band description, if specified
+        if names is not None:
+            trg_band.SetDescription(names[b])
         trg_band.FlushCache()
 
     # set spatial reference

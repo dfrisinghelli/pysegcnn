@@ -50,7 +50,6 @@ from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
 from pysegcnn.core.graphics import (plot_loss, plot_confusion_matrix,
                                     plot_sample, Animate)
-from pysegcnn.core.constants import map_labels
 from pysegcnn.main.config import HERE, DRIVE_PATH
 
 # module level logger
@@ -1370,23 +1369,23 @@ class NetworkInference(BaseConfig):
         """
         return self.trg_ds.dataset.labels
 
-    @property
-    def label_map(self):
-        """Label mapping from the source to the target domain.
+    # @property
+    # def label_map(self):
+    #     """Label mapping from the source to the target domain.
 
-        See :py:func:`pysegcnn.core.constants.map_labels`.
+    #     See :py:func:`pysegcnn.core.constants.map_labels`.
 
-        Returns
-        -------
-        label_map : `dict` [`int`, `int`]
-            Dictionary with source labels as keys and corresponding target
-            labels as values.
+    #     Returns
+    #     -------
+    #     label_map : `dict` [`int`, `int`]
+    #         Dictionary with source labels as keys and corresponding target
+    #         labels as values.
 
-        """
-        # check whether the source domain labels are the same as the target
-        # domain labels
-        return map_labels(self.src_ds.get_labels(),
-                          self.trg_ds.dataset.get_labels())
+    #     """
+    #     # check whether the source domain labels are the same as the target
+    #     # domain labels
+    #     return map_labels(self.src_ds.get_labels(),
+    #                       self.trg_ds.dataset.get_labels())
 
     @property
     def source_is_target(self):

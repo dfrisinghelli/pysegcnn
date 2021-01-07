@@ -28,6 +28,7 @@ import csv
 import enum
 import itertools
 import logging
+import pathlib
 
 # externals
 import numpy as np
@@ -35,9 +36,9 @@ import torch
 from torch.utils.data import Dataset
 
 # locals
-from pysegcnn.core.constants import (Landsat8, Sentinel2, Label, SparcsLabels,
-                                     Cloud95Labels, ProSnowLabels,
-                                     MultiSpectralSensor)
+from pysegcnn.core.constants import (MultiSpectralSensor, Landsat8, Sentinel2,
+                                     Label, SparcsLabels, Cloud95Labels,
+                                     AlcdLabels)
 from pysegcnn.core.utils import (img2np, is_divisible, tile_topleft_corner,
                                  parse_landsat_scene, parse_sentinel2_scene)
 
@@ -54,7 +55,7 @@ class ImageDataset(Dataset):
 
     Attributes
     ----------
-    root_dir : `str`
+    root_dir : `str` or :py:class:`pathlib.Path`
         The root directory, path to the dataset.
     use_bands : `list` [`str`]
         List of the spectral bands to use during model training.
@@ -118,7 +119,7 @@ class ImageDataset(Dataset):
 
         Parameters
         ----------
-        root_dir : `str`
+        root_dir : `str` or :py:class:`pathlib.Path`
             The root directory, path to the dataset.
         use_bands : `list` [`str`], optional
             A list of the spectral bands to use. The default is `[]`.
@@ -160,7 +161,7 @@ class ImageDataset(Dataset):
         super().__init__()
 
         # dataset configuration
-        self.root = root_dir
+        self.root = pathlib.Path(root_dir)
         self.use_bands = use_bands
         self.tile_size = tile_size
         self.pad = pad
@@ -222,7 +223,7 @@ class ImageDataset(Dataset):
             LOGGER.info('Adding label "No data" with value={} to ground truth.'
                         .format(self.cval))
         else:
-            self._labels.pop(self.cval)
+            # self._labels.pop(self.cval)
             self.cval = 0
 
         # remove labels to merge from dataset instance labels
@@ -812,8 +813,7 @@ class StandardEoDataset(ImageDataset):
 
             # check if the current directory name matches a scene identifier
             scene = self.parse_scene_id(dirpath)
-
-            if scene is not None:
+            if scene:
 
                 # get the date of the current scene
                 date = scene['date']
@@ -897,7 +897,7 @@ class SparcsDataset(StandardEoDataset):
 
     @staticmethod
     def get_sensor():
-        """Landsat 8 bands of the Sparcs dataset.
+        """Landsat-8 bands of the Sparcs dataset.
 
         Returns
         -------
@@ -921,7 +921,7 @@ class SparcsDataset(StandardEoDataset):
 
     @staticmethod
     def parse_scene_id(scene_id):
-        """Parse Sparcs scene identifiers (Landsat 8).
+        """Parse Sparcs scene identifiers (Landsat-8).
 
         Parameters
         ----------
@@ -938,8 +938,16 @@ class SparcsDataset(StandardEoDataset):
         return parse_landsat_scene(scene_id)
 
 
-class ProSnowDataset(StandardEoDataset):
-    """Class for the ProSnow datasets."""
+class AlcdDataset(StandardEoDataset):
+    """Class for the `Alcd`_ dataset by `Baetens et al. (2019)`_.
+
+    .. _Alcd:
+        https://zenodo.org/record/1460961#.XYCTRzYzaHt
+
+    .. _Baetens et al. (2019):
+        https://www.mdpi.com/2072-4292/11/4/433
+
+    """
 
     def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
                  gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
@@ -949,8 +957,20 @@ class ProSnowDataset(StandardEoDataset):
                          sort, seed, transforms, merge_labels)
 
     @staticmethod
+    def get_size():
+        """Image size of the Alcd dataset.
+
+        Returns
+        -------
+        size : `tuple`
+            The image size (height, width).
+
+        """
+        return (1830, 1830)
+
+    @staticmethod
     def get_sensor():
-        """Sentinel 2 bands of the ProSnow datasets.
+        """Sentinel-2 bands of the Alcd dataset.
 
         Returns
         -------
@@ -962,7 +982,7 @@ class ProSnowDataset(StandardEoDataset):
 
     @staticmethod
     def get_labels():
-        """Class labels of the ProSnow datasets.
+        """Class labels of the Alcd dataset.
 
         Returns
         -------
@@ -970,11 +990,11 @@ class ProSnowDataset(StandardEoDataset):
             The class labels.
 
         """
-        return ProSnowLabels
+        return AlcdLabels
 
     @staticmethod
     def parse_scene_id(scene_id):
-        """Parse ProSnow scene identifiers (Sentinel 2).
+        """Parse Alcd scene identifiers (Sentinel-2).
 
         Parameters
         ----------
@@ -991,57 +1011,12 @@ class ProSnowDataset(StandardEoDataset):
         return parse_sentinel2_scene(scene_id)
 
 
-class ProSnowGarmisch(ProSnowDataset):
-    """Class for the ProSnow Garmisch dataset."""
-
-    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
-                 merge_labels={}):
-        # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms, merge_labels)
-
-    @staticmethod
-    def get_size():
-        """Image size of the ProSnow Garmisch dataset.
-
-        Returns
-        -------
-        size : `tuple`
-            The image size (height, width).
-
-        """
-        return (615, 543)
-
-
-class ProSnowObergurgl(ProSnowDataset):
-    """Class for the ProSnow Obergurgl dataset."""
-
-    def __init__(self, root_dir, use_bands=[], tile_size=None, pad=False,
-                 gt_pattern='(.*)gt\\.tif', sort=False, seed=0, transforms=[],
-                 merge_labels={}):
-        # initialize super class StandardEoDataset
-        super().__init__(root_dir, use_bands, tile_size, pad, gt_pattern,
-                         sort, seed, transforms, merge_labels)
-
-    @staticmethod
-    def get_size():
-        """Image size of the ProSnow Obergurgl dataset.
-
-        Returns
-        -------
-        size : `tuple`
-            The image size (height, width).
-
-        """
-        return (310, 270)
-
-
 class Cloud95Dataset(ImageDataset):
     """Class for the `Cloud-95`_ dataset by `Mohajerani & Saeedi (2020)`_.
 
     .. _Cloud-95:
         https://github.com/SorourMo/95-Cloud-An-Extension-to-38-Cloud-Dataset
+
     .. _Mohajerani & Saeedi (2020):
         https://arxiv.org/abs/2001.08768
 
@@ -1218,6 +1193,5 @@ class SupportedDatasets(enum.Enum):
     """Names and corresponding classes of the implemented datasets."""
 
     Sparcs = SparcsDataset
+    Alcd = AlcdDataset
     Cloud95 = Cloud95Dataset
-    Garmisch = ProSnowGarmisch
-    Obergurgl = ProSnowObergurgl

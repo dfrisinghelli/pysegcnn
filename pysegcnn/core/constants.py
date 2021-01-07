@@ -105,24 +105,6 @@ class LabelMapping(dict):
         return np.array(list(self.items()))
 
 
-class Gdal2Numpy(enum.Enum):
-    """Data type mapping from gdal to numpy."""
-
-    Byte = np.uint8
-    UInt8 = np.uint8
-    Int8 = np.int8
-    UInt16 = np.uint16
-    Int16 = np.int16
-    UInt32 = np.uint32
-    Int32 = np.int32
-    Float32 = np.float32
-    Float64 = np.float64
-    CInt16 = np.complex64
-    CInt32 = np.complex64
-    CFloat32 = np.complex64
-    CFloat64 = np.complex64
-
-
 class SparcsLabels(Label):
     """Class labels of the `Sparcs`_ dataset.
 
@@ -153,67 +135,37 @@ class Cloud95Labels(Label):
     Cloud = 1, 'white'
 
 
-class ProSnowLabels(Label):
-    """Class labels of the ProSnow datasets."""
+class AlcdLabels(Label):
+    """Class labels of the `Alcd`_ dataset.
 
-    Cloud = 0, 'white'
-    Snow = 1, 'lightblue'
-    Snow_free = 2, 'sienna'
-    No_data = 3, 'black'
-
-
-def map_labels(source, target):
-    """Map labels from a source domain to a target domain.
-
-    Parameters
-    ----------
-    source : :py:class:`enum.EnumMeta`
-        The source domain labels, i.e. the labels a model is trained with.
-    target : :py:class:`enum.EnumMeta`
-        The target domain labels, i.e. the labels of the dataset to apply the
-        model to.
-
-    Raises
-    ------
-    ValueError
-        Raised if no label mapping from ``source`` to ``target`` is defined.
-
-    Returns
-    -------
-    label_map : `dict` [`int`, `int`]
-        Dictionary with source labels as keys and corresponding target labels
-        as values.
+    .. _Alcd:
+        https://zenodo.org/record/1460961#.XYCTRzYzaHt
 
     """
-    # if source and target labels are equal, the label mapping is the
-    # identity
-    if source is target:
-        label_map = None
 
-    # mapping from Sparcs to ProSnow
-    elif source is SparcsLabels and target is ProSnowLabels:
-        # label transformation mapping
-        label_map = {
-            # Shadow = Snow Free
-            SparcsLabels.Shadow.id: ProSnowLabels.Snow_free.id,
-            # Shadow ow = Snow Free
-            SparcsLabels.Shadow_over_water.id: ProSnowLabels.Snow_free.id,
-            # Water = Snow Free
-            SparcsLabels.Water.id: ProSnowLabels.Snow_free.id,
-            # Snow = Snow
-            SparcsLabels.Snow.id: ProSnowLabels.Snow.id,
-            # Land = Snow Free
-            SparcsLabels.Land.id: ProSnowLabels.Snow_free.id,
-            # Cloud = Cloud
-            SparcsLabels.Cloud.id: ProSnowLabels.Cloud.id,
-            # Flooded = Snow Free
-            SparcsLabels.Flooded.id: ProSnowLabels.Snow_free.id,
-            # No data = No data
-            SparcsLabels.No_data.id: ProSnowLabels.No_data.id
-            }
+    No_data = 0, 'black'
+    Not_used = 1, 'black'
+    Cloud = 2, 'white'
+    Cirrus = 3, 'white'
+    Shadow = 4, 'grey'
+    Land = 5, 'forestgreen'
+    Water = 6, 'blue'
+    Snow = 7, 'lightblue'
 
-    else:
-        raise ValueError('Unknown label mapping from {} to {}'.
-                         format(source.__name__, target.__name__))
 
-    return label_map
+class Gdal2Numpy(enum.Enum):
+    """Data type mapping from gdal to numpy."""
+
+    Byte = np.uint8
+    UInt8 = np.uint8
+    Int8 = np.int8
+    UInt16 = np.uint16
+    Int16 = np.int16
+    UInt32 = np.uint32
+    Int32 = np.int32
+    Float32 = np.float32
+    Float64 = np.float64
+    CInt16 = np.complex64
+    CInt32 = np.complex64
+    CFloat32 = np.complex64
+    CFloat64 = np.complex64

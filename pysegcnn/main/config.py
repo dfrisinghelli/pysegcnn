@@ -19,27 +19,33 @@ License
 # -*- coding: utf-8 -*-
 
 # builtins
-import os
+import pathlib
 
 # from pysegcnn.core.transforms import Augment, FlipLr, FlipUd, Noise
 
 # path to this file
-HERE = os.path.abspath(os.path.dirname(__file__))
+HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
-DRIVE_PATH = 'C:/Eurac/2020/CCISNOW/_Datasets/'
-# DRIVE_PATH = '/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/'
+DRIVE_PATH = pathlib.Path('C:/Eurac/2020/CCISNOW/_Datasets/')
+# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')
 
 # name and paths to the datasets
-DATASETS = {'Sparcs': os.path.join(DRIVE_PATH, 'Sparcs'),
-            'Cloud95': os.path.join(DRIVE_PATH, 'Cloud95/Training'),
-            'Garmisch': os.path.join(DRIVE_PATH, 'ProSnow/Garmisch')}
+DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
+            'Alcd': DRIVE_PATH.joinpath('Alcd/60m')
+            }
 
 # name of the source domain dataset
 SRC_DS = 'Sparcs'
 
 # name of the target domain dataset
-TRG_DS = 'Garmisch'
+TRG_DS = 'Alcd'
+
+# spectral bands to use for training
+BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
+
+# tile size of a single sample
+TILE_SIZE = None
 
 # the source dataset configuration dictionary
 src_ds_config = {
@@ -63,11 +69,11 @@ src_ds_config = {
     # or [], which corresponds to using all available bands
     # IMPORTANT: the list of bands should be equal for the source and target
     #            domains, when using any sort of transfer learning
-    'bands': ['red', 'green', 'blue', 'nir', 'swir1', 'swir2'],
+    'bands': BANDS,
 
     # define the size of the network input
     # if None, the size will default to the size of a scene
-    'tile_size': 128,
+    'tile_size': TILE_SIZE,
 
     # whether to central pad the scenes with a constant value
     # if True, padding is used if the scenes are not evenly divisible into
@@ -146,14 +152,15 @@ src_ds_config = {
 trg_ds_config = {
     'dataset_name': TRG_DS,
     'root_dir': DATASETS[TRG_DS],
-    'gt_pattern': '(.*)class\\.img',
-    'bands': ['red', 'green', 'blue', 'nir', 'swir1', 'swir2'],
-    'tile_size': 128,
+    'gt_pattern': '(.*)Labels\\.tif',
+    'bands': BANDS,
+    'tile_size': TILE_SIZE,
     'pad': True,
     'seed': 0,
     'sort': True,
     'transforms': [],
-    'merge_labels': {}
+    'merge_labels': {'Cirrus': 'Cloud',
+                     'Not_used': 'No_data'}
 }
 
 # the source dataset split configuration dictionary

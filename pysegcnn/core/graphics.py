@@ -706,3 +706,24 @@ class Animate(object):
         # save animation to disk
         self.animation.save(str(self.path.joinpath(filename)),
                             writer='imagemagick', **kwargs)
+
+
+def _plot_composites(ds, path, fmt, dpi=300, alpha=0):
+    """Utility function to plot each scene of a dataset."""
+
+    # iterate over the scenes of the dataset
+    for scene in range(len(ds)):
+        # name of the current scene
+        scene_id = ds.scenes[scene]['id']
+        print(scene_id)
+
+        # get the data of the current scene
+        x, y = ds[scene]
+
+        # plot the current scene
+        fig = plot_sample(x, ds.use_bands, ds.labels, y=y, hide_labels=True,
+                          bands=['swir2', 'nir', 'green'], alpha=alpha)
+
+        # save the figure as vector graphic
+        fig.savefig(path.joinpath(scene_id + '.{}'.format(fmt)), dpi=dpi,
+                    bbox_inches='tight', format=fmt)

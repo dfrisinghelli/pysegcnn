@@ -237,20 +237,6 @@ model_config = {
     # define the model
     'model_name': 'Segnet',
 
-    # define the number of filters for each convolutional layer
-    # the number of filters should increase with depth
-    'filters': [32, 64, 128, 256],
-
-    # whether to apply skip connections from the encoder to the decoder
-    # True (recommended) or False
-    'skip_connection': True,
-
-    # configuration for each convolutional layer
-    'kwargs': {'kernel_size': 3,  # the size of the convolving kernel
-               'stride': 1,  # the step size of the kernel
-               'dilation': 1  # the field of view of the kernel
-               },
-
     # Transfer learning -------------------------------------------------------
 
     # whether to apply any sort of transfer learning
@@ -353,6 +339,10 @@ model_config = {
     # define the learning rate
     'lr': 0.001,
 
+    # optimizer keyword arguments
+    'optim_kwargs': {'weight_decay': 0.01,  # the weight decay rate
+                     'amsgrad': False}  # whether to use AMSGrad variant
+
 }
 
 # the evaluation configuration file
@@ -366,15 +356,7 @@ eval_config = {
     # pysegcnn.main.eval.py
 
     # the model to evaluate
-    # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m0_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s0_t10v08_t128_b128_r4g3b2n5s6s7_uda_cla_ProSnowGarmisch_m0_DateSplit_20161231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
-    # 'state_file': 'Segnet_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
-    # 'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12.pt',  # nopep8
-    'state_file': 'Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7_uda_enc_ProSnowGarmisch_m0_DateSplit_20171231_t128_b128_r4g3b2n8s11s12_pretrained_Segnet_SparcsDataset_m2_SceneSplit_s1_t10v08_t128_b128_r4g3b2n5s6s7.pt',  # nopep8
+    'state_file': '',
 
     # Evaluate on datasets defined at training time ---------------------------
 

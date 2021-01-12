@@ -2271,3 +2271,68 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False):
 
     # clear source and mask dataset
     del src_ds, mask_ds
+
+
+def pixels_within_lowres(top_left, res_prop):
+    """Calculate the position of high-res pixels within a low-res pixel.
+
+    .. important:
+
+        This function assumes that the low-resolution and high-resolution image
+        have the same georeferenced origin, i.e. the same top left corner in
+        physical coordinates.
+
+    Parameters
+    ----------
+    top_left : `tuple`
+        The top left corner indices of the low-resolution pixel in the
+        low-resolution image.
+    res_prop : `int` or `float`
+        The proportion of the low-resolution to the high-resolution.
+
+    Returns
+    -------
+    indices : `tuple` [:py:class:`numpy.ndarray`]
+        The indices of the high-resolution pixels within the high-resolution
+        image, which are fully-covered by the extent of the low-resolution
+        pixel ``top_left``.
+
+    Example
+    -------
+
+        The resolution of the low-resolution image is 250m, the one of the
+        high-resolution image is 30m, thus ``res_prop=250/30``. Assume that the
+        top left corner of the pixel of interest in the low-resolution image is
+        given by the position ``top_left=(0, 1)``. In the high-resolution
+        image, the top left corner of the pixel of interest is hence located
+        at ``top_left * res_prop``. This function returns the indices of all
+        the pixels in the high-resolution image, which are fully-covered by
+        the low-resolution pixel with position ``top-left``.
+
+    """
+    # the top left corner of a pixel in the low resolution image
+    xtl_lres, ytl_lres = top_left
+
+    # Note: only high-resolution pixel which are fully-covered by the
+    #       low-resolution pixel are considered.
+
+    # the top left corner of the first pixel in the high resolution image,
+    # which lies within the extent of the low-resolution pixel
+    xtl_hres, ytl_hres = (np.ceil(xtl_lres * res_prop).astype(np.int),
+                          np.ceil(ytl_lres * res_prop).astype(np.int))
+
+    # the bottom right corner of last pixel in the high resolution image,
+    # which lies within the extent of the low-resolution pixel
+    xbl_hres, ybl_hres = (np.floor((xtl_lres + 1) * res_prop).astype(np.int),
+                          np.floor((ytl_lres + 1) * res_prop).astype(np.int))
+
+    # the range of the indices in the high-resolution image
+    xhres = np.arange(xtl_hres, xbl_hres, 1)
+    yhres = np.arange(ytl_hres, ybl_hres, 1)
+
+    # the indices of all the high-resolution pixels, which fully lie within
+    # the extent of the low-resolution pixel
+    indices = (np.repeat(xhres, repeats=len(yhres)),
+               np.tile(yhres, reps=len(xhres)))
+
+    return indices

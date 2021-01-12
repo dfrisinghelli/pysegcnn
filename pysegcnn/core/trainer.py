@@ -456,6 +456,9 @@ class ModelConfig(BaseConfig):
     lr : `float`
         The learning rate used by the gradient descent algorithm.
         The default is `0.001`.
+    optim_kwargs : `dict`
+        Keyword arguments passed to the optimizer. The default is
+        `{'weight_decay': 0, 'amsgrad': False}`.
     early_stop : `bool`
         Whether to apply `Early Stopping`_. The default is `False`.
     mode : `str`
@@ -517,6 +520,8 @@ class ModelConfig(BaseConfig):
     uda_pos: str = 'enc'
     freeze: bool = True
     lr: float = 0.001
+    optim_kwargs: dict = dataclasses.field(
+        default_factory=lambda: {'weight_decay': 0, 'amsgrad': False})
     early_stop: bool = False
     mode: str = 'max'
     delta: float = 0
@@ -613,6 +618,11 @@ class ModelConfig(BaseConfig):
     def init_uda_loss_function(self, uda_lambda):
         """Instanciate the domain adaptation loss function.
 
+        Parameters
+        ----------
+        uda_lambda : `float`
+            The weight of the domain adaptation.
+
         Returns
         -------
         uda_loss_function : :py:class:`torch.nn.Module`
@@ -630,17 +640,20 @@ class ModelConfig(BaseConfig):
     def init_model(self, ds, state_file):
         """Instanciate the model and the optimizer.
 
-        If the model checkpoint ``state_file`` exists, the pretrained model and
-        optimizer states are loaded, otherwise the model and the optimizer are
-        initialized from scratch.
+        If ``self.checkpoint`` is set to True, the pretrained model in
+        ``state_file`` is loaded. Otherwise, the model is initiated
+        from scratch on the dataset ``ds``.
+
+        If ``self.transfer`` is True, the pretrained model in
+        ``self.pretrained_path`` is adjusted to the dataset ``ds``.
 
         Parameters
         ----------
         ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
-            The target domain dataset.
-            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+            The dataset to train the model on. An instance of
+            :py:class:`pysegcnn.core.dataset.ImageDataset`.
         state_file : :py:class:`pathlib.Path`
-            Path to a model checkpoint.
+            Path to save the trained model.
 
         Returns
         -------
@@ -656,65 +669,52 @@ class ModelConfig(BaseConfig):
         # write an initialization string to the log file
         LogConfig.init_log('{}: Initializing model run. ')
 
-        # copies of configuration variables to avoid boilerplate code
-        checkpoint = self.checkpoint
-        transfer = self.transfer
+        # set the random seed for reproducibility
+        torch.manual_seed(self.torch_seed)
+        LOGGER.info('Initializing model: {}'.format(state_file.name))
 
         # initialize checkpoint state, i.e. no model checkpoint
         checkpoint_state = {}
 
-        # check whether to load a model checkpoint
-        if checkpoint:
-            try:
-                # load model checkpoint
-                model, optimizer, model_state = Network.load(state_file)
-                checkpoint_state = self.load_checkpoint(model_state)
-
-            except FileNotFoundError:
-                LOGGER.warning('Checkpoint for model {} does not exist. '
-                               'Initializing new model.'
-                               .format(state_file.name))
-                checkpoint = False
-
-        # case (1): initialize a model for transfer learning
-        if transfer and not checkpoint:
-
-            # check whether to fine-tune (supervised) or adapt (unsupervised)
-            if self.supervised:
-                # load pretrained model to fine-tune on new dataset
-                LOGGER.info('Loading pretrained model for supervised transfer '
-                            'learning from: {}'.format(self.pretrained_path))
-                model, optimizer, model_state = self.transfer_model(
-                    self.pretrained_path, ds, self.freeze)
-            else:
-                # adapt a pretrained model to the target domain
-                if self.uda_from_pretrained:
-                    LOGGER.info('Loading pretrained model for unsupervised '
-                                'domain adaptation from: {}'
-                                .format(self.pretrained_path))
-                    model, optimizer, model_state = Network.load(
-                        self.pretrained_path)
-                else:
-                    transfer = False
-
-        # case (2): initialize a model to train on the source/target domain
-        #           only
-        if not transfer and not checkpoint:
-
-            # set the random seed for reproducibility
-            torch.manual_seed(self.torch_seed)
-            LOGGER.info('Initializing model: {}'.format(state_file.name))
-
-            # instanciate the model
-            model = self.model_class(
-                in_channels=len(ds.use_bands),
-                nclasses=len(ds.labels),
-                filters=self.filters,
-                skip=self.skip_connection,
-                **self.kwargs)
+        # instanciate a model from scratch
+        model = self.model_class(
+                        state_file=state_file,
+                        in_channels=len(ds.use_bands),
+                        nclasses=len(ds.labels),
+                        filters=self.filters,
+                        skip=self.skip_connection,
+                        **self.kwargs)
 
         # initialize the optimizer
-        optimizer = self.init_optimizer(model)
+        optimizer = self.init_optimizer(model, **self.optim_kwargs)
+
+        # check whether to load a model checkpoint
+        if self.checkpoint:
+            try:
+                # load model checkpoint
+                model_state = Network.load(self.pretrained_path)
+                checkpoint_state = self.load_checkpoint(model_state)
+
+                # load the pretrained model
+                model, optimizer = Network.load_pretrained_model(state_file)
+
+            except FileNotFoundError:
+                # model checkpoint does not exist
+                LOGGER.info('Checkpoint {} does not exist. Intializing model '
+                            'from scratch ...')
+
+            return model, optimizer
+
+        # whether to adjust a pretrained model for transfer learning
+        if self.transfer:
+            # load the pretrained model
+            model, _ = Network.load_pretrained_model(self.pretrained_path)
+
+            # adjust classification layer to new dataset
+            model = self.transfer_model(model, ds, self.freeze)
+
+            # reset the optimizer parameters
+            optimizer = self.init_optimizer(model, **self.optim_kwargs)
 
         return model, optimizer, checkpoint_state
 
@@ -745,23 +745,28 @@ class ModelConfig(BaseConfig):
         return checkpoint_state
 
     @staticmethod
-    def transfer_model(state_file, ds, freeze=True):
+    def transfer_model(model, bands, ds, freeze=False):
         """Adjust a pretrained model to a new dataset.
 
-        The classification layer of the pretrained model in ``state_file`` is
-        initilialized from scratch with the classes of the new dataset ``ds``.
-
-        The remaining model weights are preserved.
+        If the number of classes in the pretrained model ``model`` does not
+        match the number of classes in the dataset ``ds``, the classification
+        layer is initilialized from scratch with the classes of the dataset
+        ``ds``. The remaining model weights are preserved.
 
         Parameters
         ----------
-        state_file : :py:class:`pathlib.Path`
-            Path to a pretrained model.
+        model : :py:class:`pysegcnn.core.models.Network`
+            An instance of the pretrained model to adjust to the dataset``ds``.
+        bands : `list` [`str`]
+            The spectral bands used to train ``model``.
         ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
-            An instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
+            The dataset to which the classification layer of ``model`` is
+            adapted.
         freeze : `bool`, optional
-            Whether to freeze the pretrained weights. If `True`, only the last
-            layer (classification layer) is trained. The default is `True`.
+            Whether to freeze the pretrained weights. If `True`, all weights of
+            the pretrained model ``model`` are frozen. Only the classification
+            layer is retrained when it is initialized from scratch, otherwise
+            its weights are also frozen. The default is `False`.
 
         Raises
         ------
@@ -769,18 +774,13 @@ class ModelConfig(BaseConfig):
             Raised if ``ds`` is not an instance of
             :py:class:`pysegcnn.core.dataset.ImageDataset`.
         ValueError
-            Raised if the bands of ``ds`` do not match the bands of the dataset
-            the pretrained model was trained with.
+            Raised if the bands of ``ds`` do not match the bands ``bands`` of
+            the dataset the pretrained model ``model`` was trained with.
 
         Returns
         -------
         model : :py:class:`pysegcnn.core.models.Network`
-            An instance of :py:class:`pysegcnn.core.models.Network`. The
-            pretrained model adjusted to the new dataset.
-        optimizer : :py:class:`torch.optim.Optimizer`
-           The optimizer used to train the model.
-        model_state : `dict`
-            A dictionary containing the model and optimizer state.
+            An instance of a pretrained model adjusted to the dataset ``ds``.
 
         """
         # check input type
@@ -789,41 +789,40 @@ class ModelConfig(BaseConfig):
                             .format('.'.join([ImageDataset.__module__,
                                               ImageDataset.__name__])))
 
-        # load the pretrained model
-        model, optimizer, model_state = Network.load(state_file)
+        # check whether the current dataset uses the correct spectral bands
+        if ds.use_bands != bands:
+            raise ValueError('The model was trained with bands {}, not with '
+                             'bands {}.'.format(bands, ds.use_bands))
+
+        # configure model for the specified dataset
         LOGGER.info('Configuring model for new dataset: {}.'.format(
             ds.__class__.__name__))
-
-        # check whether the current dataset uses the correct spectral bands
-        if ds.use_bands != model_state['bands']:
-            raise ValueError('The model was trained with bands {}, not with '
-                             'bands {}.'
-                             .format(model_state['bands'], ds.use_bands))
-
-        # get the number of convolutional filters
-        filters = model_state['params']['filters']
 
         # reset model epoch to 0, since the model is trained on a different
         # dataset
         model.epoch = 0
-
-        # adjust the number of classes in the model
-        model.nclasses = len(ds.labels)
-        LOGGER.info('Replacing classification layer to classes: {}.'
-                    .format(', '.join('({}, {})'.format(k, v['label'])
-                                      for k, v in ds.labels.items())))
 
         # whether to freeze the pretrained model weigths
         if freeze:
             LOGGER.info('Freezing pretrained model weights ...')
             model.freeze()
 
-        # adjust the classification layer to the classes of the new dataset
-        model.classifier = Conv2dSame(in_channels=filters[0],
-                                      out_channels=model.nclasses,
-                                      kernel_size=1)
+        # check whether the number of classes the model was trained with
+        # matches the number of classes of the new dataset
+        if model.nclasses != len(ds.labels):
 
-        return model, optimizer, model_state
+            # adjust the number of classes in the model
+            model.nclasses = len(ds.labels)
+            LOGGER.info('Replacing classification layer to classes: {}.'
+                        .format(', '.join('({}, {})'.format(k, v['label'])
+                                          for k, v in ds.labels.items())))
+
+            # adjust the classification layer to the classes of the new dataset
+            model.classifier = Conv2dSame(in_channels=model.filters[0],
+                                          out_channels=model.nclasses,
+                                          kernel_size=1)
+
+        return model
 
 
 @dataclasses.dataclass
@@ -2513,6 +2512,7 @@ class NetworkTrainer(BaseConfig):
             _ = self.model.save(self.state_file,
                                 self.optimizer,
                                 bands=self.bands,
+                                nclasses=self.model.nclasses,
                                 src_train_dl=self.src_train_dl,
                                 src_valid_dl=self.src_valid_dl,
                                 src_test_dl=self.src_test_dl,

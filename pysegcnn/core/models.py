@@ -158,6 +158,10 @@ class Network(nn.Module):
         # store model epoch
         model_state['epoch'] = self.epoch
 
+        # store model construction parameters
+        model_state['in_channels'] = self.in_channels
+        model_state['nclasses'] = self.nclasses
+
         # store model and optimizer state
         model_state['model_state_dict'] = self.state_dict()
         model_state['optim_state_dict'] = optimizer.state_dict()
@@ -284,7 +288,7 @@ class Network(nn.Module):
 
         # instanciate the pretrained model architecture
         model = model_class(state_file=state_file,
-                            in_channels=len(model_state['bands']),
+                            in_channels=model_state['in_channels'],
                             nclasses=model_state['nclasses'])
 
         # instanciate the optimizer
@@ -487,9 +491,3 @@ class SupportedOptimizers(enum.Enum):
 
     Adam = optim.Adam
     AdamW = optim.AdamW
-
-
-class SupportedLossFunctions(enum.Enum):
-    """Names and corresponding classes of the tested loss functions."""
-
-    CrossEntropy = nn.CrossEntropyLoss

@@ -30,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 
 # global variable used to determine where to compute the domain adaptation loss
 # within the model
-UDA_POSITIONS = ['enc', 'dec', 'cla']
+UDA_POSITIONS = ['inp', 'enc', 'dec', 'cla']
 
 
 def coral(source, target, device='cpu'):

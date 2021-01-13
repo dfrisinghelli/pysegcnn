@@ -50,8 +50,8 @@ TILE_SIZE = None
 # the source dataset configuration dictionary
 src_ds_config = {
 
-    # ------------------------------- Dataset ---------------------------------
-
+    # -------------------------------------------------------------------------
+    # Dataset -----------------------------------------------------------------
     # -------------------------------------------------------------------------
 
     # name of the dataset
@@ -166,6 +166,10 @@ trg_ds_config = {
 # the source dataset split configuration dictionary
 src_split_config = {
 
+    # -------------------------------------------------------------------------
+    # Dataset split -----------------------------------------------------------
+    # -------------------------------------------------------------------------
+
     # the mode to split the dataset:
     #
     #    - 'random': randomly split the scenes
@@ -200,7 +204,7 @@ src_split_config = {
     # scenes before date build the training set, scenes after the date build
     # the validation set, the test set is empty
     # used if split_mode='date'
-    'date': '20161231',
+    'date': '',
     'dateformat': '%Y%m%d',
 
     # whether to drop samples (during training only) with a fraction of
@@ -217,12 +221,12 @@ src_split_config = {
 # the target dataset split configuration dictionary
 trg_split_config = {
 
-    'split_mode': 'date',
+    # 'split_mode': 'date',
     # 'split_mode': 'random',
-    # 'split_mode': 'scene',
+    'split_mode': 'scene',
     'ttratio': 1,
     'tvratio': 0.8,
-    'date': '20171231',
+    'date': '',
     'dateformat': '%Y%m%d',
     'drop': 0,
     }
@@ -230,14 +234,16 @@ trg_split_config = {
 # the model configuration dictionary
 model_config = {
 
-    # ------------------------------ Network ----------------------------------
-
+    # -------------------------------------------------------------------------
+    # Network -----------------------------------------------------------------
     # -------------------------------------------------------------------------
 
     # define the model
     'model_name': 'Segnet',
 
+    # -------------------------------------------------------------------------
     # Transfer learning -------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     # whether to apply any sort of transfer learning
     # if transfer=False, the model is only trained on the source dataset
@@ -247,8 +253,7 @@ model_config = {
     # name of the pretrained model to apply for transfer learning
     # Required if supervised=True
     # Optional if unsupervised=True
-    'pretrained_model': 'Unet_SparcsDataset_Adam_RandomSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
-    # 'pretrained_model': 'Unet_SparcsDataset_Adam_SceneSplit_s0_t10v08_t125_b128_r4g3b2n5.pt',  # nopep8
+    'pretrained_model': '',  # nopep8
 
     # Supervised vs. Unsupervised ---------------------------------------------
 
@@ -277,13 +282,15 @@ model_config = {
 
     # the layer where to compute the domain adaptation loss
     # currently, the following positions are supported:
+    #   - 'inp': compute the domain adaptation loss with the input features
     #   - 'enc': compute the domain adaptation loss with the encoder features
     #   - 'dec': compute the domain adaptation loss with the decoder features
     #   - 'cla': compute the domain adaptation loss with the classifier
     #            features
-    # 'uda_pos': 'enc',
+    # 'uda_pos': 'inp',
+    'uda_pos': 'enc',
     # 'uda_pos': 'dec',
-    'uda_pos': 'cla',
+    # 'uda_pos': 'cla',
 
     # The weight of the domain adaptation, trading off adaptation with
     # classification accuracy on the source domain.
@@ -299,8 +306,8 @@ model_config = {
     #            the source domain.
     'uda_lambda': 0.01,
 
-    # ----------------------------- Training  ---------------------------------
-
+    # -------------------------------------------------------------------------
+    # Training configuration --------------------------------------------------
     # -------------------------------------------------------------------------
 
     # whether to save the model state to disk
@@ -330,9 +337,6 @@ model_config = {
     # the whole training dataset
     'epochs': 100,
 
-    # define a classification loss function to calculate the network error
-    'cla_loss': 'CrossEntropy',
-
     # define an optimizer to update the network weights
     'optim_name': 'Adam',
 
@@ -342,14 +346,12 @@ model_config = {
     # optimizer keyword arguments
     'optim_kwargs': {'weight_decay': 0.01,  # the weight decay rate
                      'amsgrad': False}  # whether to use AMSGrad variant
-
 }
 
 # the evaluation configuration file
 eval_config = {
-
+    # -------------------------------------------------------------------------
     # ----------------------------- Evaluation --------------------------------
-
     # -------------------------------------------------------------------------
 
     # these options are only used for evaluating a trained model using

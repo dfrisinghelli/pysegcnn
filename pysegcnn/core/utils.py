@@ -483,7 +483,7 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
         for ds in hdf:
 
             # name of the current subdataset
-            name = ds[0].split(':')[-1]
+            name = ds[0].split(':')[-1].lower()
 
             # filename of the GeoTIFF
             tif_name = outpath.joinpath(
@@ -501,8 +501,8 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
             LOGGER.info('Creating stack: {}'.format(stk))
 
             # generated GeoTIFF files
-            tifs = [str(f) for f in outpath.iterdir() if f.suffix in
-                    ['.tif', '.TIF']]
+            tifs = sorted([str(f) for f in outpath.iterdir() if f.suffix in
+                           ['.tif', '.TIF']])
 
             # create stacked GeoTIFF
             stack_tifs(str(stk), tifs)

@@ -229,7 +229,8 @@ class ImageDataset(Dataset):
         # remove labels to merge from dataset instance labels
         for k, v in self.merge_labels.items():
             self._labels.pop(getattr(self.label_class, k).id)
-            LOGGER.info('Merging label: {} -> {}.'.format(k, v))
+            LOGGER.info('{}, merging label: {} -> {}.'.format(
+                self.__class__.__name__, k, v))
 
         # create model class labels
         # map the original class labels to an ascending sequence of integers

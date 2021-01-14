@@ -461,8 +461,8 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
     if tifs:
         LOGGER.info('The following files already exist in {}'
                     .format(str(outpath)))
-        LOGGER.info('\n'.join(['{}'.format(str(tif.name)) for tif in tifs])
-                    )
+        LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
+            ['{}'.format(str(tif.name)) for tif in tifs]))
         if not overwrite:
             # return if not overwriting
             LOGGER.info('Aborting...')
@@ -490,6 +490,7 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
                 path.name.replace(path.suffix, '_{}.tif'.format(name)))
 
             # convert hdf subdataset to GeoTIFF
+            LOGGER.info('Converting: {}'.format(tif_name.name))
             gdal.Translate(str(tif_name), gdal.Open(ds[0]), **kwargs)
 
         # check whether to create a GeoTIFF stack
@@ -497,7 +498,7 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
             # filename for the GeoTIFF stack
             stk = tif_name.parent.joinpath(
                 path.name.replace(path.suffix, '.tif'))
-            LOGGER.info('Creating GeoTIFF stack: {}'.format(stk))
+            LOGGER.info('Creating stack: {}'.format(stk))
 
             # generated GeoTIFF files
             tifs = [str(f) for f in outpath.iterdir() if f.suffix in
@@ -537,6 +538,7 @@ def stack_tifs(filename, tifs, **kwargs):
         vrt_ds.GetRasterBand(i + 1).SetDescription(band_name)
 
     # create GeoTIFF stack
+    gdal.PushErrorHandler('CPLQuietErrorHandler')
     gdal.Translate(str(filename), vrt_ds, **kwargs)
 
     return

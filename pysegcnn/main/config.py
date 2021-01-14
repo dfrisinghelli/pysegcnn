@@ -45,7 +45,7 @@ TRG_DS = 'Alcd'
 BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
 
 # tile size of a single sample
-TILE_SIZE = None
+TILE_SIZE = 128
 
 # the source dataset configuration dictionary
 src_ds_config = {
@@ -247,33 +247,39 @@ model_config = {
 
     # whether to apply any sort of transfer learning
     # if transfer=False, the model is only trained on the source dataset
-    'transfer': True,
-    # 'transfer': False
+    # 'transfer': True,
+    'transfer': False,
 
     # name of the pretrained model to apply for transfer learning
-    # Required if supervised=True
-    # Optional if unsupervised=True
+    # required if transfer=True and supervised=True
+    # optional if transfer=True and unsupervised=True
     'pretrained_model': '',  # nopep8
 
     # Supervised vs. Unsupervised ---------------------------------------------
-
-    # the mode of transfer learning
-    # supervised=True: fine-tune a pretrained model to the target dataset
-    #                  IMPORTANT: this option requires target domain labels!
-    # supervised=False: adapt a model via unsupervised domain adaptation from
-    #                   the source to the target domain
+    # -------------------------------------------------------------------------
+    # IMPORTANT: this setting only applies if 'transfer=True'
+    #            if 'transfer=False', supervised is automatically set to True
+    # -------------------------------------------------------------------------
+    # supervised=True: the pretrained model defined by 'pretrained_model' is
+    #                  trained using labeled data from the specified SOURCE
+    #                  dataset ('src_ds_config') only
+    #
+    # supervised=False: A model is trained jointly using LABELED data from the
+    #                   specified SOURCE ('src_ds_config') dataset and
+    #                   UNLABELED data from the specified TARGET dataset
+    #                   ('trg_ds_config'). The model is either trained from
+    #                   scratch ('uda_from_pretrained=False') or the pretrained
+    #                   model in 'pretrained_model' is loaded
+    #                   ('uda_from_pretrained=True')
     # 'supervised': True,
     'supervised': False,
 
-    # whether to freeze the pretrained model weights when fine-tuning
-    # NOTE: this option only works for supervised transfer learning
-
-    # if True, only the classification layer is fine-tuned
-    # if False, all layers are fine-tuned
+    # whether to freeze the pretrained model weights when using supervised
+    # transfer learning
     'freeze': True,
 
-    # Loss function for unsupervised domain adaptation
-    # Currently supported methods:
+    # loss function for unsupervised domain adaptation
+    # currently supported methods:
     #   - DeepCORAL (correlation alignment)
     'uda_loss': 'coral',
 

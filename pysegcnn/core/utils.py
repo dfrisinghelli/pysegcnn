@@ -131,7 +131,6 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
                         gdal.GetDataTypeName(img.GetRasterBand(1).DataType))
         dtype = dtype.value
 
-
     elif path is None:
         LOGGER.warning('Path is of NoneType, returning.')
         return
@@ -252,7 +251,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     return image
 
 
-def np2tif(array, filename, names=None, src_ds=None, epsg=None,
+def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
            geotransform=None):
     """Save a :py:class`numpy.ndarray` as a GeoTIFF.
 
@@ -271,6 +270,9 @@ def np2tif(array, filename, names=None, src_ds=None, epsg=None,
         (bands, height, width) are supported.
     filename : `str` or :py:class:`pathlib.Path`
         The filename of the GeoTIFF.
+    no_data : `None` or `int` or `float`
+        The NoData value for each band in the output raster. The default is
+        `None`, which means no NoData value is specified.
     names : `list` [`str`], optional
         The names of the bands in ``array`` in order. The default is `None`.
         If `None`, no band description is added.
@@ -329,6 +331,10 @@ def np2tif(array, filename, names=None, src_ds=None, epsg=None,
         # set the band description, if specified
         if names is not None:
             trg_band.SetDescription(names[b])
+
+        # set the NoData value, if specified
+        if no_data is not None:
+            trg_band.SetNoDataValue(no_data)
         trg_band.FlushCache()
 
     # set spatial reference
@@ -519,6 +525,16 @@ def stack_tifs(filename, tifs, **kwargs):
     # build virtual raster dataset
     vrt = str(filename).replace('.tif', '.vrt')
     vrt_ds = gdal.BuildVRT(str(vrt), tifs, separate=True)
+
+    # set band descriptions
+    for i, tif in enumerate(tifs):
+
+        # get the description of the band in the tif file
+        tif_ds = gdal.Open(str(tif))
+        band_name = tif_ds.GetRasterBand(1).GetDescription()
+
+        # set the description of the band in the vrt file
+        vrt_ds.GetRasterBand(i + 1).SetDescription(band_name)
 
     # create GeoTIFF stack
     gdal.Translate(str(filename), vrt_ds, **kwargs)

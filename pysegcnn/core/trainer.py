@@ -385,16 +385,13 @@ class SplitConfig(BaseConfig):
         # check whether each dataset in args has the correct type
         loaders = []
         for ds in args:
-            if not isinstance(ds, Dataset):
-                raise TypeError('Expected {}, got {}.'
-                                .format(repr(Dataset), type(ds)))
 
             # check if the dataset is not empty
             if len(ds) > 0:
                 # build the dataloader
                 loader = DataLoader(ds, **kwargs)
             else:
-                loader = None
+                loader = DataLoader(None)
             loaders.append(loader)
 
         return loaders
@@ -429,9 +426,8 @@ class ModelConfig(BaseConfig):
         the model architecture of ``pretrained_model`` is adjusted to a new
         dataset. The default is `False`.
     supervised : `bool`
-        Whether to fine-tune a pretrained model (True) or whether to train a
-        model via unsupervised domain adapation methods (False). The default is
-        `False`. Only used if ``transfer=True``.
+        Whether to train a model supervised (``supervised=True``) or
+        semi-supervised (``supervised=False``). The default is `True`.
     pretrained_model : `str`
         The name of the pretrained model to use for transfer learning.
         The default is `''`, i.e. do not use a pretrained model.
@@ -500,7 +496,7 @@ class ModelConfig(BaseConfig):
     batch_size: int = 64
     checkpoint: bool = False
     transfer: bool = False
-    supervised: bool = False
+    supervised: bool = True
     pretrained_model: str = ''
     uda_from_pretrained: bool = False
     uda_lambda: float = 0.5
@@ -538,18 +534,25 @@ class ModelConfig(BaseConfig):
         # check whether the optimizer is currently supported
         self.optim_class = item_in_enum(self.optim_name, SupportedOptimizers)
 
-        # check whether the domain adaptation loss is currently supported
-        if self.transfer and not self.supervised:
-            self.uda_loss_class = item_in_enum(self.uda_loss,
-                                               SupportedUdaMethods)
+        # check whether to apply transfer learning
+        if not self.transfer:
+            # if transfer learning is not required, training is automatically
+            # set to supervised mode
+            self.supervised = True
+        else:
+            # whether to apply supervised or semi-supervised transfer learning
+            if not self.supervised:
+                self.uda_loss_class = item_in_enum(self.uda_loss,
+                                                   SupportedUdaMethods)
 
-            # check whether the position to compute the domain adaptation loss
-            # is supported
-            if self.uda_pos not in UDA_POSITIONS:
-                raise ValueError('Position {} to compute domain adaptation '
-                                 'loss is not supported. Valid positions are '
-                                 '{}.'.format(self.uda_pos,
-                                              ', '.join(UDA_POSITIONS)))
+                # check whether the position to compute the domain adaptation
+                # loss is supported
+                if self.uda_pos not in UDA_POSITIONS:
+                    raise ValueError('Position {} to compute domain adaptation'
+                                     ' loss is not supported. Valid positions '
+                                     'are {}.'.format(self.uda_pos,
+                                                      ', '.join(UDA_POSITIONS))
+                                     )
 
         # path to model states
         self.state_path = pathlib.Path(HERE).joinpath('_models/')
@@ -639,13 +642,10 @@ class ModelConfig(BaseConfig):
         model = self.model_class(
                         state_file=state_file,
                         in_channels=len(ds.use_bands),
-                        nclasses=len(ds.labels),
-                        filters=self.filters,
-                        skip=self.skip_connection,
-                        **self.kwargs)
+                        nclasses=len(ds.labels))
 
         # initialize the optimizer
-        optimizer = self.init_optimizer(model, **self.optim_kwargs)
+        optimizer = self.init_optimizer(model)
 
         # check whether to load a model checkpoint
         if self.checkpoint:
@@ -664,8 +664,8 @@ class ModelConfig(BaseConfig):
 
             return model, optimizer
 
-        # whether to adjust a pretrained model for transfer learning
-        if self.transfer:
+        # whether to adjust a pretrained model for supervised transfer learning
+        if self.transfer and self.supervised:
             # load the pretrained model
             model, _ = Network.load_pretrained_model(self.pretrained_path)
 
@@ -673,7 +673,7 @@ class ModelConfig(BaseConfig):
             model = self.transfer_model(model, ds, self.freeze)
 
             # reset the optimizer parameters
-            optimizer = self.init_optimizer(model, **self.optim_kwargs)
+            optimizer = self.init_optimizer(model)
 
         return model, optimizer, checkpoint_state
 
@@ -750,9 +750,10 @@ class ModelConfig(BaseConfig):
         # channels as the pretrained model
         if len(ds.use_bands) != model.in_channels:
             raise ValueError('The model was trained with {} input channels, '
-                             'which does not match the {} input channels of the
-                             'specified dataset.'.format(model.in_channels,
-                                                         len(ds.use_bands)))
+                             'which does not match the {} input channels of '
+                             'the specified dataset.'.format(
+                                 model.in_channels, len(ds.use_bands))
+                             )
 
         # configure model for the specified dataset
         LOGGER.info('Configuring model for new dataset: {}.'.format(
@@ -844,7 +845,7 @@ class StateConfig(BaseConfig):
         super().__post_init__()
 
         # base dataset state filename: Dataset_SplitMode_SplitParams
-        self.ds_state_file = '{}_{}Split_{}'
+        self.ds_state_file = '{}_{}_{}'
 
         # base model state filename: Model_Optim
         self.ml_state_file = '{}_{}'
@@ -939,7 +940,7 @@ class StateConfig(BaseConfig):
             split_params = sc.date
         else:
             # store the random split parameters
-            split_params = 's{}_t{}v{}'.format(
+            split_params = 's{}t{}v{}'.format(
                 dc.seed, str(sc.ttratio).replace('.', ''),
                 str(sc.tvratio).replace('.', ''))
 
@@ -971,7 +972,8 @@ class StateConfig(BaseConfig):
         # get the band numbers
         if dc.bands:
             bands = dc.dataset_class.get_sensor().band_dict()
-            bformat = ''.join([(v[0] + str(k)) for k, v in bands.items()])
+            bformat = ''.join([(v[0] + str(k)) for k, v in bands.items() if
+                               v in dc.bands])
         else:
             bformat = 'all'
 
@@ -1129,7 +1131,7 @@ class ClassificationNetworkTrainer(BaseConfig):
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
 
-    .. _multi-class cross-entropy loss:
+    .. _categorical cross-entropy loss:
         https://gombru.github.io/2018/05/23/cross_entropy_loss/
 
     .. _softmax:
@@ -1177,11 +1179,11 @@ class ClassificationNetworkTrainer(BaseConfig):
         # send the model to the gpu if available
         self.model = self.model.to(self.device)
 
-        # instanciate multiclass classification loss function: multi-class
+        # instanciate multiclass classification loss function: categorical
         # cross-entropy loss function
         self.cla_loss_function = nn.CrossEntropyLoss()
         LOGGER.info('Classification loss function: {}.'
-                    .format(repr(self.cla_loss_class)))
+                    .format(repr(nn.CrossEntropyLoss)))
 
         # instanciate metric tracker
         self.tracker = MetricTracker(
@@ -1460,7 +1462,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         return fs
 
-     def __repr__(self):
+    def __repr__(self):
         """Representation.
 
         Returns
@@ -1488,12 +1490,18 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
 
     Attributes
     ----------
-    trg_train_dl : :py:class:`torch.utils.data.DataLoader`
+    supervised : `bool`
+        Whether the model is trained supervised or semi-supervised, where
+        ``supervised=True`` corresponds to a supervised training on the
+        source domain only and ``supervised=False`` corresponds to a
+        supervised training on the source domain combined with an unsupervised
+        domain adaptation to the target domain. The default is `True`.
+    trg_train_dl : `None` or :py:class:`torch.utils.data.DataLoader`
         The target domain training :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
         :py:class:`pysegcnn.core.split.CustomSubset`. The default is an empty
         :py:class:`torch.utils.data.DataLoader`.
-    trg_valid_dl : :py:class:`torch.utils.data.DataLoader`
+    trg_valid_dl : `None` or  :py:class:`torch.utils.data.DataLoader`
         The target domain validation :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
         :py:class:`pysegcnn.core.split.CustomSubset`. The default is an empty
@@ -1519,6 +1527,7 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
 
     """
 
+    supervised: bool = True
     trg_train_dl: DataLoader = DataLoader(None)
     trg_valid_dl: DataLoader = DataLoader(None)
     trg_test_dl: DataLoader = DataLoader(None)
@@ -1539,21 +1548,14 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
         """
         super().__post_init__()
 
-        # whether to train using supervised transfer learning or
-        # deep domain adaptation
-
-        # dummy variables for easy model evaluation
-        self.uda = False
-        if self.trg_train_dl.dataset is not None and self.uda_lambda > 0:
+        # whether to train supervised or semi-supervised
+        if not self.supervised:
 
             # set the device for computing domain adaptation loss
             self.uda_loss_function.device = self.device
 
-            # adjust metrics and initialize metric tracker
+            # adjust metrics to accomodate domain adaptation metrics
             self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
-
-            # train using deep domain adaptation
-            self.uda = True
 
     def _inp_uda(self, src_input, trg_input):
         """Domain adaptation at input feature level."""
@@ -1727,7 +1729,7 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
             The function to train a model for a single epoch.
 
         """
-        if self.uda:
+        if not self.supervised:
             self.train_domain_adaptation(epoch)
         else:
             self.train_source_domain(epoch)
@@ -1754,6 +1756,11 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
             Representation string.
 
         """
+        # dataset tile size
+        tile_size = (2 * (train_dl.dataset.dataset.tile_size,) if
+                     train_dl.dataset.dataset.tile_size is not None else
+                     train_dl.dataset.dataset.get_size())
+
         # dataset configuration
         fs = '    (dataset):\n        '
         fs += ''.join(repr(train_dl.dataset.dataset)).replace('\n',
@@ -1761,8 +1768,8 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
         fs += '\n    (batch):\n        '
         fs += '- batch size: {}\n        '.format(train_dl.batch_size)
         fs += '- mini-batch shape (b, c, h, w): {}'.format(
-            ((train_dl.batch_size, len(train_dl.dataset.dataset.use_bands),) +
-              2 * (train_dl.dataset.dataset.tile_size,)))
+            ((min(train_dl.batch_size, len(train_dl.dataset)),
+              len(train_dl.dataset.dataset.use_bands),) + tile_size))
 
         # dataset split
         fs += '\n    (split):'
@@ -1791,7 +1798,7 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
                 '\n', '\n' + 4 * ' ')
 
         # target domain
-        if self.uda:
+        if not self.supervised:
             fs += '\n    (target domain)\n    '
             fs += self._build_ds_repr(
                 self.trg_train_dl,
@@ -1802,7 +1809,7 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
         fs += self._build_model_repr_()
 
         # domain adaptation
-        if self.uda:
+        if not self.supervised:
             fs += '\n    (adaptation)' + '\n' + 8 * ' '
             fs += repr(self.uda_loss_function).replace('\n', '\n' + 8 * ' ')
 
@@ -2900,171 +2907,3 @@ class NetworkInference(BaseConfig):
                                   outpath=self.perfmc_path)
 
         return output
-
-# def init_network_trainer(src_ds_config, src_split_config, trg_ds_config,
-#                          trg_split_config, model_config):
-#     """Prepare network training.
-
-#     Parameters
-#     ----------
-#     src_ds_config : :py:class:`pysegcnn.core.trainer.DatasetConfig`
-#         The source domain dataset configuration.
-#     src_split_config : :py:class:`pysegcnn.core.trainer.SplitConfig`
-#         The source domain dataset split configuration.
-#     trg_ds_config : :py:class:`pysegcnn.core.trainer.DatasetConfig`
-#         The target domain dataset configuration..
-#     trg_split_config : :py:class:`pysegcnn.core.trainer.SplitConfig`
-#         The target domain dataset split configuration.
-#     model_config : :py:class:`pysegcnn.core.trainer.ModelConfig`
-#         The model configuration.
-
-#     Returns
-#     -------
-#     trainer : :py:class:`pysegcnn.core.trainer.NetworkTrainer`
-#         A network trainer instance.
-
-#     See :py:mod:`pysegcnn.main.train.py` for an example on how to
-#     instanciate a :py:class:`pysegcnn.core.trainer.NetworkTrainer`
-#     instance.
-
-#     """
-#     # (i) instanciate the source domain configurations
-#     src_dc = DatasetConfig(**src_ds_config)   # source domain dataset
-#     src_sc = SplitConfig(**src_split_config)  # source domain dataset split
-
-#     # (ii) instanciate the target domain configuration
-#     trg_dc = DatasetConfig(**trg_ds_config)   # target domain dataset
-#     trg_sc = SplitConfig(**trg_split_config)  # target domain dataset split
-
-#     # (iii) instanciate the model configuration
-#     mdlcfg = ModelConfig(**model_config)
-
-#     # (iv) instanciate the model state file
-#     sttcfg = StateConfig(src_dc, src_sc, trg_dc, trg_sc, mdlcfg)
-#     state_file = sttcfg.init_state()
-
-#     # (v) instanciate logging configuration
-#     logcfg = LogConfig(state_file)
-#     dictConfig(log_conf(logcfg.log_file))
-
-#     # (vi) instanciate the source domain dataset
-#     src_ds = src_dc.init_dataset()
-
-#     # the spectral bands used to train the model
-#     bands = src_ds.use_bands
-
-#     # (vii) instanciate the training, validation and test datasets and
-#     # dataloaders for the source domain
-#     (src_train_ds,
-#      src_valid_ds,
-#      src_test_ds) = src_sc.train_val_test_split(src_ds)
-#     (src_train_dl,
-#      src_valid_dl,
-#      src_test_dl) = src_sc.dataloaders(src_train_ds,
-#                                        src_valid_ds,
-#                                        src_test_ds,
-#                                        batch_size=mdlcfg.batch_size,
-#                                        shuffle=True, drop_last=False)
-
-#     # (viii) instanciate the loss function
-#     cla_loss_function = mdlcfg.init_cla_loss_function()
-
-#     # (ix) check whether to apply transfer learning
-#     if mdlcfg.transfer:
-
-#         # (a) instanciate the target domain dataset
-#         trg_ds = trg_dc.init_dataset()
-
-#         # (b) instanciate the training, validation and test datasets and
-#         # dataloaders for the target domain
-#         (trg_train_ds,
-#          trg_valid_ds,
-#          trg_test_ds) = trg_sc.train_val_test_split(trg_ds)
-#         (trg_train_dl,
-#          trg_valid_dl,
-#          trg_test_dl) = trg_sc.dataloaders(trg_train_ds,
-#                                            trg_valid_ds,
-#                                            trg_test_ds,
-#                                            batch_size=mdlcfg.batch_size,
-#                                            shuffle=True, drop_last=False)
-
-#         # (c) instanciate the model: supervised transfer learning
-#         if mdlcfg.supervised:
-#             model, optimizer, checkpoint_state = mdlcfg.init_model(
-#                 trg_ds, state_file)
-
-#             # (x) instanciate the network trainer
-#             trainer = NetworkTrainer(model,
-#                                      optimizer,
-#                                      state_file,
-#                                      bands,
-#                                      trg_train_dl,
-#                                      trg_valid_dl,
-#                                      trg_test_dl,
-#                                      cla_loss_function,
-#                                      epochs=mdlcfg.epochs,
-#                                      nthreads=mdlcfg.nthreads,
-#                                      early_stop=mdlcfg.early_stop,
-#                                      mode=mdlcfg.mode,
-#                                      delta=mdlcfg.delta,
-#                                      patience=mdlcfg.patience,
-#                                      checkpoint_state=checkpoint_state,
-#                                      save=mdlcfg.save)
-
-#         # (c) instanciate the model: unsupervised transfer learning
-#         else:
-#             model, optimizer, checkpoint_state = mdlcfg.init_model(
-#                 src_ds, state_file)
-
-#             # (x) instanciate the domain adaptation loss
-#             uda_loss_function = mdlcfg.init_uda_loss_function(
-#                 mdlcfg.uda_lambda)
-
-#             # (xi) instanciate the network trainer
-#             trainer = NetworkTrainer(model,
-#                                      optimizer,
-#                                      state_file,
-#                                      bands,
-#                                      src_train_dl,
-#                                      src_valid_dl,
-#                                      src_test_dl,
-#                                      cla_loss_function,
-#                                      trg_train_dl,
-#                                      trg_valid_dl,
-#                                      trg_test_dl,
-#                                      uda_loss_function,
-#                                      mdlcfg.uda_lambda,
-#                                      mdlcfg.uda_pos,
-#                                      mdlcfg.epochs,
-#                                      mdlcfg.nthreads,
-#                                      mdlcfg.early_stop,
-#                                      mdlcfg.mode,
-#                                      mdlcfg.delta,
-#                                      mdlcfg.patience,
-#                                      checkpoint_state,
-#                                      mdlcfg.save)
-
-#     else:
-#         # (x) instanciate the model
-#         model, optimizer, checkpoint_state = mdlcfg.init_model(
-#             src_ds, state_file)
-
-#         # (xi) instanciate the network trainer
-#         trainer = NetworkTrainer(model,
-#                                  optimizer,
-#                                  state_file,
-#                                  bands,
-#                                  src_train_dl,
-#                                  src_valid_dl,
-#                                  src_test_dl,
-#                                  cla_loss_function,
-#                                  epochs=mdlcfg.epochs,
-#                                  nthreads=mdlcfg.nthreads,
-#                                  early_stop=mdlcfg.early_stop,
-#                                  mode=mdlcfg.mode,
-#                                  delta=mdlcfg.delta,
-#                                  patience=mdlcfg.patience,
-#                                  checkpoint_state=checkpoint_state,
-#                                  save=mdlcfg.save)
-
-#     return trainer

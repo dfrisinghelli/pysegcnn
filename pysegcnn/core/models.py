@@ -45,7 +45,7 @@ class Network(nn.Module):
     state_file : `str` or `None` or :py:class:`pathlib.Path`
         The model state file, where the model parameters are saved.
     in_channels : `int`
-        Number of channels of the input images.
+        Number of input features.
     nclasses : `int`
         Number of classes.
     epoch : `int`
@@ -61,7 +61,7 @@ class Network(nn.Module):
         state_file : `str` or `None` or :py:class:`pathlib.Path`
             The model state file, where the model parameters are saved.
         in_channels : `int`
-            Number of channels of the input images.
+            Number of input features.
         nclasses : `int`
             Number of classes.
 
@@ -304,8 +304,8 @@ class Network(nn.Module):
         return model, optimizer
 
 
-class EncoderDecoderNetwork(Network):
-    """Generic convolutional encoder-decoder network.
+class ConvolutionalAutoEncoder(Network):
+    """Generic convolutional autoencoder.
 
     Attributes
     ----------
@@ -413,7 +413,7 @@ class EncoderDecoderNetwork(Network):
         return self.classifier(x)
 
 
-class SegNet(EncoderDecoderNetwork):
+class SegNet(ConvolutionalAutoEncoder):
     """An implementation of `SegNet`_ in PyTorch.
 
     .. _SegNet:

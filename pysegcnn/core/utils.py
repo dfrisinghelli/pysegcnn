@@ -541,6 +541,8 @@ def stack_tifs(filename, tifs, **kwargs):
     gdal.PushErrorHandler('CPLQuietErrorHandler')
     gdal.Translate(str(filename), vrt_ds, **kwargs)
 
+    del vrt_ds
+
     return
 
 

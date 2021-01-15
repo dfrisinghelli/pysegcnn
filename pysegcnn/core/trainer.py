@@ -33,7 +33,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from torch.optim import Optimizer
 import matplotlib.pyplot as plt
 
@@ -407,56 +407,29 @@ class ModelConfig(BaseConfig):
     ----------
     model_name : `str`
         The name of the model.
-    torch_seed : `int`
-        The random seed to initialize the model weights.
-        Useful for reproducibility.
     optim_name : `str`
         The name of the optimizer to update the model weights.
-    uda_loss : `str`
-        The name of the unsupervised domain adaptation loss. The default is
-        `''`, which is equivalent of not using unsupervised domain adaptation.
+    torch_seed : `int`
+        The random seed to initialize the model weights. Useful for
+        reproducibility. The default is `0`.
     batch_size : `int`
         The model batch size. Determines the number of samples to process
         before updating the model weights. The default is `64`.
     checkpoint : `bool`
         Whether to resume training from an existing model checkpoint. The
         default is `False`.
-    transfer : `bool`
-        Whether to use a model for transfer learning on a new dataset. If True,
-        the model architecture of ``pretrained_model`` is adjusted to a new
-        dataset. The default is `False`.
-    supervised : `bool`
-        Whether to train a model supervised (``supervised=True``) or
-        semi-supervised (``supervised=False``). The default is `True`.
-    pretrained_model : `str`
-        The name of the pretrained model to use for transfer learning.
-        The default is `''`, i.e. do not use a pretrained model.
-    uda_from_pretrained : `bool`
-        Whether to start domain adaptation from ``pretrained_model``. The
-        default is `False`, i.e. train from scratch.
-    uda_lambda : `float`
-        The weight of the domain adaptation, trading off adaptation with
-        classification accuracy on the source domain. The default is `0.5`.
-    uda_pos : `str`
-        The layer where to compute the domain adaptation loss. The default is
-        `enc`, which means calculating the adaptation loss after the encoder
-        layers.
-    freeze : `bool`
-        Whether to freeze the pretrained weights. The default is `False`.
-    lr : `float`
-        The learning rate used by the gradient descent algorithm.
-        The default is `0.001`.
     optim_kwargs : `dict`
-        Keyword arguments passed to the optimizer. The default is
-        `{'weight_decay': 0, 'amsgrad': False}`.
+        Keyword arguments passed to the optimizer. The default is `{}`,
+        which is equivalent to using the defaults of a
+        :py:class:`torch.optim.Optimizer`.
     early_stop : `bool`
         Whether to apply `Early Stopping`_. The default is `False`.
     mode : `str`
         The early stopping mode. Depends on the metric measuring
         performance. When using model loss as metric, use ``mode='min'``,
-        however, when using accuracy as metric, use ``mode='max'``. For now,
-        only ``mode='max'`` is supported. Only used if ``early_stop=True``.
-        The default is `'max'`.
+        however, when using accuracy as metric, use ``mode='max'``.
+        Only used if ``early_stop=True``. The default is `'max'`, which means
+        using the validation set accuracy as metric.
     delta : `float`
         Minimum change in early stopping metric to be considered as an
         improvement. Only used if ``early_stop=True``. The default is `0`.
@@ -477,12 +450,8 @@ class ModelConfig(BaseConfig):
         A subclass of :py:class:`pysegcnn.core.models.Network`.
     optim_class : :py:class:`torch.optim.Optimizer`
         A subclass of :py:class:`torch.optim.Optimizer`.
-    uda_loss_class : :py:class:`torch.nn.Module`
-        A subclass of :py:class:`torch.nn.Module`
     state_path : :py:class:`pathlib.Path`
         Path to save model states.
-    pretrained_path : :py:class:`pathlib.Path`
-        Path to the ``pretrained_model`` used if ``transfer=True``.
 
     .. _Early Stopping:
         https://en.wikipedia.org/wiki/Early_stopping
@@ -490,21 +459,11 @@ class ModelConfig(BaseConfig):
     """
 
     model_name: str
-    torch_seed: int
     optim_name: str
-    uda_loss: str = ''
+    torch_seed: int = 0
     batch_size: int = 64
     checkpoint: bool = False
-    transfer: bool = False
-    supervised: bool = True
-    pretrained_model: str = ''
-    uda_from_pretrained: bool = False
-    uda_lambda: float = 0.5
-    uda_pos: str = 'enc'
-    freeze: bool = True
-    lr: float = 0.001
-    optim_kwargs: dict = dataclasses.field(
-        default_factory=lambda: {'weight_decay': 0, 'amsgrad': False})
+    optim_kwargs: dict = dataclasses.field(default_factory={})
     early_stop: bool = False
     mode: str = 'max'
     delta: float = 0
@@ -516,13 +475,11 @@ class ModelConfig(BaseConfig):
     def __post_init__(self):
         """Check the type of each argument.
 
-        Configure path to save model state.
-
         Raises
         ------
         ValueError
-            Raised if the model ``model_name``, the optimizer ``optim_name``,
-            or the domain adaptation loss ``uda_loss`` is not supported.
+            Raised if the model ``model_name`` or the optimizer ``optim_name``
+            are not supported.
 
         """
         # check input types
@@ -534,31 +491,8 @@ class ModelConfig(BaseConfig):
         # check whether the optimizer is currently supported
         self.optim_class = item_in_enum(self.optim_name, SupportedOptimizers)
 
-        # check whether to apply transfer learning
-        if not self.transfer:
-            # if transfer learning is not required, training is automatically
-            # set to supervised mode
-            self.supervised = True
-        else:
-            # whether to apply supervised or semi-supervised transfer learning
-            if not self.supervised:
-                self.uda_loss_class = item_in_enum(self.uda_loss,
-                                                   SupportedUdaMethods)
-
-                # check whether the position to compute the domain adaptation
-                # loss is supported
-                if self.uda_pos not in UDA_POSITIONS:
-                    raise ValueError('Position {} to compute domain adaptation'
-                                     ' loss is not supported. Valid positions '
-                                     'are {}.'.format(self.uda_pos,
-                                                      ', '.join(UDA_POSITIONS))
-                                     )
-
-        # path to model states
+        # path to save model states
         self.state_path = pathlib.Path(HERE).joinpath('_models/')
-
-        # path to pretrained model
-        self.pretrained_path = self.state_path.joinpath(self.pretrained_model)
 
     def init_optimizer(self, model):
         """Instanciate the optimizer.
@@ -577,32 +511,14 @@ class ModelConfig(BaseConfig):
         LOGGER.info('Optimizer: {}.'.format(repr(self.optim_class)))
 
         # initialize the optimizer for the specified model
-        optimizer = self.optim_class(model.parameters(), self.lr,
-                                     **self.optim_kwargs)
+        optimizer = self.optim_class(model.parameters(), **self.optim_kwargs)
 
         return optimizer
 
-    def init_uda_loss_function(self):
-        """Instanciate the domain adaptation loss function.
-
-        Returns
-        -------
-        uda_loss_function : :py:class:`torch.nn.Module`
-            An instance of :py:class:`torch.nn.Module`.
-
-        """
-        LOGGER.info('Domain adaptation loss function: {}.'
-                    .format(repr(self.uda_loss_class)))
-
-        # instanciate the loss function
-        uda_loss_function = self.uda_loss_class(self.uda_lambda)
-
-        return uda_loss_function
-
-    def init_model(self, ds, state_file):
+    def init_model(self, in_channels, nclasses, state_file):
         """Instanciate the model and the optimizer.
 
-        If ``self.checkpoint`` is set to True, the pretrained model in
+        If ``self.checkpoint`` is set to True, a model checkpoint called
         ``state_file`` is loaded, if it exists. Otherwise, the model is
         initiated from scratch on the dataset ``ds``.
 
@@ -611,9 +527,10 @@ class ModelConfig(BaseConfig):
 
         Parameters
         ----------
-        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
-            The dataset to train the model on. An instance of
-            :py:class:`pysegcnn.core.dataset.ImageDataset`.
+        in_channels : `int`
+            Number of input features.
+        nclasses : `int`
+            Number of classes.
         state_file : :py:class:`pathlib.Path`
             Path to save the trained model.
 
@@ -640,9 +557,7 @@ class ModelConfig(BaseConfig):
 
         # instanciate a model from scratch
         model = self.model_class(
-                        state_file=state_file,
-                        in_channels=len(ds.use_bands),
-                        nclasses=len(ds.labels))
+            state_file=state_file, in_channels=in_channels, nclasses=nclasses)
 
         # initialize the optimizer
         optimizer = self.init_optimizer(model)
@@ -651,7 +566,7 @@ class ModelConfig(BaseConfig):
         if self.checkpoint:
             try:
                 # load model checkpoint
-                model_state = Network.load(self.pretrained_path)
+                model_state = Network.load(state_file)
                 checkpoint_state = self.load_checkpoint(model_state)
 
                 # load the pretrained model
@@ -661,19 +576,6 @@ class ModelConfig(BaseConfig):
                 # model checkpoint does not exist
                 LOGGER.info('Checkpoint {} does not exist. Intializing model '
                             'from scratch ...')
-
-            return model, optimizer
-
-        # whether to adjust a pretrained model for supervised transfer learning
-        if self.transfer and self.supervised:
-            # load the pretrained model
-            model, _ = Network.load_pretrained_model(self.pretrained_path)
-
-            # adjust classification layer to new dataset
-            model = self.transfer_model(model, ds, self.freeze)
-
-            # reset the optimizer parameters
-            optimizer = self.init_optimizer(model)
 
         return model, optimizer, checkpoint_state
 
@@ -702,65 +604,154 @@ class ModelConfig(BaseConfig):
 
         return checkpoint_state
 
+
+@dataclasses.dataclass
+class TransferLearningConfig(BaseConfig):
+    """Transfer learning configuration.
+
+    Configure a pretrained model for supervised domain adaptation (fine-tuning
+    of a pretrained model to a target domain) or configure a (pretrained) model
+    for unsupervised domain adaptation.
+
+    Attributes
+    ----------
+    transfer : `bool`
+        Whether to use a model for transfer learning on a new dataset. If True,
+        the model architecture of ``pretrained_model`` is adjusted to a new
+        dataset. The default is `False`.
+    supervised : `bool`
+        Whether to train a model supervised (``supervised=True``) or
+        semi-supervised (``supervised=False``). The default is `True`.
+    pretrained_model : `str`
+        The name of the pretrained model to use for transfer learning.
+        The default is `''`, i.e. do not use a pretrained model.
+    uda_loss : `str`
+        The name of the unsupervised domain adaptation loss. The default is
+        `'coral'`, which means using the `DeepCoral`_ algorithm, see
+        :py:class:`pysegcnn.core.uda.CoralLoss`. Note that ``uda_loss`` is only
+        used when ``supervised=False``.
+    uda_from_pretrained : `bool`
+        Whether to start domain adaptation from ``pretrained_model``. The
+        default is `False`, i.e. train from scratch.
+    uda_lambda : `float`
+        The weight of the domain adaptation, trading off adaptation with
+        classification accuracy on the source domain. The default is `0.5`.
+    uda_pos : `str`
+        The layer where to compute the domain adaptation loss. The default is
+        `enc`, which means calculating the adaptation loss after the encoder
+        layers.
+    freeze : `bool`
+        Whether to freeze the pretrained weights. The default is `False`.
+    pretrained_path : :py:class:`pathlib.Path`
+        Path to the ``pretrained_model`` used if ``transfer=True``.
+    state_path : :py:class:`pathlib.Path`
+        Path to save model states.
+    uda_loss_class : :py:class:`torch.nn.Module`
+        The domain adaptation loss function class.
+
+    .. DeepCoral:
+
+    """
+
+    transfer: bool = False
+    supervised: bool = True
+    pretrained_model: str = ''
+    uda_loss: str = 'coral'
+    uda_from_pretrained: bool = False
+    uda_lambda: float = 0.5
+    uda_pos: str = 'enc'
+    freeze: bool = True
+
+    def __post_init__(self):
+        """Check the type of each argument.
+
+        Configure path to pretrained model and initialize unsupervised domain
+        adaptation loss function.
+
+        Raises
+        ------
+        ValueError
+            Raised if the domain adaptation loss function ``uda_loss`` is not
+            supported.
+        ValueError
+            Raised if the position ``uda_pos``, where the domain adaptation
+            loss is computed, is not supported.
+
+        """
+        # check input types
+        super().__post_init__()
+
+        # check whether to apply transfer learning
+        if not self.transfer:
+            # if transfer learning is not required, training is automatically
+            # set to supervised mode
+            self.supervised = True
+
+        # path to model states
+        self.state_path = pathlib.Path(HERE).joinpath('_models/')
+
+        # path to pretrained model
+        self.pretrained_path = self.state_path.joinpath(self.pretrained_model)
+
+        # domain adaptation loss function
+        self.uda_loss_class = item_in_enum(self.uda_loss, SupportedUdaMethods)
+
+        # check whether the position to compute the domain adaptation
+        # loss is supported
+        if self.uda_pos not in UDA_POSITIONS:
+            raise ValueError('Position {} to compute domain adaptation'
+                             ' loss is not supported. Valid positions '
+                             'are {}.'.format(self.uda_pos,
+                                              ', '.join(UDA_POSITIONS))
+                             )
+
+        # instanciate domain adaptation loss
+        self.uda_loss_function = self.uda_loss_class(self.uda_lambda)
+
     @staticmethod
-    def transfer_model(model, ds, freeze=False):
-        """Adjust a pretrained model to a new dataset.
+    def transfer_model(state_file, nclasses, optim_kwargs={}, freeze=False):
+        """Adjust a pretrained model and optimizer to a new number of classes.
+
+        This function is designed to work with models of class
+        :py:class:`pysegcnn.core.models.ConvolutionalAutoEncoder`.
 
         If the number of classes in the pretrained model ``model`` does not
-        match the number of classes in the dataset ``ds``, the classification
-        layer is initilialized from scratch with the classes of the dataset
-        ``ds``. The remaining model weights are preserved.
+        match the number of classes ``nclasses``, the classification layer is
+        initilialized from scratch with ``nclasses`` classes. The remaining
+        model weights are preserved.
 
         Parameters
         ----------
-        model : :py:class:`pysegcnn.core.models.Network`
-            An instance of the pretrained model to adjust to the dataset``ds``.
-        ds : :py:class:`pysegcnn.core.dataset.ImageDataset`
-            The dataset to which the classification layer of ``model`` is
-            adapted.
+        state_file : :py:class:`pathlib.Path`
+            Path to the pretrained model.
+        nclasses : `int`
+            Number of classes to adjust the model to.
+        optim_kwargs : `dict`
+            Keyword arguments passed to the optimizer. The default is `{}`,
+            which is equivalent to using the defaults of a
+            :py:class:`torch.optim.Optimizer`.
         freeze : `bool`, optional
             Whether to freeze the pretrained weights. If `True`, all weights of
             the pretrained model ``model`` are frozen. Only the classification
             layer is retrained when it is initialized from scratch, otherwise
             its weights are also frozen. The default is `False`.
 
-        Raises
-        ------
-        TypeError
-            Raised if ``ds`` is not an instance of
-            :py:class:`pysegcnn.core.dataset.ImageDataset`.
-        ValueError
-            Raised if the number of input channels in ``ds`` do not match the
-            number of input channels of the dataset the pretrained model
-            ``model`` was trained with.
-
         Returns
         -------
-        model : :py:class:`pysegcnn.core.models.Network`
-            An instance of a pretrained model adjusted to the dataset ``ds``.
+        model : :py:class:`pysegcnn.core.models.ConvolutionalAutoEncoder`
+            An instance of the (adjusted) pretrained model.
+        optimizer : :py:class:`torch.optim.Optimizer`
+            An instance of :py:class:`torch.optim.Optimizer`.
+        checkpoint_state : `dict` [`str`, :py:class:`numpy.ndarray`]
+            A dictionary describing the training state. Not required when
+            training from a pretrained model. See
+            :py:meth:`pysegcnn.core.trainer.ModelConfig.init_model`.
 
         """
-        # check input type
-        if not isinstance(ds, ImageDataset):
-            raise TypeError('Expected "ds" to be {}.'
-                            .format('.'.join([ImageDataset.__module__,
-                                              ImageDataset.__name__])))
+        # load the pretrained model and optimizer
+        model, optimizer = Network.load_pretrained_model(state_file)
 
-        # check whether the current dataset uses the same number of input
-        # channels as the pretrained model
-        if len(ds.use_bands) != model.in_channels:
-            raise ValueError('The model was trained with {} input channels, '
-                             'which does not match the {} input channels of '
-                             'the specified dataset.'.format(
-                                 model.in_channels, len(ds.use_bands))
-                             )
-
-        # configure model for the specified dataset
-        LOGGER.info('Configuring model for new dataset: {}.'.format(
-            ds.__class__.__name__))
-
-        # reset model epoch to 0, since the model is trained on a different
-        # dataset
+        # reset model epoch to 0
         model.epoch = 0
 
         # whether to freeze the pretrained model weigths
@@ -770,20 +761,22 @@ class ModelConfig(BaseConfig):
 
         # check whether the number of classes the model was trained with
         # matches the number of classes of the new dataset
-        if model.nclasses != len(ds.labels):
+        if model.nclasses != nclasses:
 
             # adjust the number of classes in the model
-            model.nclasses = len(ds.labels)
-            LOGGER.info('Replacing classification layer to classes: {}.'
-                        .format(', '.join('({}, {})'.format(k, v['label'])
-                                          for k, v in ds.labels.items())))
+            LOGGER.info('Replacing number of classes from {} to {}.'
+                        .format(model.nclasses, nclasses))
+            model.nclasses = nclasses
 
-            # adjust the classification layer to the classes of the new dataset
+            # adjust the classification layer to the new number of classes
             model.classifier = Conv2dSame(in_channels=model.filters[0],
                                           out_channels=model.nclasses,
                                           kernel_size=1)
 
-        return model
+        # reset the optimizer parameters
+        optimizer = optimizer.__class__(model.parameters(), **optim_kwargs)
+
+        return model, optimizer, {}
 
 
 @dataclasses.dataclass
@@ -810,19 +803,16 @@ class StateConfig(BaseConfig):
     ----------
     src_dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
         The source domain dataset configuration.
-        An instance of :py:class:`pysegcnn.core.trainer.DatasetConfig`.
     src_sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
         The source domain dataset split configuration.
-        An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
     trg_dc : :py:class:`pysegcnn.core.trainer.DatasetConfig`
         The target domain dataset configuration.
-        An instance of :py:class:`pysegcnn.core.trainer.DatasetConfig`.
     trg_sc : :py:class:`pysegcnn.core.trainer.SplitConfig`
         The target domain dataset split configuration.
-        An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
     mc : :py:class:`pysegcnn.core.trainer.ModelConfig`
         The model configuration.
-        An instance of :py:class:`pysegcnn.core.trainer.SplitConfig`.
+    tc : :py:class:`pysegcnn.core.trainer.TransferLearningConfig`
+        The transfer learning configuration.
 
     """
 
@@ -831,6 +821,7 @@ class StateConfig(BaseConfig):
     trg_dc: DatasetConfig
     trg_sc: SplitConfig
     mc: ModelConfig
+    tc: TransferLearningConfig
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -883,7 +874,7 @@ class StateConfig(BaseConfig):
         state = '_'.join([ml_state, src_ds_state, ml_ext])
 
         # check whether the model is trained on the source domain only
-        if self.mc.transfer:
+        if self.tc.transfer:
 
             # target domain dataset state filename
             trg_ds_state = self._format_ds_state(
@@ -891,27 +882,27 @@ class StateConfig(BaseConfig):
 
             # check whether a pretrained model is used to fine-tune to the
             # target domain
-            if self.mc.supervised:
+            if self.tc.supervised:
                 # state file for models fine-tuned to target domain
                 # DatasetConfig_PretrainedModel.pt
-                state = '_'.join([self.mc.pretrained_model,
+                state = '_'.join([self.tc.pretrained_model,
                                   'sda_{}'.format(trg_ds_state)])
             else:
                 # state file for models trained via unsupervised domain
                 # adaptation
                 state = '_'.join([state.replace(
-                    ml_ext, 'uda_{}'.format(self.mc.uda_pos)),
+                    ml_ext, 'uda_{}'.format(self.tc.uda_pos)),
                     trg_ds_state, ml_ext])
 
                 # check whether unsupervised domain adaptation is initialized
                 # from a pretrained model state
-                if self.mc.uda_from_pretrained:
+                if self.tc.uda_from_pretrained:
                     state = '_'.join(state.replace('.pt', ''),
                                      'prt_{}'.format(
-                                         self.mc.pretrained_model))
+                                         self.tc.pretrained_model))
 
         # path to model state
-        state = self.mc.state_path.joinpath(state)
+        state = self.tc.state_path.joinpath(state)
 
         return state
 
@@ -1087,9 +1078,9 @@ class ClassificationNetworkTrainer(BaseConfig):
     mode : `str`
         The early stopping mode. Depends on the metric measuring
         performance. When using model loss as metric, use ``mode='min'``,
-        however, when using accuracy as metric, use ``mode='max'``. For now,
-        only ``mode='max'`` is supported. Only used if ``early_stop=True``.
-        The default is `'max'`.
+        however, when using accuracy as metric, use ``mode='max'``.
+        Only used if ``early_stop=True``. The default is `'max'`, which means
+        using the validation set accuracy as metric.
     delta : `float`
         Minimum change in early stopping metric to be considered as an
         improvement. Only used if ``early_stop=True``. The default is `0`.
@@ -1193,17 +1184,21 @@ class ClassificationNetworkTrainer(BaseConfig):
         # initialize metric tracker
         self.tracker.initialize()
 
-        # maximum accuracy on the validation set
-        self.max_accuracy = 0
+        # check which metric to use for early stopping
+        self.best, self.metric, self.mfn = (
+            (0, 'valid_accu', np.max) if self.mode == 'max' else
+            (np.inf, 'valid_loss', np.min))
+
+        # best metric score on the validation set
         if self.checkpoint_state:
-            self.max_accuracy = self.checkpoint_state['valid_accu'].mean(
-                axis=0).max().item()
+            self.best = self.mfn(
+                self.checkpoint_state[self.metric].mean(axis=0))
 
         # whether to use early stopping
         self.es = None
         if self.early_stop:
-            self.es = EarlyStopping(self.mode, self.max_accuracy, self.delta,
-                                    self.patience)
+            self.es = EarlyStopping(
+                self.mode, self.best, self.delta, self.patience)
 
         # number of mini-batches in the training and validation sets
         self.tmbatch = len(self.src_train_dl)
@@ -1314,11 +1309,11 @@ class ClassificationNetworkTrainer(BaseConfig):
                                           [valid_loss, valid_accu])
 
                 # metric to assess model performance on the validation set
-                epoch_acc = np.mean(valid_accu)
+                epoch_best = self.training_state[self.metric][:, -1].mean()
 
                 # whether the model improved with respect to the previous epoch
-                if self.es.increased(epoch_acc, self.max_accuracy, self.delta):
-                    self.max_accuracy = epoch_acc
+                if self.es.is_better(epoch_best, self.best, self.delta):
+                    self.best = epoch_best
 
                     # save model state if the model improved with
                     # respect to the previous epoch
@@ -1326,7 +1321,7 @@ class ClassificationNetworkTrainer(BaseConfig):
                         self.save_state()
 
                 # whether the early stopping criterion is met
-                if self.es.stop(epoch_acc):
+                if self.es.stop(epoch_best):
                     break
 
             else:
@@ -1482,8 +1477,8 @@ class ClassificationNetworkTrainer(BaseConfig):
 
 
 @dataclasses.dataclass
-class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
-    """Model training class for multispectral image segmentation.
+class DomainAdaptationTrainer(ClassificationNetworkTrainer):
+    """Model training class for domain adaptation.
 
     Train an instance of :py:class:`pysegcnn.core.models.EncoderDecoderNetwork`
     on an instance of :py:class:`pysegcnn.core.dataset.ImageDataset`.
@@ -1522,8 +1517,6 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
         The layer where to compute the domain adaptation loss. The default
         is `'enc'`, i.e. compute the domain adaptation loss using the output of
         the model encoder.
-    uda : `bool`
-        Whether to train using deep domain adaptation.
 
     """
 
@@ -1546,16 +1539,17 @@ class MultispectralImageSegmentationTrainer(ClassificationNetworkTrainer):
         Initialize training metric tracking.
 
         """
+        # initialize super class
         super().__post_init__()
 
-        # whether to train supervised or semi-supervised
+        # set the device for computing domain adaptation loss
         if not self.supervised:
-
-            # set the device for computing domain adaptation loss
+            LOGGER.info('Domain adaptation loss function: {}.'
+                        .format(repr(self.uda_loss_function)))
             self.uda_loss_function.device = self.device
 
-            # adjust metrics to accomodate domain adaptation metrics
-            self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
+        # adjust metrics to accomodate domain adaptation metrics
+        self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
 
     def _inp_uda(self, src_input, trg_input):
         """Domain adaptation at input feature level."""

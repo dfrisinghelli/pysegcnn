@@ -242,75 +242,18 @@ model_config = {
     'model_name': 'Segnet',
 
     # -------------------------------------------------------------------------
-    # Transfer learning -------------------------------------------------------
+    # Optimizer ---------------------------------------------------------------
     # -------------------------------------------------------------------------
 
-    # whether to apply any sort of transfer learning
-    # if transfer=False, the model is only trained on the source dataset
-    # 'transfer': True,
-    'transfer': False,
+    # define an optimizer to update the network weights
+    'optim_name': 'Adam',
 
-    # name of the pretrained model to apply for transfer learning
-    # required if transfer=True and supervised=True
-    # optional if transfer=True and unsupervised=True
-    'pretrained_model': '',  # nopep8
-
-    # Supervised vs. Unsupervised ---------------------------------------------
-    # -------------------------------------------------------------------------
-    # IMPORTANT: this setting only applies if 'transfer=True'
-    #            if 'transfer=False', supervised is automatically set to True
-    # -------------------------------------------------------------------------
-    # supervised=True: the pretrained model defined by 'pretrained_model' is
-    #                  trained using labeled data from the specified SOURCE
-    #                  dataset ('src_ds_config') only
-    #
-    # supervised=False: A model is trained jointly using LABELED data from the
-    #                   specified SOURCE ('src_ds_config') dataset and
-    #                   UNLABELED data from the specified TARGET dataset
-    #                   ('trg_ds_config'). The model is either trained from
-    #                   scratch ('uda_from_pretrained=False') or the pretrained
-    #                   model in 'pretrained_model' is loaded
-    #                   ('uda_from_pretrained=True')
-    # 'supervised': True,
-    'supervised': False,
-
-    # whether to freeze the pretrained model weights when using supervised
-    # transfer learning
-    'freeze': True,
-
-    # loss function for unsupervised domain adaptation
-    # currently supported methods:
-    #   - DeepCORAL (correlation alignment)
-    'uda_loss': 'coral',
-
-    # whether to start domain adaptation from a pretrained model
-    'uda_from_pretrained': False,
-
-    # the layer where to compute the domain adaptation loss
-    # currently, the following positions are supported:
-    #   - 'inp': compute the domain adaptation loss with the input features
-    #   - 'enc': compute the domain adaptation loss with the encoder features
-    #   - 'dec': compute the domain adaptation loss with the decoder features
-    #   - 'cla': compute the domain adaptation loss with the classifier
-    #            features
-    # 'uda_pos': 'inp',
-    'uda_pos': 'enc',
-    # 'uda_pos': 'dec',
-    # 'uda_pos': 'cla',
-
-    # The weight of the domain adaptation, trading off adaptation with
-    # classification accuracy on the source domain.
-    # NOTE: the domain adaptation weight increases every epoch reaching the
-    #       value you specify for 'uda_lambda' in the last epoch
-    # EXAMPLES:
-    #       - 'uda_lambda' = 1, means that classification and adaptation loss
-    #                           have equal weight in the last epoch
-    #       - 'uda_lambda' = 0.5, means that classification loss has twice the
-    #                             weight than adaptation loss in the last epoch
-    # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
-    #            domain and the less weight on the classification accuracy on
-    #            the source domain.
-    'uda_lambda': 0.01,
+    # optimizer keyword arguments
+    'optim_kwargs': {
+        'lr': 0.001,  # the learning rate
+        'weight_decay': 0.01,  # the weight decay rate
+        'amsgrad': False  # whether to use AMSGrad variant (for Adam)
+        },
 
     # -------------------------------------------------------------------------
     # Training configuration --------------------------------------------------
@@ -332,8 +275,13 @@ model_config = {
     # the seed for the random number generator intializing the network weights
     'torch_seed': 0,
 
-    # whether to early stop training if the accuracy on the validation set
-    # does not increase more than delta over patience epochs
+    # whether to early stop training if the accuracy (loss) on the validation
+    # set does not increase (decrease) more than delta over patience epochs
+    # -------------------------------------------------------------------------
+    # The early stopping metric is chosen as:
+    #    - validation set accuracy if mode='max'
+    #    - validation set loss if mode='min'
+    # -------------------------------------------------------------------------
     'early_stop': True,
     'mode': 'max',
     'delta': 0,
@@ -343,18 +291,84 @@ model_config = {
     # the whole training dataset
     'epochs': 100,
 
-    # define an optimizer to update the network weights
-    'optim_name': 'Adam',
-
-    # define the learning rate
-    'lr': 0.001,
-
-    # optimizer keyword arguments
-    'optim_kwargs': {'weight_decay': 0.01,  # the weight decay rate
-                     'amsgrad': False}  # whether to use AMSGrad variant
 }
 
-# the evaluation configuration file
+# the transfer learning configuration
+tlda_config = {
+
+    # -------------------------------------------------------------------------
+    # Transfer learning -------------------------------------------------------
+    # -------------------------------------------------------------------------
+
+    # whether to apply any sort of transfer learning
+    # if transfer=False, the model is only trained on the source dataset
+    'transfer': True,
+    # 'transfer': False,
+
+    # Supervised vs. Unsupervised ---------------------------------------------
+    # -------------------------------------------------------------------------
+    # IMPORTANT: this setting only applies if 'transfer=True'
+    #            if 'transfer=False', supervised is automatically set to True
+    # -------------------------------------------------------------------------
+    # supervised=True: the pretrained model defined by 'pretrained_model' is
+    #                  trained using labeled data from the specified SOURCE
+    #                  dataset ('src_ds_config') only
+    #
+    # supervised=False: A model is trained jointly using LABELED data from the
+    #                   specified SOURCE ('src_ds_config') dataset and
+    #                   UNLABELED data from the specified TARGET dataset
+    #                   ('trg_ds_config'). The model is either trained from
+    #                   scratch ('uda_from_pretrained=False') or the pretrained
+    #                   model in 'pretrained_model' is loaded
+    #                   ('uda_from_pretrained=True')
+    # 'supervised': True,
+    'supervised': False,
+
+    # name of the pretrained model to apply for transfer learning
+    # required if transfer=True and supervised=True
+    # optional if transfer=True and supervised=False
+    'pretrained_model': '',  # nopep8
+
+    # loss function for unsupervised domain adaptation
+    # currently supported methods:
+    #   - DeepCORAL (correlation alignment)
+    'uda_loss': 'coral',
+
+    # whether to start domain adaptation from a pretrained model
+    'uda_from_pretrained': False,
+
+    # The weight of the domain adaptation, trading off adaptation with
+    # classification accuracy on the source domain.
+    # NOTE: the domain adaptation weight increases every epoch reaching the
+    #       value you specify for 'uda_lambda' in the last epoch
+    # EXAMPLES:
+    #       - 'uda_lambda' = 1, means that classification and adaptation loss
+    #                           have equal weight in the last epoch
+    #       - 'uda_lambda' = 0.5, means that classification loss has twice the
+    #                             weight than adaptation loss in the last epoch
+    # IMPORTANT: The higher 'uda_lambda', the more weight is put on the target
+    #            domain and the less weight on the classification accuracy on
+    #            the source domain.
+    'uda_lambda': 0.01,
+
+    # the layer where to compute the domain adaptation loss
+    # currently, the following positions are supported:
+    #   - 'inp': compute the domain adaptation loss with the input features
+    #   - 'enc': compute the domain adaptation loss with the encoder features
+    #   - 'dec': compute the domain adaptation loss with the decoder features
+    #   - 'cla': compute the domain adaptation loss with the classifier
+    #            features
+    # 'uda_pos': 'inp',
+    'uda_pos': 'enc',
+    # 'uda_pos': 'dec',
+    # 'uda_pos': 'cla',
+
+    # whether to freeze the pretrained model weights
+    'freeze': True,
+
+    }
+
+# the evaluation configuration
 eval_config = {
     # -------------------------------------------------------------------------
     # ----------------------------- Evaluation --------------------------------

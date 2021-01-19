@@ -169,3 +169,75 @@ class Gdal2Numpy(enum.Enum):
     CInt32 = np.complex64
     CFloat32 = np.complex64
     CFloat64 = np.complex64
+
+
+# class label mapping from the Sparcs dataset to the Alcd dataset
+Sparcs2Alcd = LabelMapping({
+
+    SparcsLabels.Shadow.id: AlcdLabels.Shadow.id,
+    SparcsLabels.Shadow_over_water: AlcdLabels.Shadow.id,
+    SparcsLabels.Water.id: AlcdLabels.Water.id,
+    SparcsLabels.Snow.id: AlcdLabels.Snow.id,
+    SparcsLabels.Land.id: AlcdLabels.Land.id,
+    SparcsLabels.Cloud.id: AlcdLabels.Cloud.id,
+    SparcsLabels.Flooded.id: AlcdLabels.Land.id,
+    SparcsLabels.No_data.id: AlcdLabels.No_data.id
+
+    })
+
+# class label mapping from the Alcd dataset to the Sparcs dataset
+Alcd2Sparcs = LabelMapping({
+
+    AlcdLabels.No_data.id: SparcsLabels.No_data.id,
+    AlcdLabels.Not_used.id: SparcsLabels.No_data.id,
+    AlcdLabels.Cloud.id: SparcsLabels.Cloud.id,
+    AlcdLabels.Cirrus.id: SparcsLabels.Cloud.id,
+    AlcdLabels.Shadow.id: SparcsLabels.Shadow.id,
+    AlcdLabels.Land.id: SparcsLabels.Land.id,
+    AlcdLabels.Water.id: SparcsLabels.Water.id,
+    AlcdLabels.Snow.id: SparcsLabels.Snow.id
+
+    })
+
+
+def map_labels(source, target):
+    """Map labels from a source domain to a target domain.
+
+    Parameters
+    ----------
+    source : :py:class:`pysegcnn.core.constants.Label`
+        The source domain labels, i.e. the labels a model is trained with.
+    target : :py:class:`pysegcnn.core.constants.Label`
+        The target domain labels, i.e. the labels of the dataset to apply the
+        model to.
+
+    Raises
+    ------
+    ValueError
+        Raised if no label mapping from ``source`` to ``target`` is defined.
+
+    Returns
+    -------
+    label_map : :py:class:`pysegcnn.core.constants.LabelMapping` [`int`, `int`]
+        Dictionary with source labels as keys and corresponding target labels
+        as values.
+
+    """
+    # if source and target labels are equal, the label mapping is the
+    # identity
+    if source is target:
+        label_map = None
+
+    # mapping from Sparcs to Alcd
+    elif source is SparcsLabels and target is AlcdLabels:
+        label_map = Sparcs2Alcd
+
+    # mapping from Alcd to Sparcs
+    elif source is AlcdLabels and target is SparcsLabels:
+        label_map = Alcd2Sparcs
+
+    else:
+        raise ValueError('Unknown label mapping from {} to {}'.
+                         format(source.__name__, target.__name__))
+
+    return label_map

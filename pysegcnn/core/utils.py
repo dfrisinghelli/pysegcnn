@@ -137,10 +137,23 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
 
     # accept numpy arrays as input
     elif isinstance(path, np.ndarray):
+        # input array
         img = path
-        bands = img.shape[0]
-        height = img.shape[1]
-        width = img.shape[2]
+
+        # check the dimensions of the input array
+        if img.ndim > 2:
+            bands = img.shape[0]
+            height = img.shape[1]
+            width = img.shape[2]
+        else:
+            bands = 1
+            height = img.shape[0]
+            width = img.shape[1]
+
+            # expand input array to fit band dimension
+            img = np.expand_dims(img, axis=0)
+
+        # input array data type
         dtype = img.dtype
 
     else:
@@ -728,7 +741,7 @@ def reconstruct_scene(tiles):
     # convert to numpy array
     tiles = np.asarray(tiles)
 
-    # check the size
+    # check the dimensions of the input array
     if tiles.ndim > 3:
         nbands = tiles.shape[1]
         tile_size = tiles.shape[2]

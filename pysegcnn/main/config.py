@@ -370,6 +370,7 @@ tlda_config = {
 
 # the evaluation configuration
 eval_config = {
+
     # -------------------------------------------------------------------------
     # ----------------------------- Evaluation --------------------------------
     # -------------------------------------------------------------------------
@@ -377,8 +378,8 @@ eval_config = {
     # these options are only used for evaluating a trained model using
     # pysegcnn.main.eval.py
 
-    # the model to evaluate
-    'state_file': '',
+    # the model(s) to evaluate
+    'state_files': [''],
 
     # Evaluate on datasets defined at training time ---------------------------
 
@@ -446,24 +447,11 @@ eval_config = {
     #       split_mode="date"
     'predict_scene': True,
 
-    # whether to save plots of (input, ground truth, prediction) for each
-    # sample in the train/validation/test dataset to disk, applies if
-    # predict_scene=False
-    # output path is: pysegcnn/main/_samples/
-    'plot_samples': False,
-
     # whether to save plots of (input, ground truth, prediction) for each scene
     # in the train/validation/test dataset to disk, applies if
     # predict_scene=True
     # output path is: pysegcnn/main/_scenes/
     'plot_scenes': True,
-
-    # whether to create an animation of (input, ground truth, prediction) for
-    # the scenes in the train/validation/test dataset. Useful when predicting a
-    # time-series.
-    # NOTE: this option only works if predict_scene=True and plot_scenes=True
-    # output path is: pysegcnn/main/_animations/
-    'animate': False,
 
     # plot_bands defines the bands used to plot a false color composite of
     # the input scene: red': bands[0], green': bands[1], blue': bands[2]

@@ -156,7 +156,6 @@ def plot_sample(x, use_bands, labels,
                 y=None,
                 y_pred={},
                 accuracy=False,
-                date=None,
                 figsize=(16, 9),
                 bands=['nir', 'red', 'green'],
                 alpha=0,
@@ -191,9 +190,6 @@ def plot_sample(x, use_bands, labels,
     accuracy : `bool`, optional
         Whether to calculate the accuracy of the predictions ``y_pred`` with
         respect to the ground truth ``y``. The default is `False`
-    date : :py:class:`datetime.datetime` or `None`
-        The date of the sample. If specified, ``date`` is plotted as title of
-        the FCC. The default is `None`, i.e. ``date`` is not used as title.
     figsize : `tuple`, optional
         The figure size in centimeters. The default is `(16, 9)`.
     bands : `list` [`str`], optional
@@ -232,9 +228,6 @@ def plot_sample(x, use_bands, labels,
     -------
     fig : :py:class:`matplotlib.figure.Figure`
         An instance of :py:class:`matplotlib.figure.Figure`.
-    ax : :py:class:`numpy.ndarray`
-        A :py:class:`numpy.ndarray` of
-        :py:class:`matplotlib.axes._subplots.AxesSubplot` instances.
 
     """
     # check whether the output path is valid
@@ -281,16 +274,10 @@ def plot_sample(x, use_bands, labels,
     # plot false color composite
     fig.axes[0].imshow(rgb)
 
-    # check which title to set
-    if date is None:
-        fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
-                         transform=fig.axes[0].transAxes, ha='center',
-                         va='bottom')
-    else:
-        fig.axes[0].text(0.5, 1.04,
-                         datetime.datetime.strftime(date, '%Y-%m-%d'),
-                         transform=fig.axes[0].transAxes, ha='center',
-                         va='bottom')
+    # set title
+    fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
+                     transform=fig.axes[0].transAxes, ha='center',
+                     va='bottom')
 
     # check whether to plot ground truth
     if y is not None:

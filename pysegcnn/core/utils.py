@@ -28,10 +28,9 @@ import platform
 import xml.etree.ElementTree as ET
 
 # externals
-import gdal
 import torch
 import numpy as np
-from osgeo import ogr, osr
+from osgeo import gdal, ogr, osr
 
 # locals
 from pysegcnn.core.constants import Gdal2Numpy

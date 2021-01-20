@@ -27,7 +27,7 @@ import pathlib
 HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
-DRIVE_PATH = pathlib.Path('C:/Eurac/2020/CCISNOW/_Datasets/')
+DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/_Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')
 
 # name and paths to the datasets

@@ -28,7 +28,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
 DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/_Datasets/')
-# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')
+# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')  # nopep8
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -46,6 +46,9 @@ BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
 
 # tile size of a single sample
 TILE_SIZE = 128
+
+# number of folds for cross validation
+K_FOLDS = 2
 
 # the source dataset configuration dictionary
 src_ds_config = {
@@ -80,11 +83,6 @@ src_ds_config = {
     # tiles of size (tile_size, tile_size)
     # 'pad': False,
     'pad': True,
-
-    # the random seed for the numpy random number generator
-    # ensures reproducibility of the training, validation and test data split
-    # used if split_mode='random' and split_mode='scene'
-    'seed': 0,
 
     # whether to sort the dataset in chronological order, useful for time
     # series data
@@ -156,11 +154,11 @@ trg_ds_config = {
     'bands': BANDS,
     'tile_size': TILE_SIZE,
     'pad': True,
-    'seed': 0,
     'sort': True,
     'transforms': [],
     'merge_labels': {'Cirrus': 'Cloud',
                      'Not_used': 'No_data'}
+
 }
 
 # the source dataset split configuration dictionary
@@ -172,64 +170,58 @@ src_split_config = {
 
     # the mode to split the dataset:
     #
-    #    - 'random': randomly split the scenes
-    #                for each scene, the tiles can be distributed among the
+    #    - 'tile':   for each scene, the tiles can be distributed among the
     #                training, validation and test set
     #
-    #    - 'scene':  randomly split the scenes
-    #                for each scene, all the tiles of the scene are included in
+    #    - 'scene':  for each scene, all the tiles of the scene are included in
     #                either the training set, the validation set or the test
     #                set, respectively
-    #
-    #    - 'date':   split the scenes of a dataset based on a date, useful for
-    #                time series data
-    #                scenes before date build the training set, scenes after
-    #                the date build the validation set, the test set is empty
-    # 'split_mode': 'date',
-    # 'split_mode': 'random',
+    # 'split_mode': 'tile',
     'split_mode': 'scene',
+
+    # the number of folds for cross validation
+    #
+    # k_folds = 1 : The model is trained with a single dataset split based on
+    #               'tvratio' and 'ttratio'
+    # k_folds > 1 : The model is trained via cross validation on k_folds splits
+    #               of the dataset
+    'k_folds': K_FOLDS,
+
+    # the random seed for the random number generator
+    # ensures reproducibility of the training, validation and test data split
+    'seed': 0,
+
+    # whether to shuffle the data before splitting
+    'shuffle': True,
+
+    # -------------------------------------------------------------------------
+    # IMPORTANT: these setting only apply if 'kfolds=1'
+    # -------------------------------------------------------------------------
 
     # (ttratio * 100) % of the dataset will be used for training and
     # validation
-    # used if split_mode='random' and split_mode='scene'
+    # used if 'kfolds=1'
     'ttratio': 1,
 
     # (ttratio * tvratio) * 100 % will be used for training
     # (1 - ttratio * tvratio) * 100 % will be used for validation
-    # used if split_mode='random' and split_mode='scene'
+    # used if 'kfolds=1'
     'tvratio': 0.8,
 
-    # the date to split the scenes
-    # format: 'yyyymmdd'
-    # scenes before date build the training set, scenes after the date build
-    # the validation set, the test set is empty
-    # used if split_mode='date'
-    'date': '',
-    'dateformat': '%Y%m%d',
-
-    # whether to drop samples (during training only) with a fraction of
-    # pixels equal to the constant padding value cval >= drop
-    # drop=1 means, do not use a sample if all pixels = cval
-    # drop=0.8 means, do not use a sample if 80% or more of the pixels are
-    #                 equal to cval
-    # drop=0.2 means, ...
-    # drop=0 means, do not drop any samples
-    'drop': 0,
-
-    }
+}
 
 # the target dataset split configuration dictionary
 trg_split_config = {
 
-    # 'split_mode': 'date',
-    # 'split_mode': 'random',
+    # 'split_mode': 'tile',
     'split_mode': 'scene',
+    'k_folds': K_FOLDS,
+    'seed': 0,
+    'shuffle': True,
     'ttratio': 1,
     'tvratio': 0.8,
-    'date': '',
-    'dateformat': '%Y%m%d',
-    'drop': 0,
-    }
+
+}
 
 # the model configuration dictionary
 model_config = {
@@ -302,8 +294,8 @@ tlda_config = {
 
     # whether to apply any sort of transfer learning
     # if transfer=False, the model is only trained on the source dataset
-    'transfer': True,
-    # 'transfer': False,
+    # 'transfer': True,
+    'transfer': False,
 
     # Supervised vs. Unsupervised ---------------------------------------------
     # -------------------------------------------------------------------------

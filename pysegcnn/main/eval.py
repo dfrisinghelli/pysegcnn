@@ -2,9 +2,8 @@
 
 Steps to run a model evaluation:
 
-    1. Configure the dictionary ``eval_config`` in
-    :py:mod:`pysegcnn.main.config.py`
-    2. Save :py:mod:`pysegcnn.main.config.py`
+    1. Configure the model evaluation in :py:mod:`pysegcnn.main.eval_config.py`
+    2. Save :py:mod:`pysegcnn.main.eval_config.py`
     3. In a terminal, navigate to the repository's root directory
     4. Run
 
@@ -29,7 +28,7 @@ License
 
 # locals
 from pysegcnn.core.trainer import NetworkInference
-from pysegcnn.main.config import eval_config
+from pysegcnn.main.eval_config import eval_config
 
 
 if __name__ == '__main__':

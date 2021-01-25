@@ -243,7 +243,7 @@ model_config = {
     # optimizer keyword arguments
     'optim_kwargs': {
         'lr': 0.001,  # the learning rate
-        'weight_decay': 0.01,  # the weight decay rate
+        'weight_decay': 0,  # the weight decay rate
         'amsgrad': False  # whether to use AMSGrad variant (for Adam)
         },
 
@@ -357,102 +357,5 @@ tlda_config = {
 
     # whether to freeze the pretrained model weights
     'freeze': True,
-
-    }
-
-# the evaluation configuration
-eval_config = {
-
-    # -------------------------------------------------------------------------
-    # ----------------------------- Evaluation --------------------------------
-    # -------------------------------------------------------------------------
-
-    # these options are only used for evaluating a trained model using
-    # pysegcnn.main.eval.py
-
-    # the model(s) to evaluate
-    'state_files': [''],
-
-    # Evaluate on datasets defined at training time ---------------------------
-
-    # implicit=True,  models are evaluated on the training, validation
-    #                 and test datasets defined at training time
-    # implicit=False, models are evaluated on an explicitly defined dataset
-    #                 'ds'
-    'implicit': True,
-    # 'implicit': False,
-
-    # The options 'domain' and 'test' define on which domain (source, target)
-    # and on which set (training, validation, test) to evaluate the model.
-    # NOTE: If the specified set was not available at training time, an error
-    #       is raised.
-
-    # whether to evaluate the model on the labelled source domain or the
-    # (un)labelled target domain
-    # if domain='trg',  target domain
-    # if domain='src',  source domain
-    # 'domain': 'src',
-    'domain': 'trg',
-
-    # the subset to evaluate the model on
-    # test=False, 0 means evaluating on the validation set
-    # test=True, 1 means evaluating on the test set
-    # test=None means evaluating on the training set
-    # 'test': True,
-    'test': None,
-    # 'test': False,
-
-    # whether to map the model labels from the model source domain to the
-    # defined 'domain'
-    # For models trained via unsupervised domain adaptation, the classes of the
-    # source domain, i.e. the classes the model is trained with, may differ
-    # from the classes of the target domain. Setting 'map_labels'=True, means
-    # mapping the source classes to the target classes. Obviously, this is only
-    # possible if the target classes are a subset of the source classes.
-    'map_labels': False,
-
-    # Evaluate on an explicitly defined dataset -------------------------------
-
-    # OPTIONAL: If 'ds' is specified and 'implicit'=False, the model is not
-    #           evaluated on the datasets defined at training time, but on the
-    #           dataset defined by 'ds'.
-
-    # the dataset to evaluate the model on (optional)
-    'ds': trg_ds_config,
-
-    # the dataset split to use for 'ds'
-    'ds_split': trg_split_config,
-
-    # Evaluation options ------------------------------------------------------
-
-    # whether to compute and plot the confusion matrix
-    # output path is: pysegcnn/main/_graphics/
-    # 'cm': True,
-    'cm': False,
-
-    # whether to predict each sample or each scene individually
-    # False: each sample is predicted individually and the scenes are not
-    #        reconstructed
-    # True: each scene is first reconstructed and then the whole scene is
-    #       predicted at once
-    # NOTE: this option works only for datasets split by split_mode="scene" or
-    #       split_mode="date"
-    'predict_scene': True,
-
-    # whether to save plots of (input, ground truth, prediction) for each scene
-    # in the train/validation/test dataset to disk, applies if
-    # predict_scene=True
-    # output path is: pysegcnn/main/_scenes/
-    'plot_scenes': True,
-
-    # plot_bands defines the bands used to plot a false color composite of
-    # the input scene: red': bands[0], green': bands[1], blue': bands[2]
-    'plot_bands': ['nir', 'red', 'green'],
-
-    # size of the figures
-    'figsize': (16, 9),
-
-    # degree of constrast stretching for false color composite
-    'alpha': 5
 
 }

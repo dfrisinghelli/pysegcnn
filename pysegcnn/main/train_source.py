@@ -2,17 +2,17 @@
 
 Steps to launch a model run:
 
-    1. Configure the model run in :py:mod:`pysegcnn.main.config.py`
-        - configure the dataset   : ``src_ds_config``
-        - configure the split     : ``src_ds_config`
+    1. Configure the model run in :py:mod:`pysegcnn.main.train_config.py`
+        - configure the dataset   : ``ds_config``
+        - configure the split     : ``ds_split_config`
         - configure the model     : ``model_config``
-    2. Save :py:mod:`pysegcnn.main.config.py`
+    2. Save :py:mod:`pysegcnn.main.train_config.py`
     3. In a terminal, navigate to the repository's root directory
     4. Run
 
     .. code-block:: bash
 
-        python pysegcnn/main/train.py
+        python pysegcnn/main/train_source.py
 
 
 License
@@ -36,16 +36,15 @@ from logging.config import dictConfig
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
                                    StateConfig, LogConfig,
                                    ClassificationNetworkTrainer)
-from pysegcnn.main.config import (src_ds_config, src_split_config,
-                                  model_config)
+from pysegcnn.main.train_config import ds_config, ds_split_config, model_config
 from pysegcnn.core.logging import log_conf
 
 
 if __name__ == '__main__':
 
     # (i) instanciate the source domain configurations
-    src_dc = DatasetConfig(**src_ds_config)   # source domain dataset
-    src_sc = SplitConfig(**src_split_config)  # source domain dataset split
+    src_dc = DatasetConfig(**ds_config)   # source domain dataset
+    src_sc = SplitConfig(**ds_split_config)  # source domain dataset split
 
     # (ii) instanciate the model configuration
     net_mc = ModelConfig(**model_config)
@@ -97,4 +96,5 @@ if __name__ == '__main__':
             )
 
         # (xii) train the model
+        LogConfig.init_log('Fold {} / {}'.format(fold + 1, len(src_folds)))
         training_state = trainer.train()

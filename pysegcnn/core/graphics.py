@@ -18,7 +18,6 @@ License
 import os
 import pathlib
 import itertools
-import datetime
 
 # externals
 import numpy as np
@@ -33,7 +32,7 @@ from matplotlib import cm as colormap
 
 # locals
 from pysegcnn.core.utils import accuracy_function, check_filename_length
-from pysegcnn.main.config import HERE
+from pysegcnn.main.train_config import HERE
 
 # plot font size configuration
 SMALL = 10

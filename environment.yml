@@ -9,3 +9,4 @@ dependencies:
   - scikit-learn
   - gdal>=3.2
   - matplotlib
+  - seaborn

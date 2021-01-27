@@ -18,13 +18,7 @@ Requirements
 
     ``pysegcnn`` requires ``Python>=3.7``.
 
-Here is a list of all dependencies of ``pysegcnn``.
-
-    - numpy
-    - scipy
-    - matplotlib
-    - pytorch
-    - gdal
+The list of dependencies, in addition to ``pytorch``, is defined in ``environment.yml``.
 
 Download
 ---------
@@ -108,6 +102,7 @@ supported out-of-the-box:
 
 - Spatial Procedures for Automated Removal of Cloud and Shadow `SPARCS`_
   by `Hughes M.J. & Hayes D.J. (2014)`_
+- Active Learning Cloud detection `ALCD`_ by `Baetens et al. (2019)`_.
 - `Cloud-38`_ and `Cloud-95`_ by Mohajerani S. & Saeedi P. (`2019`_, `2020`_)
 
 Contact
@@ -133,6 +128,12 @@ at the `Institute for Earth Observation <http://www.eurac.edu/en/research/mounta
 
 .. _SPARCS:
     https://www.usgs.gov/land-resources/nli/landsat/spatial-procedures-automated-removal-cloud-and-shadow-sparcs-validation)
+
+.. _ALCD:
+    https://zenodo.org/record/1460961#.XYCTRzYzaHt
+
+.. _Baetens et al. (2019):
+    https://www.mdpi.com/2072-4292/11/4/433
 
 .. _Hughes M.J. & Hayes D.J. (2014):
     https://www.mdpi.com/2072-4292/6/6/4907

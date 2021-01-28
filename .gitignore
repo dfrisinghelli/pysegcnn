@@ -12,6 +12,7 @@ _graphics/
 _samples/
 _scenes/
 _animations/
+_plots/
 
 # log files
 _logs/

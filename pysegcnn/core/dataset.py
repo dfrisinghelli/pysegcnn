@@ -633,17 +633,9 @@ class ImageDataset(Dataset):
     def class_distribution(self):
 
         # initialize dictionary of class spectral distribution
-        cls_ds = {k: np.empty(shape=(0, len(self.use_bands))) for k, _ in
-                  self.labels.items()}
-
-        # initialize class distribution dataframe
-        # columns = [band.capitalize() for band in self.use_bands] + ['Class']
-        # cls_df = pd.DataFrame(columns=columns)
-
-        # create the lookup table to replace the class identifiers by their
-        # corresponding labels
-        # lookup = np.array(list({k: v['label'] for k, v in self.labels.items()}
-        #                        .items())).astype(object)
+        # exclude NoData class
+        cls_ds = {k: np.empty(shape=(0, len(self.use_bands))) for k, v in
+                  self.labels.items() if v['label'] != 'No_data'}
 
         # iterate over the samples of the dataset
         for i in range(len(self)):
@@ -660,18 +652,6 @@ class ImageDataset(Dataset):
                 cls_ds[k] = np.vstack([cls_ds[k], x[:, mask[0], mask[1]].T])
 
         return cls_ds
-
-        # reshape the current sample
-        # data = np.hstack([x.flatten(start_dim=1).T, np.expand_dims(
-        #     array_replace(y.flatten(), lookup), axis=1)])
-
-        # # the pixels of the current sample to the dataframe
-        # df = pd.DataFrame(data, columns=columns)
-
-        # # update class distribution dataframe
-        # cls_df = cls_df.append(df)
-
-        # return cls_df
 
     def __repr__(self):
         """Dataset representation.

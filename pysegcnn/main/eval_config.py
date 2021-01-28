@@ -28,8 +28,8 @@ from pysegcnn.core.utils import search_files
 HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
-DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/_Datasets/')
-# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')  # nopep8
+DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
+# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),

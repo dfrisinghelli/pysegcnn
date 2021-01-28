@@ -29,8 +29,8 @@ import pathlib
 HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
-DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/_Datasets/')
-# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/_Datasets/')  # nopep8
+DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
+# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -44,7 +44,7 @@ DS_NAME = 'Sparcs'
 BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
 
 # tile size of a single sample
-TILE_SIZE = 128
+TILE_SIZE = None
 
 # number of folds for cross validation
 K_FOLDS = 1

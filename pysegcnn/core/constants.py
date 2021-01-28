@@ -41,7 +41,7 @@ class Landsat8(MultiSpectralSensor):
 
     """
 
-    violet = 1
+    aerosol = 1
     blue = 2
     green = 3
     red = 4

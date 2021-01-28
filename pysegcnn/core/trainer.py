@@ -143,9 +143,9 @@ class DatasetConfig(BaseConfig):
     tile_size: object
     gt_pattern: str
     sort: bool = False
-    transforms: list = dataclasses.field(default_factory=[])
+    transforms: list = dataclasses.field(default_factory=list)
     pad: bool = False
-    merge_labels: dict = dataclasses.field(default_factory={})
+    merge_labels: dict = dataclasses.field(default_factory=list)
 
     def __post_init__(self):
         """Check the type of each argument.

@@ -54,10 +54,15 @@ class Conv2dSame(nn.Conv2d):
         """
         super().__init__(*args, **kwargs)
 
+        # initialize layer weights after He et al. (2015) (kaiming uniform) for
+        # ReLu non-linearity
+        nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
+
         # define tensorflows "SAME" padding for stride = 1
         x_pad = self.same_padding(self.dilation[1], self.kernel_size[1])
         y_pad = self.same_padding(self.dilation[0], self.kernel_size[0])
 
+        # amount of padding to conserve shape of input
         self.padding = (y_pad, x_pad)
 
     @staticmethod

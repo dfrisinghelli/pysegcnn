@@ -25,6 +25,7 @@ import zipfile
 import datetime
 import warnings
 import platform
+import subprocess
 import xml.etree.ElementTree as ET
 
 # externals
@@ -2428,3 +2429,22 @@ def pixels_within_lowres(top_left, res_prop):
                np.tile(yhres, reps=len(xhres)))
 
     return indices
+
+
+def gdb2shp(src_ds, feature=''):
+    """Convert an Esri Geodatabase to a shapefile.
+
+    The shapefiles are stored in the same directory as ``src_ds``.
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        Path to the Esri Geodatabase.
+    feature : `str`
+        The name of a feature class in ``src_ds``. If specified, only
+        ``feature`` is converted to a shapefile. The default is `''`.
+
+    """
+    # call the osgeo ogr2ogr system utility
+    subprocess.run('ogr2ogr -f "ESRI Shapefile" {} {} {}'.format(
+        src_ds, src_ds.parent, feature))

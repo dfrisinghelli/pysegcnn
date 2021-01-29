@@ -642,7 +642,9 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
                         art.set_alpha(alpha)
 
         # add name of the spectral band to the plot
-        ax.text(x=0.6, y=0.95, s='({})'.format(ds.use_bands[band]),
+        ax.text(x=0.6, y=0.95, s='({}: {})'.format(
+            getattr(ds.sensor, ds.use_bands[band]).value,
+            getattr(ds.sensor, ds.use_bands[band]).name),
                 ha='left', va='top', weight='bold')
 
     # create a patch (proxy artist) for every class
@@ -650,7 +652,8 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
                npix_per_class.items()]
 
     # add legend with number of pixels per class to plot
-    axes[-1].legend(handles=patches, loc=2, frameon=False)
+    axes[-1].legend(handles=patches, loc='upper right', frameon=False,
+                    bbox_to_anchor=(-0.15, -0.15), ncol=len(labels))
 
     # adjust space between subplots
     fig.subplots_adjust(hspace=0.075, wspace=0.025)

@@ -1939,8 +1939,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
                           gdal.GetDataTypeName(out_type)).value(no_data)
 
     # get the projection of the source dataset
-    src_epsg = get_epsg(src_ds)
-    src_proj = 'epsg:{}'.format(src_epsg)
+    src_sr = src_ds.GetSpatialRef().ExportToWkt()
 
     # check whether a reference raster is provided
     if ref_ds is not None:
@@ -1949,8 +1948,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         ref_ds = gdal.Open(str(ref_path))
 
         # get the projection of the reference dataset
-        ref_epsg = get_epsg(ref_ds)
-        ref_proj = 'epsg:{}'.format(ref_epsg)
+        ref_sr = ref_ds.GetSpatialRef().ExportToWkt()
 
         # get the spatial resolution of the reference dataset
         ref_gt = ref_ds.GetGeoTransform()
@@ -1962,23 +1960,22 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         if epsg is None:
             # if no epsg code is specified, use the source dataset spatial
             # reference
-            epsg = src_epsg
+            ref_sr = src_sr
             LOGGER.info('Neither a reference dataset nor an epsg code provided'
                         '. Using the source spatial reference.')
 
         # the specified projection
-        ref_proj = 'epsg:{}'.format(epsg)
+        ref_sr = 'epsg:{}'.format(epsg)
 
         # the specified spatial resolution
         ref_xres = pixel_size[0]
         ref_yres = pixel_size[1]
 
     # reproject source dataset to target projection
-    LOGGER.info(
-        'Reproject {}: {} to {}'.format(src_path.name, src_proj, ref_proj))
+    LOGGER.info('Reproject {}:'.format(src_path.name))
     gdal.Warp(str(trg_path), str(src_path),
-              srcSRS=src_proj,
-              dstSRS=ref_proj,
+              srcSRS=src_sr,
+              dstSRS=ref_sr,
               outputType=out_type,
               dstNodata=no_data,
               xRes=ref_xres,
@@ -2038,6 +2035,9 @@ def reproject_vector(src_ds, trg_ds, ref_ds=None, epsg=None, overwrite=False):
     # source spatial reference
     src_sr = src_lr.GetSpatialRef()
 
+    # target spatial reference
+    trg_sr = osr.SpatialReference()
+
     # check whether a reference raster is provided
     if ref_ds is not None:
         # read reference dataset
@@ -2045,7 +2045,10 @@ def reproject_vector(src_ds, trg_ds, ref_ds=None, epsg=None, overwrite=False):
         ref_ds = gdal.Open(str(ref_path))
 
         # get the projection of the reference dataset
-        epsg = np.int(get_epsg(ref_ds))
+        ref_sr = ref_ds.GetSpatialRef().ExportToWkt()
+
+        # set target projection
+        trg_sr.ImportFromWkt(ref_sr)
 
     else:
         # check whether an epsg code is provided
@@ -2054,9 +2057,8 @@ def reproject_vector(src_ds, trg_ds, ref_ds=None, epsg=None, overwrite=False):
                            'Aborting...')
             return
 
-    # target spatial reference
-    trg_sr = osr.SpatialReference()
-    trg_sr.ImportFromEPSG(epsg)
+        # set target projection
+        trg_sr.ImportFromEPSG(epsg)
 
     # coordinate transformation
     crs_tr = osr.CoordinateTransformation(src_sr, trg_sr)

@@ -1922,7 +1922,6 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     # check whether the output datasets exists
     trg_path = pathlib.Path(trg_ds)
     if not trg_path.exists():
-        LOGGER.info('mkdir {}'.format(str(trg_path.parent)))
         trg_path.parent.mkdir(parents=True, exist_ok=True)
     else:
         # check whether to overwrite existing files
@@ -1935,7 +1934,9 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
 
     # encode the NoData value to the output data type
     out_type = src_ds.GetRasterBand(1).DataType
-    nodata = getattr(Gdal2Numpy, gdal.GetDataTypeName(out_type)).value(no_data)
+    if no_data is not None:
+        no_data = getattr(Gdal2Numpy,
+                          gdal.GetDataTypeName(out_type)).value(no_data)
 
     # get the projection of the source dataset
     src_epsg = get_epsg(src_ds)
@@ -1979,7 +1980,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
               srcSRS=src_proj,
               dstSRS=ref_proj,
               outputType=out_type,
-              dstNodata=nodata,
+              dstNodata=no_data,
               xRes=ref_xres,
               yRes=ref_yres,
               resampleAlg=resample)
@@ -2257,7 +2258,7 @@ def dec2bin(number, nbits=8):
 
 
 def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
-                    src_no_data=None, trg_no_data=0):
+                    src_no_data=None, trg_no_data=None):
     """Extract raster values by mask.
 
     Extract the extent of ``mask_ds`` from ``src_ds``. The masked values of
@@ -2282,7 +2283,8 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
         means the value is read from ``src_ds``. If specified, values equal to
         ``src_no_data`` are masked as ``trg_no_data`` in ``trg_ds``.
     trg_no_data : `int` or `float`, optional
-        The value to assign to NoData values in ``trg_ds``. The default is `0`.
+        The value to assign to NoData values in ``trg_ds``. The default is
+        `None`, which means conserving the NoData value of ``src_ds``.
 
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
@@ -2300,7 +2302,6 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
     # check whether the output datasets exists
     trg_path = pathlib.Path(trg_ds)
     if not trg_path.exists():
-        LOGGER.info('mkdir {}'.format(str(trg_path.parent)))
         trg_path.parent.mkdir(parents=True, exist_ok=True)
     else:
         # check whether to overwrite existing files
@@ -2314,6 +2315,8 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
     # source dataset spatial reference
     src_sr = osr.SpatialReference()
     src_sr.ImportFromWkt(src_ds.GetProjection())
+
+    LOGGER.info('Extract: {}, {}'.format(src_path.name, mask_path.name))
 
     # checkt the type of the mask dataset
     if mask_path.name.endswith('.shp'):

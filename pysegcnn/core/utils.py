@@ -2219,11 +2219,11 @@ def array_replace(array, lookup):
 
     """
     # create an index array to replace the values in the lookup table
-    indices = np.arange(np.int(lookup[:, 0].max()) + 1).astype(object)
+    indices = np.arange(np.int(lookup[:, 0].max()) + 1)
     indices[lookup[:, 0].astype(np.int)] = lookup[:, 1]
 
     # the array with the replaced values
-    return indices[array]
+    return indices[array].astype(array.dtype)
 
 
 def dec2bin(number, nbits=8):

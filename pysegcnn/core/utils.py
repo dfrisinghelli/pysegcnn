@@ -2451,3 +2451,18 @@ def gdb2shp(src_ds, feature=''):
     # call the osgeo ogr2ogr system utility
     subprocess.run('ogr2ogr -f "ESRI Shapefile" {} {} {}'.format(
         src_ds, src_ds.parent, feature))
+
+
+def merge_tifs(trg_ds, tifs):
+    """Mosaic a set of images.
+
+    Parameters
+    ----------
+    trg_ds : `str` or :py:class:`pathlib.Path`
+        Path to the output GeoTiff file.
+    tifs : `list` [`str` or :py:class:`pathlib.Path`]
+        List of paths to the GeoTiffs to mosaic.
+
+    """
+    LOGGER.info('Creating mosaic: {}'.format(trg_ds))
+    gdal.Warp(str(trg_ds), [str(tif) for tif in tifs])

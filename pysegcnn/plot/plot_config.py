@@ -30,8 +30,8 @@ if not PLOT_PATH.exists():
 # path to the datasets on the current machine
 # DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('F:/Studium/SS 2020/Datasets/')
-# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets')  # nopep8
-DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
+DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets')  # nopep8
+# DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': {'root_dir': DRIVE_PATH.joinpath('Sparcs'),
@@ -45,7 +45,7 @@ DATASETS = {'Sparcs': {'root_dir': DRIVE_PATH.joinpath('Sparcs'),
             }
 
 # spectral bands to plot distribution
-BANDS = ['aerosol', 'blue', 'green', 'red', 'nir', 'cirrus', 'swir1', 'swir2']
+BANDS = ['ublue', 'blue', 'green', 'red', 'nir', 'cirrus', 'swir1', 'swir2']
 
 # plot parameters
 FIGSIZE = (16, 9)

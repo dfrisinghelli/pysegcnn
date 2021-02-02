@@ -29,14 +29,16 @@ if not PLOT_PATH.exists():
 
 # path to the datasets on the current machine
 # DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
-DRIVE_PATH = pathlib.Path('F:/Studium/SS 2020/Datasets/')
+# DRIVE_PATH = pathlib.Path('F:/Studium/SS 2020/Datasets/')
+# DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets')  # nopep8
+DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': {'root_dir': DRIVE_PATH.joinpath('Sparcs'),
                        'merge_labels': {'Shadow_over_water': 'Shadow',
                                         'Flooded': 'Land'},
                        'gt_pattern': '(.*)mask\\.png'},
-            'Alcd': {'root_dir': DRIVE_PATH.joinpath('Alcd/Resampled/20m'),
+            'Alcd': {'root_dir': DRIVE_PATH.joinpath('Alcd'),
                      'merge_labels': {'Cirrus': 'Cloud',
                                       'Not_used': 'No_data'},
                      'gt_pattern': '(.*)Labels\\.tif'}

@@ -634,8 +634,8 @@ class ImageDataset(Dataset):
 
         # initialize dictionary of class spectral distribution
         # exclude NoData class
-        cls_ds = {k: np.empty(shape=(0, len(self.use_bands))) for k, v in
-                  self.labels.items() if v['label'] != 'No_data'}
+        cls_ds = {k: np.empty(shape=(0, len(self.use_bands)), dtype=np.float32)
+                  for k, v in self.labels.items() if v['label'] != 'No_data'}
 
         # iterate over the samples of the dataset
         for i in range(len(self)):

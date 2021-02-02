@@ -41,7 +41,7 @@ class Landsat8(MultiSpectralSensor):
 
     """
 
-    aerosol = 1
+    ublue = 1
     blue = 2
     green = 3
     red = 4
@@ -62,7 +62,7 @@ class Sentinel2(MultiSpectralSensor):
 
     """
 
-    aerosol = 1
+    ublue = 1
     blue = 2
     green = 3
     red = 4

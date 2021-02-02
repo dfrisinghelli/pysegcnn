@@ -346,7 +346,7 @@ class ImageDataset(Dataset):
             x, y = scene['transform'](x, y)
 
         # convert to torch tensors
-        x = self.to_tensor(x, dtype=torch.float32)
+        x = self.to_tensor(x, dtype=torch.float16)
         y = self.to_tensor(y, dtype=torch.uint8)
 
         return x, y

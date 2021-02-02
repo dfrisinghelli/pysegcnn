@@ -116,9 +116,9 @@ class SparcsLabels(Label):
     Shadow = 0, 'grey'
     Shadow_over_water = 1, 'darkblue'
     Water = 2, 'blue'
-    Snow = 3, 'lightblue'
+    Snow = 3, 'paleturquoise'
     Land = 4, 'forestgreen'
-    Cloud = 5, 'white'
+    Cloud = 5, 'whitesmoke'
     Flooded = 6, 'yellow'
     No_data = 7, 'black'
 
@@ -132,7 +132,7 @@ class Cloud95Labels(Label):
     """
 
     Clear = 0, 'skyblue'
-    Cloud = 1, 'white'
+    Cloud = 1, 'whitesmoke'
 
 
 class AlcdLabels(Label):
@@ -145,12 +145,12 @@ class AlcdLabels(Label):
 
     No_data = 0, 'black'
     Not_used = 1, 'black'
-    Cloud = 2, 'white'
-    Cirrus = 3, 'white'
+    Cloud = 2, 'whitesmoke'
+    Cirrus = 3, 'whitesmoke'
     Shadow = 4, 'grey'
     Land = 5, 'forestgreen'
     Water = 6, 'blue'
-    Snow = 7, 'lightblue'
+    Snow = 7, 'paleturquoise'
 
 
 class Gdal2Numpy(enum.Enum):

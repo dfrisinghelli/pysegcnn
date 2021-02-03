@@ -34,18 +34,18 @@ DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets') 
 # DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
 
 # name and paths to the datasets
-DATASETS = {'Sparcs': {'root_dir': DRIVE_PATH.joinpath('Sparcs'),
-                       'merge_labels': {'Shadow_over_water': 'Shadow',
-                                        'Flooded': 'Land'},
-                       'gt_pattern': '(.*)mask\\.png'},
-            'Alcd': {'root_dir': DRIVE_PATH.joinpath('Alcd'),
+# DATASETS = {'Sparcs': {'root_dir': DRIVE_PATH.joinpath('Sparcs'),
+  #                     'merge_labels': {'Shadow_over_water': 'Shadow',
+   #                                     'Flooded': 'Land'},
+    #                   'gt_pattern': '(.*)mask\\.png'},
+DATASETS = {'Alcd': {'root_dir': DRIVE_PATH.joinpath('Alcd'),
                      'merge_labels': {'Cirrus': 'Cloud',
                                       'Not_used': 'No_data'},
                      'gt_pattern': '(.*)Labels\\.tif'}
-            }
+           }
 
 # spectral bands to plot distribution
-BANDS = ['ublue', 'blue', 'green', 'red', 'nir', 'cirrus', 'swir1', 'swir2']
+BANDS = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2']
 
 # plot parameters
 FIGSIZE = (16, 9)

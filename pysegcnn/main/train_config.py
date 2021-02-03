@@ -29,25 +29,26 @@ import pathlib
 HERE = pathlib.Path(__file__).resolve().parent
 
 # path to the datasets on the current machine
-DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
+# DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
+DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets/')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
-            'Alcd': DRIVE_PATH.joinpath('Alcd/60m')
+            'Alcd': DRIVE_PATH.joinpath('Alcd')
             }
 
 # name of the dataset
 DS_NAME = 'Sparcs'
 
 # spectral bands to use for training
-BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
+BANDS = ['red', 'green', 'blue']
 
 # tile size of a single sample
-TILE_SIZE = None
+TILE_SIZE = 128
 
 # number of folds for cross validation
-K_FOLDS = 1
+K_FOLDS = 10
 
 # the source dataset configuration dictionary
 ds_config = {
@@ -249,10 +250,10 @@ model_config = {
     'early_stop': True,
     'mode': 'max',
     'delta': 0,
-    'patience': 10,
+    'patience': 20,
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
-    'epochs': 100,
+    'epochs': 5000,
 
 }

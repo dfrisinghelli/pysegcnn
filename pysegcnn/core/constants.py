@@ -24,9 +24,23 @@ import numpy as np
 class MultiSpectralSensor(enum.Enum):
     """A generic class for a multispectral sensor."""
 
+    @property
+    def number(self):
+        """Return the number of a band."""
+        return self.value[0]
+
+    @property
+    def range(self):
+        """Return the spectral range of a band in microns."""
+        return self.value[1]
+
     @classmethod
     def band_dict(cls):
-        return {band.value: band.name for band in cls}
+        return {band.number: band.name for band in cls}
+
+    @classmethod
+    def spectral_range(cls):
+        return {band.name: band.range for band in cls}
 
 
 class Landsat8(MultiSpectralSensor):
@@ -41,17 +55,17 @@ class Landsat8(MultiSpectralSensor):
 
     """
 
-    ublue = 1
-    blue = 2
-    green = 3
-    red = 4
-    nir = 5
-    swir1 = 6
-    swir2 = 7
-    pan = 8
-    cirrus = 9
-    tir1 = 10
-    tir2 = 11
+    ublue = 1, (0.43, 0.45)
+    blue = 2, (0.45, 0.51)
+    green = 3, (0.53, 0.59)
+    red = 4, (0.64, 0.67)
+    nir = 5, (0.85, 0.88)
+    swir1 = 6, (1.57, 1.65)
+    swir2 = 7, (2.11, 2.29)
+    pan = 8, (0.5, 0.68)
+    cirrus = 9, (1.36, 1.38)
+    tir1 = 10, (10.60, 11.19)
+    tir2 = 11, (11.50, 12.51)
 
 
 class Sentinel2(MultiSpectralSensor):
@@ -62,19 +76,19 @@ class Sentinel2(MultiSpectralSensor):
 
     """
 
-    ublue = 1
-    blue = 2
-    green = 3
-    red = 4
-    vnir1 = 5
-    vnir2 = 6
-    vnir3 = 7
-    nir = 8
-    nnir = '8A'
-    vapor = 9
-    cirrus = 10
-    swir1 = 11
-    swir2 = 12
+    ublue = 1, (0.43, 0.45)
+    blue = 2, (0.46, 0.53)
+    green = 3, (0.54, 0.58)
+    red = 4, (0.65, 0.68)
+    vnir1 = 5, (0.69, 0.71)
+    vnir2 = 6, (0.73, 0.75)
+    vnir3 = 7, (0.77, 0.79)
+    nir = 8, (0.78, 0.89)
+    nnir = '8A', (0.85, 0.88)
+    vapor = 9, (0.94, 0.96)
+    cirrus = 10, (1.36, 1.39)
+    swir1 = 11, (1.57, 1.66)
+    swir2 = 12, (2.11, 2.29)
 
 
 class Label(enum.Enum):

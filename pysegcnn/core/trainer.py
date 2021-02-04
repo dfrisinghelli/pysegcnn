@@ -2483,6 +2483,7 @@ class NetworkInference(BaseConfig):
         LOGGER.info('Setting model to evaluation mode ...')
         model.eval()
         model.to(self.device)
+        LOGGER.info('Device: {}'.format(self.device))
 
         # iterate over the samples of the target dataset
         output = {}

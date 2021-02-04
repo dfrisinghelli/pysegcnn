@@ -2607,7 +2607,7 @@ class NetworkInference(BaseConfig):
                 domain=self.domain)
 
             # load the source dataset the model was trained on
-            self.src_ds = self.load_dataset(state, test=None)
+            self.src_ds = self.load_dataset(state, test=None).dataset
 
             # load the pretrained model
             model, _ = Network.load_pretrained_model(state)

@@ -2106,7 +2106,7 @@ class NetworkInference(BaseConfig):
 
         # the device to compute on, use gpu if available
         self.device = torch.device(
-            'cuda:' if torch.cuda.is_available() else 'cpu')
+            'cuda:0' if torch.cuda.is_available() else 'cpu')
 
         # the output paths for the different graphics
         self.base_path = pathlib.Path(HERE)

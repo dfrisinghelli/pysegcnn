@@ -2546,7 +2546,7 @@ class NetworkInference(BaseConfig):
                                 self.bands,
                                 self.source_labels,
                                 y=labels,
-                                y_pred={self.model.__class__.__name__: prdctn},
+                                y_pred={model.__class__.__name__: prdctn},
                                 accuracy=True,
                                 state=batch_name,
                                 plot_path=self.scenes_path,

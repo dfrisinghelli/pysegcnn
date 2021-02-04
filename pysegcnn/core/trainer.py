@@ -2074,7 +2074,7 @@ class NetworkInference(BaseConfig):
     predict_scene: bool = True
     plot_scenes: bool = False
     plot_bands: list = dataclasses.field(
-        default_factory=lambda: ['nir', 'red', 'green'])
+        default_factory=lambda: ['swir2', 'nir', 'green'])
     cm: bool = True
     figsize: tuple = (10, 10)
     alpha: int = 5

@@ -955,9 +955,9 @@ class LogConfig(BaseConfig):
             The string to write to the model log file.
 
         """
-        LOGGER.info(200 * '-')
+        LOGGER.info(80 * '-')
         LOGGER.info('{}: '.format(LogConfig.now()) + init_str)
-        LOGGER.info(200 * '-')
+        LOGGER.info(80 * '-')
 
 
 @dataclasses.dataclass
@@ -2506,7 +2506,7 @@ class NetworkInference(BaseConfig):
 
                 # id of the current scene
                 current_scene = np.int(batch * self.dataloader.batch_size)
-                batch = self.trg_ds.dataset.scenes['id'][current_scene]
+                batch = self.trg_ds.dataset.scenes[current_scene]['id']
 
                 # modify the progress string
                 progress = progress.replace('Sample', 'Scene')

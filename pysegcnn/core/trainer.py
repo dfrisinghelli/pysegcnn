@@ -2169,7 +2169,7 @@ class NetworkInference(BaseConfig):
 
                     # replace drive path
                     if dpath != drive_path:
-                        scene[k] = v.replace(str(dpath), drive_path)
+                        scene[k] = v.replace(str(dpath), str(drive_path))
 
     def load_dataset(self, state, implicit=True, test=False, domain='src'):
         """Load the defined dataset.
@@ -2230,7 +2230,7 @@ class NetworkInference(BaseConfig):
         ds.name = '_'.join([domain, ds_set])
 
         # check the dataset path: replace by path on current machine
-        self.replace_dataset_path(ds, DRIVE_PATH)
+        # self.replace_dataset_path(ds, DRIVE_PATH)
 
         return ds
 

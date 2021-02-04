@@ -2526,8 +2526,8 @@ class NetworkInference(BaseConfig):
             output[batch] = {'x': inputs, 'y': labels, 'y_pred': prdctn}
 
             # filename for the plot of the current batch
-            batch_name = '_'.join(model.state_file.stem,
-                                  '{}_{}.pt'.format(self.trg_ds.name, batch))
+            batch_name = '_'.join([model.state_file.stem,
+                                  '{}_{}.pt'.format(self.trg_ds.name, batch)])
 
             # check if the current batch name exceeds the Windows limit of
             # 255 characters

@@ -2550,7 +2550,7 @@ class NetworkInference(BaseConfig):
                                 accuracy=True,
                                 state=batch_name,
                                 plot_path=self.scenes_path,
-                                **self.kwargs)
+                                **self.plot_kwargs)
 
         return output
 

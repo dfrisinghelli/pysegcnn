@@ -160,7 +160,7 @@ def plot_sample(x, use_bands, labels,
                 y_pred={},
                 accuracy=False,
                 figsize=(16, 9),
-                bands=['nir', 'red', 'green'],
+                bands=['red', 'green', 'blue'],
                 alpha=0,
                 state=None,
                 fig=None,
@@ -196,7 +196,7 @@ def plot_sample(x, use_bands, labels,
     figsize : `tuple`, optional
         The figure size in centimeters. The default is `(16, 9)`.
     bands : `list` [`str`], optional
-        The bands to build the FCC. The default is `['nir', 'red', 'green']`.
+        The bands to build the FCC. The default is `['red', 'green', 'blue']`.
     alpha : `int`, optional
         The level of the percentiles to increase constrast in the FCC.
         The default is `0`, i.e. no stretching is applied.

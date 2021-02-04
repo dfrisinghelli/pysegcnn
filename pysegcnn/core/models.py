@@ -197,7 +197,6 @@ class Network(nn.Module):
         state_file = pathlib.Path(check_filename_length(state_file))
         if not state_file.exists():
             raise FileNotFoundError('{} does not exist.'.format(state_file))
-        LOGGER.info('Loading pretrained weights from: {}'.format(state_file))
 
         # load the model state
         model_state = torch.load(state_file)
@@ -285,6 +284,8 @@ class Network(nn.Module):
                                    SupportedOptimizers)
 
         # load the pretrained model configuration
+        LOGGER.info('Loading pretrained weights from: {}'
+                    .format(state_file.name))
         model_state = Network.load(state_file)
 
         # instanciate the pretrained model architecture

@@ -479,7 +479,9 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
 
     """
     # load the model state
+    state_file = pathlib.Path(state_file)
     model_state = torch.load(state_file)
+    LOGGER.info('Plot model statistics: {}'.format(state_file.stem))
 
     # get all non-zero elements, i.e. get number of epochs trained before
     # early stop

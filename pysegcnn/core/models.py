@@ -276,11 +276,12 @@ class Network(nn.Module):
 
         """
         # get the model class of the pretrained model
-        model_class = item_in_enum(str(state_file).split('_')[0],
+        state_file = pathlib.Path(state_file)
+        model_class = item_in_enum(str(state_file.stem).split('_')[0],
                                    SupportedModels)
 
         # get the optimizer class of the pretrained model
-        optim_class = item_in_enum(str(state_file).split('_')[1],
+        optim_class = item_in_enum(str(state_file.stem).split('_')[1],
                                    SupportedOptimizers)
 
         # load the pretrained model configuration

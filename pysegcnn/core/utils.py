@@ -2649,7 +2649,7 @@ def report2latex(classification_report, filename=None):
 
     """
     # convert to pandas DataFrame and export to latex
-    df = pd.DataFrame(classification_report)
+    df = pd.DataFrame.from_dict(classification_report)
 
     # check if output filename exists
     if filename is not None:

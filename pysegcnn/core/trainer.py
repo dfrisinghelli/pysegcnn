@@ -2661,9 +2661,9 @@ class NetworkInference(BaseConfig):
             output['y_pred'] = y_pred
 
             # calculate classification report from sklearn
-            LOGGER.info('Classification report')
-            LOGGER.info(classification_report(y_true, y_pred, target_names=[
-                        v['label'] for _, v in self.source_labels.items()]))
+            LOGGER.info('Calculating classification report: {}'
+                        .format(self.report_path.joinpath(
+                            self.report_name(state))))
 
             # export report to Latex table
             report = classification_report(y_true, y_pred, target_names=[
@@ -2710,8 +2710,11 @@ class NetworkInference(BaseConfig):
             LOGGER.info('Aggregating statistics of models:')
             LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
                 ['{}'.format(mstate.name) for mstate in self.state_files]))
-            LOGGER.info(classification_report(y_true, y_pred, target_names=[
-                        v['label'] for _, v in self.source_labels.items()]))
+
+            # calculate classification report from sklearn
+            LOGGER.info('Calculating classification report: {}'
+                        .format(self.report_path.joinpath(self.report_name(
+                            base_name.replace(fold_number, 'kfold')))))
 
             # export aggregated report to Latex table
             report = classification_report(y_true, y_pred, target_names=[

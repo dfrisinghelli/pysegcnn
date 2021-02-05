@@ -2513,6 +2513,11 @@ class NetworkInference(BaseConfig):
             progress = 'Sample: {:d}/{:d}'.format(batch + 1,
                                                   len(self.dataloader))
 
+            # check if tensor is on gpu and convert to numpy array
+            inputs = inputs.cpu().numpy()
+            labels = labels.cpu().numpy()
+            prdctn = prdctn.cpu().numpy()
+
             # check whether to reconstruct the scene
             if self.dataloader.batch_size > 1:
 
@@ -2643,9 +2648,9 @@ class NetworkInference(BaseConfig):
             if self.cm:
 
                 # merge predictions for all samples
-                y_true = np.asarray([v['y_true'].numpy().flatten() for _, v
+                y_true = np.asarray([v['y_true'].flatten() for _, v
                                      in output.items()]).flatten()
-                y_pred = np.asarray([v['y_pred'].numpy().flatten() for _, v
+                y_pred = np.asarray([v['y_pred'].flatten() for _, v
                                      in output.items()]).flatten()
 
                 # calculate confusion matrix

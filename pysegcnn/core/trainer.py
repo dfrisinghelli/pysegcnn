@@ -54,7 +54,6 @@ from pysegcnn.core.graphics import (plot_loss, plot_confusion_matrix,
 from pysegcnn.core.constants import map_labels
 from pysegcnn.main.train_config import HERE, DRIVE_PATH
 
-
 # module level logger
 LOGGER = logging.getLogger(__name__)
 
@@ -2505,9 +2504,14 @@ class NetworkInference(BaseConfig):
             # check whether to reconstruct the scene
             if self.dataloader.batch_size > 1:
 
-                # id of the current scene
-                current_scene = np.int(batch * self.dataloader.batch_size)
-                batch = self.trg_ds.dataset.scenes[current_scene]['id']
+                # tiles of the current scene
+                current_tiles = self.trg_ds.indices[
+                    np.arange(batch * self.dataloader.batch_size,
+                              (batch + 1) * self.dataloader.batch_size)]
+
+                # name of the current scene
+                batch = np.unique([sid for sid in self.trg_ds.dataset.scenes[
+                    current_tiles]['id']]).item()
 
                 # modify the progress string
                 progress = progress.replace('Sample', 'Scene')

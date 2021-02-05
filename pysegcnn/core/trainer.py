@@ -2652,6 +2652,7 @@ class NetworkInference(BaseConfig):
                                      in output.items()]).flatten()
 
                 # calculate confusion matrix
+                LOGGER.info('Computing confusion matrix ...')
                 conf_mat = confusion_matrix(y_true, y_pred)
 
                 # add confusion matrix to model output

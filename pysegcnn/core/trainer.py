@@ -2706,8 +2706,10 @@ class NetworkInference(BaseConfig):
                 str(base_name.name).replace(fold_number, 'kfold'))
 
             # predictions of the different models
-            y_true = [output['y_true'] for output in inference.values()]
-            y_pred = [output['y_pred'] for output in inference.values()]
+            y_true = np.asarray(
+                [output['y_true'] for output in inference.values()]).flatten()
+            y_pred = np.asarray(
+                [output['y_pred'] for output in inference.values()]).flatten()
 
             # calculate classification over all different models
             LOGGER.info('Aggregating statistics of models:')

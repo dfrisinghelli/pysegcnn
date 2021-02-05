@@ -2661,7 +2661,7 @@ class NetworkInference(BaseConfig):
                 # plot confusion matrix
                 plot_confusion_matrix(
                     conf_mat, self.source_labels, state_file=state,
-                    subset=self.domain + '_' + self.trg_ds.name,
+                    subset=self.trg_ds.name,
                     outpath=self.perfmc_path)
 
             # save model predictions to file

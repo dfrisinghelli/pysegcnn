@@ -2636,7 +2636,7 @@ def _tmp_path(path):
 
 
 def report2latex(classification_report, filename=None):
-    """Convert :py:class:`sklearn.metrics.classification_report` to Latex.
+    """Convert :py:func:`sklearn.metrics.classification_reports` to Latex.
 
     Parameters
     ----------

@@ -2062,6 +2062,8 @@ class NetworkInference(BaseConfig):
     perfmc_path : :py:class:`pathlib.Path`
         Path to store plots of model performance, e.g. confusion matrix.
     models_path : :py:class:`pathlib.Path`
+        Path to store the :py:func:`sklearn.metrics.classification_reports`.
+    models_path : :py:class:`pathlib.Path`
         Path to search for model state files ``state_files``.
     plot_kwargs : `dict`
         Keyword arguments for :py:func:`pysegcnn.core.graphics.plot_sample`

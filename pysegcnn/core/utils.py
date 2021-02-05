@@ -2655,7 +2655,7 @@ def report2latex(classification_report, filename=None):
     if filename is not None:
         filename = pathlib.Path(filename)
         if not filename.exists():
-            filename.parent().mkdir(exist_ok=True, parents=True)
+            filename.parent.mkdir(exist_ok=True, parents=True)
 
     # export to latex
     df.to_latex(buf=str(filename))

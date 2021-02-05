@@ -2583,8 +2583,7 @@ class NetworkInference(BaseConfig):
                                                     '_eval.pt'))
 
     def report_name(self, state_file):
-        return pathlib.Path(str(state_file).replace(state_file.suffix,
-                                                    '_cr.tex'))
+        return str(state_file).replace(state_file.suffix, '_cr.tex')
 
     def evaluate(self):
         """Evaluate the models on a defined dataset.
@@ -2664,7 +2663,8 @@ class NetworkInference(BaseConfig):
             cr_labels = [v['label'] for _, v in self.source_labels.items()]
 
             # calculate classification report from sklearn
-            report_name = self.report_path.joinpath(self.report_name(state))
+            report_name = self.report_path.joinpath(
+                self.report_name(state.name))
             LOGGER.info('Calculating classification report: {}'
                         .format(report_name))
 

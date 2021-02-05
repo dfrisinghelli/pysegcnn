@@ -35,14 +35,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, classification_report
 
 # locals
 from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import (item_in_enum, accuracy_function,
                                  reconstruct_scene, check_filename_length,
-                                 array_replace)
+                                 array_replace, report2latex)
 from pysegcnn.core.split import SupportedSplits
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   Network)
@@ -2125,6 +2125,9 @@ class NetworkInference(BaseConfig):
         self.scenes_path = self.base_path.joinpath('_scenes')
         self.perfmc_path = self.base_path.joinpath('_graphics')
 
+        # the output path for the classification reports
+        self.report_path = self.base_path.joinpath('_reports')
+
         # input path for model state files
         self.models_path = self.base_path.joinpath('_models')
         self.state_files = [self.models_path.joinpath(s) for s in
@@ -2576,7 +2579,12 @@ class NetworkInference(BaseConfig):
         return output
 
     def eval_file(self, state_file):
-        return pathlib.Path(str(state_file).replace('.pt', '_eval.pt'))
+        return pathlib.Path(str(state_file).replace(state_file.suffix,
+                                                    '_eval.pt'))
+
+    def report_name(self, state_file):
+        return pathlib.Path(str(state_file).replace(state_file.suffix,
+                                                    '_cr.tex'))
 
     def evaluate(self):
         """Evaluate the models on a defined dataset.
@@ -2642,14 +2650,29 @@ class NetworkInference(BaseConfig):
             # evaluate the model on the target dataset
             output = self.predict(model)
 
+            # merge predictions of the different samples
+            y_true = np.asarray([v['y_true'].flatten() for _, v
+                                 in output.items()]).flatten()
+            y_pred = np.asarray([v['y_pred'].flatten() for _, v
+                                 in output.items()]).flatten()
+
+            # predictions and ground truth of the entire target dataset
+            output['y_true'] = y_true
+            output['y_pred'] = y_pred
+
+            # calculate classification report from sklearn
+            LOGGER.info('Classification report')
+            LOGGER.info(classification_report(y_true, y_pred, target_names=[
+                        v['label'] for _, v in self.source_labels.items()]))
+
+            # export report to Latex table
+            report = classification_report(y_true, y_pred, target_names=[
+                        v['label'] for _, v in self.source_labels.items()])
+            report2latex(report, filename=self.report_path.joinpath(
+                self.report_name(state)))
+
             # check whether to calculate confusion matrix
             if self.cm:
-
-                # merge predictions for all samples
-                y_true = np.asarray([v['y_true'].flatten() for _, v
-                                     in output.items()]).flatten()
-                y_pred = np.asarray([v['y_pred'].flatten() for _, v
-                                     in output.items()]).flatten()
 
                 # calculate confusion matrix
                 LOGGER.info('Computing confusion matrix ...')
@@ -2674,12 +2697,27 @@ class NetworkInference(BaseConfig):
 
         # check whether to aggregate the results of the different model runs
         if self.aggregate:
-            LOGGER.info('Aggregating statistics of models:')
-            LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
-                ['{}'.format(mstate.name) for mstate in self.state_files]))
 
             # base name for all models
             base_name = str(self.state_files[0].name)
+            fold_number = re.search('f[0-9]', base_name)[0]
+
+            # predictions of the different models
+            y_true = [output['y_true'] for output in inference.values()]
+            y_pred = [output['y_pred'] for output in inference.values()]
+
+            # calculate classification over all different models
+            LOGGER.info('Aggregating statistics of models:')
+            LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
+                ['{}'.format(mstate.name) for mstate in self.state_files]))
+            LOGGER.info(classification_report(y_true, y_pred, target_names=[
+                        v['label'] for _, v in self.source_labels.items()]))
+
+            # export aggregated report to Latex table
+            report = classification_report(y_true, y_pred, target_names=[
+                        v['label'] for _, v in self.source_labels.items()])
+            report2latex(report, filename=self.report_path.joinpath(
+                self.report_name(base_name.replace(fold_number, 'kfold'))))
 
             # chech whether to compute the aggregated confusion matrix
             if self.cm:
@@ -2695,7 +2733,6 @@ class NetworkInference(BaseConfig):
                 inference['cm_agg'] = cm_agg
 
                 # create file name for aggregated confusion matrix
-                fold_number = re.search('f[0-9]', base_name)[0]
                 cm_name = base_name.replace(fold_number, 'kfold')
 
                 # plot aggregated confusion matrix and save to file

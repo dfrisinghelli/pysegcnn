@@ -2522,8 +2522,8 @@ class NetworkInference(BaseConfig):
                               (batch + 1) * self.dataloader.batch_size)]
 
                 # name of the current scene
-                batch = np.unique([sid for sid in self.trg_ds.dataset.scenes[
-                    current_tiles]['id']]).item()
+                batch = np.unique([self.trg_ds.dataset.scenes[sid]['id'] for
+                                   sid in current_tiles]).item()
 
                 # modify the progress string
                 progress = progress.replace('Sample', 'Scene')

@@ -175,7 +175,8 @@ PACKAGES = find_packages(exclude=['tests'])
 INSTALL_REQUIRES = ['numpy',
                     'torch',
                     'scipy',
-                    'gdal',
+                    'scikit-learn',
+                    'gdal>=3.2',
                     'matplotlib'
                     ]
 

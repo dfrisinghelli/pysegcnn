@@ -2674,9 +2674,12 @@ class NetworkInference(BaseConfig):
 
         # check whether to aggregate the results of the different model runs
         if self.aggregate:
+            LOGGER.info('Aggregating statistics of models:')
+            LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
+                ['{}'.format(mstate.name) for mstate in self.state_files]))
 
             # base name for all models
-            base_name = str(self.state_files[0]).name
+            base_name = str(self.state_files[0].name)
 
             # chech whether to compute the aggregated confusion matrix
             if self.cm:

@@ -2618,6 +2618,9 @@ class NetworkInference(BaseConfig):
             dictConfig(log_conf(log.log_file))
             log.init_log('Evaluating model: {}.'.format(state))
 
+            # classification report labels
+            cr_labels = [v['label'] for _, v in self.source_labels.items()]
+
             # check whether model was already evaluated
             if self.eval_file(state).exists():
                 LOGGER.info('Found existing model evaluation: {}.'
@@ -2661,15 +2664,14 @@ class NetworkInference(BaseConfig):
             output['y_pred'] = y_pred
 
             # calculate classification report from sklearn
+            report_name = self.report_path.joinpath(self.report_name(state))
             LOGGER.info('Calculating classification report: {}'
-                        .format(self.report_path.joinpath(
-                            self.report_name(state))))
+                        .format(report_name))
 
             # export report to Latex table
-            report = classification_report(y_true, y_pred, target_names=[
-                        v['label'] for _, v in self.source_labels.items()])
-            report2latex(report, filename=self.report_path.joinpath(
-                self.report_name(state)))
+            report = classification_report(
+                y_true, y_pred, target_names=cr_labels, output_dict=True)
+            report2latex(report, filename=report_name)
 
             # check whether to calculate confusion matrix
             if self.cm:
@@ -2712,15 +2714,15 @@ class NetworkInference(BaseConfig):
                 ['{}'.format(mstate.name) for mstate in self.state_files]))
 
             # calculate classification report from sklearn
+            report_name = self.report_path.joinpath(
+                self.report_name(base_name.replace(fold_number, 'kfold')))
             LOGGER.info('Calculating classification report: {}'
-                        .format(self.report_path.joinpath(self.report_name(
-                            base_name.replace(fold_number, 'kfold')))))
+                        .format(report_name))
 
             # export aggregated report to Latex table
-            report = classification_report(y_true, y_pred, target_names=[
-                        v['label'] for _, v in self.source_labels.items()])
-            report2latex(report, filename=self.report_path.joinpath(
-                self.report_name(base_name.replace(fold_number, 'kfold'))))
+            report = classification_report(
+                y_true, y_pred, target_names=cr_labels, output_dict=True)
+            report2latex(report, filename=report_name)
 
             # chech whether to compute the aggregated confusion matrix
             if self.cm:

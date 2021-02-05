@@ -31,6 +31,7 @@ import xml.etree.ElementTree as ET
 # externals
 import torch
 import numpy as np
+import pandas as pd
 from osgeo import gdal, ogr, osr
 
 # locals
@@ -2632,3 +2633,29 @@ def _tmp_path(path):
     path = pathlib.Path(path)
     return pathlib.Path(str(path).replace(path.suffix,
                                           '_tmp{}'.format(path.suffix)))
+
+
+def report2latex(classification_report, filename=None):
+    """Convert :py:class:`sklearn.metrics.classification_report` to Latex.
+
+    Parameters
+    ----------
+    classification_report : `dict`
+        The dictionary returned by
+        :py:class:`sklearn.metrics.classification_report`.
+    filename : `str` or :py:class:`pathlib.Path` or `None`, optional
+        The object to write the Latex table to. If `None` the table is
+        returned as string.
+
+    """
+    # convert to pandas DataFrame and export to latex
+    df = pd.DataFrame(classification_report).transpose()
+
+    # check if output filename exists
+    if filename is not None:
+        filename = pathlib.Path(filename)
+        if not filename.exists():
+            filename.parent().mkdir(exist_ok=True, parents=True)
+
+    # export to latex
+    df.to_latex(buf=filename)

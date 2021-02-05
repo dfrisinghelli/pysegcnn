@@ -173,6 +173,7 @@ PACKAGES = find_packages(exclude=['tests'])
 # For an analysis of "install_requires" vs pip's requirements files see:
 # https://packaging.python.org/en/latest/requirements.html
 INSTALL_REQUIRES = ['numpy',
+                    'pandas',
                     'torch',
                     'scipy',
                     'scikit-learn',

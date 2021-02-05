@@ -126,7 +126,7 @@ def evaluation_parser():
     # in cross validation
     parser.add_argument('-a', '--aggregate', type=bool,
                         help=('Aggregate the statistics of the different '
-                              'models matching the defined pattern. {}.'
+                              'models matching the defined pattern {}.'
                               .format(default)),
                         default=False, nargs='?', const=True, metavar='')
 
@@ -162,10 +162,23 @@ def evaluation_parser():
                               .format(default)),
                         default=False, nargs='?', const=True, metavar='')
 
+    # optional argument: whether to overwrite existing files
+    parser.add_argument('-o', '--overwrite', type=bool,
+                        help=('Overwrite existing model evaluations {}.'
+                              .format(default)),
+                        default=False, nargs='?', const=True, metavar='')
+
     # optional argument: plot scenes
     parser.add_argument('-plot', '--plot-scenes', type=bool,
                         help=('Save plots for each predicted scene {}.'
                               .format(default)),
                         default=False, nargs='?', const=True, metavar='')
+
+    # optional argument: dataset path
+    parser.add_argument('-ds', '--dataset-path', type=str,
+                        help=('Path to the datasets on the current machine {}.'
+                              'Per default, it is assumed to be same as during'
+                              ' model training .'.format(default)),
+                        default='', metavar='')
 
     return parser

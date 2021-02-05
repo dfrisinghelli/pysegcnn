@@ -73,10 +73,12 @@ if __name__ == '__main__':
             aggregate=args.aggregate,
             ds=ds,
             ds_split=ds_split,
+            drive_path=args.dataset_path,
             map_labels=args.map_labels,
             predict_scene=args.predict_scene,
             plot_scenes=args.plot_scenes,
-            cm=args.confusion_matrix)
+            cm=args.confusion_matrix,
+            overwrite=args.overwrite)
 
         # evaluate models
         output = inference.evaluate()

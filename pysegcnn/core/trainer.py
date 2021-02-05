@@ -2617,8 +2617,6 @@ class NetworkInference(BaseConfig):
 
                 # load existing model evaluation
                 if not self.overwrite:
-                    LOGGER.info('Using model evaluation: {}.'
-                                .format(self.eval_file(state)))
                     inference[state.stem] = torch.load(self.eval_file(state))
                     continue
                 else:
@@ -2666,6 +2664,8 @@ class NetworkInference(BaseConfig):
                     outpath=self.perfmc_path)
 
             # save model predictions to file
+            LOGGER.info('Saving model evaluation: {}'
+                        .format(self.eval_file(state)))
             torch.save(output, self.eval_file(state))
 
             # save model predictions to list

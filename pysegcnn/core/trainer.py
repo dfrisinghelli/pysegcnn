@@ -2618,9 +2618,6 @@ class NetworkInference(BaseConfig):
             dictConfig(log_conf(log.log_file))
             log.init_log('Evaluating model: {}.'.format(state))
 
-            # classification report labels
-            cr_labels = [v['label'] for _, v in self.source_labels.items()]
-
             # check whether model was already evaluated
             if self.eval_file(state).exists():
                 LOGGER.info('Found existing model evaluation: {}.'
@@ -2662,6 +2659,9 @@ class NetworkInference(BaseConfig):
             # predictions and ground truth of the entire target dataset
             output['y_true'] = y_true
             output['y_pred'] = y_pred
+
+            # classification report labels
+            cr_labels = [v['label'] for _, v in self.source_labels.items()]
 
             # calculate classification report from sklearn
             report_name = self.report_path.joinpath(self.report_name(state))

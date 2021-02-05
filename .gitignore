@@ -14,6 +14,9 @@ _scenes/
 _animations/
 _plots/
 
+# reports
+_reports/
+
 # log files
 _logs/
 *.log

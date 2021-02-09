@@ -31,7 +31,8 @@ HERE = pathlib.Path(__file__).resolve().parent
 # path to the datasets on the current machine
 # DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
-DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets/')
+# DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets/')
+DRIVE_PATH = pathlib.Path('/home/clusterusers/dfrisinghelli_eurac/Datasets/')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -235,7 +236,7 @@ model_config = {
     # define the batch size
     # determines how many samples of the dataset are processed until the
     # weights of the network are updated (via mini-batch gradient descent)
-    'batch_size': 128,
+    'batch_size': 256,
 
     # the seed for the random number generator intializing the network weights
     'torch_seed': 0,
@@ -254,6 +255,6 @@ model_config = {
 
     # define the number of epochs: the number of maximum iterations over
     # the whole training dataset
-    'epochs': 5000,
+    'epochs': 200,
 
 }

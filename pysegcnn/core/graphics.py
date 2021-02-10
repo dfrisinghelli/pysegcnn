@@ -22,11 +22,13 @@ import logging
 
 # externals
 import numpy as np
+import pandas as pd
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
+import seaborn as sns
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
@@ -193,7 +195,7 @@ def plot_sample(x, use_bands, labels,
     accuracy : `bool`, optional
         Whether to calculate the accuracy of the predictions ``y_pred`` with
         respect to the ground truth ``y``. The default is `False`
-    figsize : `tuple`, optional
+    figsize : `tuple` [`int`], optional
         The figure size in centimeters. The default is `(16, 9)`.
     bands : `list` [`str`], optional
         The bands to build the FCC. The default is `['red', 'green', 'blue']`.
@@ -351,16 +353,11 @@ def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
     ----------
     cm : :py:class:`numpy.ndarray`
         The confusion matrix.
-    labels : `dict` [`int`, `dict`]
-        The label dictionary. The keys are the values of the class labels
-        in the ground truth ``y``. Each nested `dict` should have keys:
-            ``'color'``
-                A named color (`str`).
-            ``'label'``
-                The name of the class label (`str`).
+    labels : `list` [`str`]
+        Names of the classes.
     normalize : `bool`, optional
         Whether to normalize the confusion matrix. The default is `True`.
-    figsize : `tuple`, optional
+    figsize : `tuple` [`int`], optional
         The figure size in centimeters. The default is `(10, 10)`.
     cmap : `str`, optional
         A matplotlib colormap. The default is `'Blues'`.
@@ -384,7 +381,6 @@ def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
 
     """
     # number of classes
-    labels = [label['label'] for label in labels.values()]
     nclasses = len(labels)
 
     # string format to plot values of confusion matrix
@@ -461,7 +457,7 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
     state_file : `str` or :py:class:`pathlib.Path`
         The model state file. Model state files are stored in
         `pysegcnn/main/_models`.
-    figsize : `tuple`, optional
+    figsize : `tuple` [`int`], optional
         The figure size in centimeters. The default is `(10, 10)`.
     step : `int`, optional
         The step to label epochs on the x-axis labels. The default is `5`, i.e.
@@ -581,8 +577,8 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
 
     Returns
     -------
-    cls_df : :py:class:`pandas.DataFrame`
-        The class distribution DataFrame.
+    fig : :py:class:`matplotlib.figure.Figure`
+        An instance of :py:class:`matplotlib.figure.Figure`.
 
     """
     # compute class distribution
@@ -679,6 +675,66 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
             ax.axis('off')
             for t in ax.texts:
                 t.set_visible(False)
+
+    return fig
+
+
+def plot_classification_report(report, labels, figsize=(10, 10), **kwargs):
+    """Plot the :py:func:`sklearn.metrics.classification_report` as heatmap.
+
+    Parameters
+    ----------
+    report : `dict`
+        The dictionary returned by setting ``output_dict=True`` in
+        :py:func:`sklearn.metrics.classification_report`.
+    labels : `list` [`str`]
+        Names of the classes.
+    figsize : `tuple` [`int`], optional
+        The figure size in centimeters. The default is `(10, 10)`.
+    **kwargs :
+        Additional keyword arguments passed to :py:func:`seaborn.heatmap`.
+
+    Returns
+    -------
+     fig : :py:class:`matplotlib.figure.Figure`
+        An instance of :py:class:`matplotlib.figure.Figure`.
+
+    """
+    # overall accuracy
+    overall_accuracy = report['accuracy']
+
+    # convert classification report to pandas DataFrame
+    report_df = pd.DataFrame(report)
+
+    # create a DataFrame only consisting of the class-wise statistics
+    class_statistics = report_df[labels].transpose()
+
+    # create a DataFrame only consisting of the average metrics
+    avg_metrics = report_df.drop(columns=labels + ['accuracy']).transpose()
+    avg_metrics.support = 1
+
+    # convert support values to relative values
+    class_statistics.support = (class_statistics.support /
+                                class_statistics.support.sum())
+
+    # merge dataframes
+    metrics = class_statistics.append(avg_metrics)
+
+    # create a figure
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
+
+    # plot class wise statistics as heatmap
+    sns.heatmap(metrics, vmin=0, vmax=1, annot=True, fmt='.2f',
+                ax=ax, xticklabels=[c.capitalize() for c in metrics.columns],
+                yticklabels=[r.capitalize() for r in metrics.index], **kwargs)
+
+    # add a white line separating class-wise and average statistics
+    ax.plot(np.arange(0, len(metrics.columns) + 1),
+            np.tile(len(labels), len(metrics.columns) + 1),
+            color='white', lw=3)
+
+    # set figure title
+    ax.set_title('Overall accuracy: {:.2f}'.format(overall_accuracy), pad=20)
 
     return fig
 

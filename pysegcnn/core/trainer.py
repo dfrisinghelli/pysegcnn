@@ -42,7 +42,7 @@ from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import (item_in_enum, accuracy_function,
                                  reconstruct_scene, check_filename_length,
-                                 array_replace, report2latex)
+                                 array_replace)
 from pysegcnn.core.split import SupportedSplits
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   Network)
@@ -50,7 +50,7 @@ from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss, UDA_POSITIONS
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
 from pysegcnn.core.graphics import (plot_loss, plot_confusion_matrix,
-                                    plot_sample)
+                                    plot_sample, plot_classification_report)
 from pysegcnn.core.constants import map_labels
 from pysegcnn.main.train_config import HERE
 
@@ -2061,7 +2061,7 @@ class NetworkInference(BaseConfig):
         Path to store plots of model predictions for entire scenes.
     perfmc_path : :py:class:`pathlib.Path`
         Path to store plots of model performance, e.g. confusion matrix.
-    models_path : :py:class:`pathlib.Path`
+    report_path : :py:class:`pathlib.Path`
         Path to store the :py:func:`sklearn.metrics.classification_reports`.
     models_path : :py:class:`pathlib.Path`
         Path to search for model state files ``state_files``.
@@ -2366,6 +2366,18 @@ class NetworkInference(BaseConfig):
                 self.source_labels)
 
     @property
+    def class_names(self):
+        """Class label names to be predicted.
+
+        Returns
+        -------
+        labels : `list` [`str`]
+            Names of the classes.
+
+        """
+        return [label['label'] for label in self.use_labels.values()]
+
+    @property
     def bands(self):
         """Spectral bands the model was trained with.
 
@@ -2570,7 +2582,7 @@ class NetworkInference(BaseConfig):
                 # plot inputs, ground truth and model predictions
                 _ = plot_sample(inputs.clip(0, 1),
                                 self.bands,
-                                self.source_labels,
+                                self.use_labels,
                                 y=labels,
                                 y_pred={model.__class__.__name__: prdctn},
                                 accuracy=True,
@@ -2585,7 +2597,7 @@ class NetworkInference(BaseConfig):
                                                     '_eval.pt'))
 
     def report_name(self, state_file):
-        return str(state_file.name).replace(state_file.suffix, '_cr.tex')
+        return str(state_file.name).replace(state_file.suffix, '_cr.png')
 
     def evaluate(self):
         """Evaluate the models on a defined dataset.
@@ -2608,6 +2620,9 @@ class NetworkInference(BaseConfig):
                 ``'cm'``
                     The confusion matrix of the model, which is only present if
                     ``self.cm=True`` (:py:class:`numpy.ndarray`).
+                ``report``
+                    The classification report dictionary as returned by
+                    :py:func:`sklearn.metrics.classification_report`.
 
         """
         # iterate over the models to evaluate
@@ -2627,76 +2642,81 @@ class NetworkInference(BaseConfig):
                 # load existing model evaluation
                 if not self.overwrite:
                     inference[state.stem] = torch.load(self.eval_file(state))
-                    continue
                 else:
                     # overwrite existing model evaluation
                     LOGGER.info('Overwriting model evaluation: {}.'
                                 .format(self.eval_file(state)))
                     self.eval_file(state).unlink()
 
-            # plot loss and accuracy
-            plot_loss(check_filename_length(state), outpath=self.perfmc_path)
+            else:
 
-            # load the target dataset to evaluate the model on
-            self.trg_ds = self.load_dataset(
-                state, implicit=self.implicit, test=self.test,
-                domain=self.domain)
+                # plot loss and accuracy
+                plot_loss(check_filename_length(state),
+                          outpath=self.perfmc_path)
 
-            # load the source dataset the model was trained on
-            self.src_ds = self.load_dataset(state, test=None)
+                # load the target dataset to evaluate the model on
+                self.trg_ds = self.load_dataset(
+                    state, implicit=self.implicit, test=self.test,
+                    domain=self.domain)
 
-            # load the pretrained model
-            model, _ = Network.load_pretrained_model(state)
+                # load the source dataset the model was trained on
+                self.src_ds = self.load_dataset(state, test=None)
 
-            # evaluate the model on the target dataset
-            output = self.predict(model)
+                # load the pretrained model
+                model, _ = Network.load_pretrained_model(state)
 
-            # merge predictions of the different samples
-            y_true = np.asarray([v['y_true'].flatten() for _, v
-                                 in output.items()]).flatten()
-            y_pred = np.asarray([v['y_pred'].flatten() for _, v
-                                 in output.items()]).flatten()
+                # evaluate the model on the target dataset
+                output = self.predict(model)
 
-            # predictions and ground truth of the entire target dataset
-            output['y_true'] = y_true
-            output['y_pred'] = y_pred
+                # merge predictions of the different samples
+                y_true = np.asarray([v['y_true'].flatten() for _, v
+                                     in output.items()]).flatten()
+                y_pred = np.asarray([v['y_pred'].flatten() for _, v
+                                     in output.items()]).flatten()
 
-            # classification report labels
-            cr_labels = [v['label'] for _, v in self.source_labels.items()]
+                # predictions and ground truth of the entire target dataset
+                output['y_true'] = y_true
+                output['y_pred'] = y_pred
 
-            # calculate classification report from sklearn
-            report_name = self.report_path.joinpath(self.report_name(state))
-            LOGGER.info('Calculating classification report: {}'
-                        .format(report_name))
+                # calculate classification report from sklearn
+                report_name = self.report_path.joinpath(
+                    self.report_name(state))
+                LOGGER.info('Calculating classification report: {}'
+                            .format(report_name))
+                report = classification_report(
+                    y_true, y_pred, target_names=self.class_names,
+                    output_dict=True)
 
-            # export report to Latex table
-            report = classification_report(
-                y_true, y_pred, target_names=cr_labels, output_dict=True)
-            report2latex(report, filename=report_name)
+                # store report in output dictionary
+                output['report'] = report
 
-            # check whether to calculate confusion matrix
-            if self.cm:
+                # plot classification report
+                fig = plot_classification_report(report, self.class_names)
+                fig.savefig(report_name, dpi=300, bbox_inches='tight')
 
-                # calculate confusion matrix
-                LOGGER.info('Computing confusion matrix ...')
-                conf_mat = confusion_matrix(y_true, y_pred)
+                # check whether to calculate confusion matrix
+                if self.cm:
 
-                # add confusion matrix to model output
-                output['cm'] = conf_mat
+                    # calculate confusion matrix
+                    LOGGER.info('Computing confusion matrix ...')
+                    conf_mat = confusion_matrix(y_true, y_pred)
 
-                # plot confusion matrix
-                plot_confusion_matrix(
-                    conf_mat, self.source_labels, state_file=state,
-                    subset=self.trg_ds.name,
-                    outpath=self.perfmc_path)
+                    # add confusion matrix to model output
+                    output['cm'] = conf_mat
 
-            # save model predictions to file
-            LOGGER.info('Saving model evaluation: {}'
-                        .format(self.eval_file(state)))
-            torch.save(output, self.eval_file(state))
+                    # plot confusion matrix
+                    plot_confusion_matrix(
+                        conf_mat, self.class_names, state_file=state,
+                        subset=self.trg_ds.name,
+                        outpath=self.perfmc_path)
 
-            # save model predictions to list
-            inference[state.stem] = output
+                # save model predictions to file
+                LOGGER.info('Saving model evaluation: {}'
+                            .format(self.eval_file(state)))
+                torch.save(output, self.eval_file(state))
+
+                # save model predictions to list
+                inference[state.stem] = output
 
         # check whether to aggregate the results of the different model runs
         if self.aggregate:
@@ -2722,11 +2742,16 @@ class NetworkInference(BaseConfig):
             report_name = self.report_path.joinpath(self.report_name(kfold))
             LOGGER.info('Calculating classification report: {}'
                         .format(report_name))
+            report = classification_report(y_true, y_pred,
+                                           target_names=self.class_names,
+                                           output_dict=True)
 
-            # export aggregated report to Latex table
-            report = classification_report(
-                y_true, y_pred, target_names=cr_labels, output_dict=True)
-            report2latex(report, filename=report_name)
+            # save aggregated classification report
+            inference['report'] = report
+
+            # plot classification report
+            fig = plot_classification_report(report, self.class_names)
+            fig.savefig(report_name, dpi=300, bbox_inches='tight')
 
             # chech whether to compute the aggregated confusion matrix
             if self.cm:
@@ -2739,11 +2764,11 @@ class NetworkInference(BaseConfig):
                     cm_agg += output['cm']
 
                 # save aggregated confusion matrix to dictionary
-                inference['cm_agg'] = cm_agg
+                inference['cm'] = cm_agg
 
                 # plot aggregated confusion matrix and save to file
                 plot_confusion_matrix(
-                    cm_agg, self.source_labels, state_file=kfold,
+                    cm_agg, self.class_names, state_file=kfold,
                     outpath=self.perfmc_path)
 
         return inference

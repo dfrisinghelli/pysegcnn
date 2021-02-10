@@ -178,7 +178,8 @@ INSTALL_REQUIRES = ['numpy',
                     'scipy',
                     'scikit-learn',
                     'gdal>=3.2',
-                    'matplotlib'
+                    'matplotlib',
+                    'seaborn'
                     ]
 
 # Specify which Python versions you support. In contrast to the

@@ -2635,27 +2635,29 @@ def _tmp_path(path):
                                           '_tmp{}'.format(path.suffix)))
 
 
-def report2latex(classification_report, filename=None):
-    """Convert :py:func:`sklearn.metrics.classification_reports` to Latex.
+def report2df(report, labels=None):
+    """Convert :py:func:`sklearn.metrics.classification_reports` to a
+    :py:class:`pandas.DataFrame`.
 
     Parameters
     ----------
-    classification_report : `dict`
+    report : `dict`
         The dictionary returned by
         :py:class:`sklearn.metrics.classification_report`.
-    filename : `str` or :py:class:`pathlib.Path` or `None`, optional
-        The object to write the Latex table to. If `None` the table is
-        returned as string.
+    labels : `list` [`str`]
+        List of class labels. If specified, the number of samples of each class
+        is normalized. The default is `None`.
 
     """
-    # convert to pandas DataFrame and export to latex
-    df = pd.DataFrame(classification_report).transpose()
+    # convert to pandas DataFrame
+    df = pd.DataFrame(report).transpose()
 
-    # check if output filename exists
-    if filename is not None:
-        filename = pathlib.Path(filename)
-        if not filename.exists():
-            filename.parent.mkdir(exist_ok=True, parents=True)
+    # add errors of commission and omission
+    df.insert(loc=3, column='commission', value=1 - df.precision)
+    df.insert(loc=4, column='omission', value=1 - df.recall)
 
-    # export to latex
-    df.to_latex(buf=str(filename))
+    # normalize support values to relative values
+    if labels is not None:
+        df.support = df.support / df.loc[labels].support.sum()
+
+    return df

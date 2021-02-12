@@ -30,6 +30,7 @@ from logging.config import dictConfig
 
 # externals
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -42,7 +43,7 @@ from pysegcnn.core.dataset import SupportedDatasets
 from pysegcnn.core.transforms import Augment
 from pysegcnn.core.utils import (item_in_enum, accuracy_function,
                                  reconstruct_scene, check_filename_length,
-                                 array_replace)
+                                 array_replace, report2df)
 from pysegcnn.core.split import SupportedSplits
 from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
                                   Network)
@@ -2674,10 +2675,6 @@ class NetworkInference(BaseConfig):
                 y_pred = np.asarray([v['y_pred'].flatten() for _, v
                                      in output.items()]).flatten()
 
-                # predictions and ground truth of the entire target dataset
-                output['y_true'] = y_true
-                output['y_pred'] = y_pred
-
                 # calculate classification report from sklearn
                 report_name = self.report_path.joinpath(
                     self.report_name(state))
@@ -2688,7 +2685,7 @@ class NetworkInference(BaseConfig):
                     output_dict=True)
 
                 # store report in output dictionary
-                output['report'] = report
+                output['report'] = report2df(report, self.class_names)
 
                 # plot classification report
                 fig = plot_classification_report(report, self.class_names)
@@ -2727,30 +2724,24 @@ class NetworkInference(BaseConfig):
             kfold = base_name.parent.joinpath(
                 str(base_name.name).replace(fold_number, 'kfold'))
 
-            # predictions of the different models
-            y_true = np.asarray(
-                [output['y_true'] for output in inference.values()]).flatten()
-            y_pred = np.asarray(
-                [output['y_pred'] for output in inference.values()]).flatten()
-
-            # calculate classification over all different models
+            # aggregate classification reports across the different folds
             LOGGER.info('Aggregating statistics of models:')
             LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
                 ['{}'.format(mstate.name) for mstate in self.state_files]))
 
-            # calculate classification report from sklearn
-            report_name = self.report_path.joinpath(self.report_name(kfold))
-            LOGGER.info('Calculating classification report: {}'
-                        .format(report_name))
-            report = classification_report(y_true, y_pred,
-                                           target_names=self.class_names,
-                                           output_dict=True)
+            # iterate over the individual models
+            df = pd.DataFrame()
+            for name, output in inference.items():
+                # classification report DataFrame for all individual models
+                df = pd.concat((df, df))
 
-            # save aggregated classification report
+            # compute k-fold average estimate of each metric across all models
+            report = df.groupby(df.index, sort=False).mean()
             inference['report'] = report
 
             # plot classification report
             fig = plot_classification_report(report, self.class_names)
+            report_name = self.report_path.joinpath(self.report_name(kfold))
             fig.savefig(report_name, dpi=300, bbox_inches='tight')
 
             # chech whether to compute the aggregated confusion matrix

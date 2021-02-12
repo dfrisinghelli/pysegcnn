@@ -22,7 +22,6 @@ import logging
 
 # externals
 import numpy as np
-import pandas as pd
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
@@ -34,7 +33,8 @@ from matplotlib.animation import ArtistAnimation
 from matplotlib import cm as colormap
 
 # locals
-from pysegcnn.core.utils import accuracy_function, check_filename_length
+from pysegcnn.core.utils import (accuracy_function, check_filename_length,
+                                 report2df)
 from pysegcnn.main.train_config import HERE
 
 # plot font size configuration
@@ -688,9 +688,11 @@ def plot_classification_report(report, labels, figsize=(10, 10), **kwargs):
 
     Parameters
     ----------
-    report : `dict`
+    report : `dict` or :py:class:`pandas.DataFrame`
         The dictionary returned by setting ``output_dict=True`` in
-        :py:func:`sklearn.metrics.classification_report`.
+        :py:func:`sklearn.metrics.classification_report` or the
+        :py:class:`pandas.DataFrame` returned by
+        :py:func:`pysegcnn.core.utils.report2df`.
     labels : `list` [`str`]
         Names of the classes.
     figsize : `tuple` [`int`], optional
@@ -704,30 +706,15 @@ def plot_classification_report(report, labels, figsize=(10, 10), **kwargs):
         An instance of :py:class:`matplotlib.figure.Figure`.
 
     """
-    # overall accuracy
-    overall_accuracy = report['accuracy']
+    # check input type
+    df = report
+    if isinstance(report, dict):
+        # convert to DataFrame
+        df = report2df(report, labels)
 
-    # convert classification report to pandas DataFrame
-    report_df = pd.DataFrame(report).transpose()
-
-    # add errors of commission and omission
-    report_df.insert(loc=3, column='commission', value=1 - report_df.precision)
-    report_df.insert(loc=4, column='omission', value=1 - report_df.recall)
-
-    # create a DataFrame only consisting of the class-wise statistics
-    class_statistics = report_df.transpose()[labels].transpose()
-
-    # create a DataFrame only consisting of the average metrics
-    avg_metrics = report_df.transpose().drop(
-        columns=labels + ['accuracy']).transpose()
-    avg_metrics.support = 1
-
-    # convert support values to relative values
-    class_statistics.support = (class_statistics.support /
-                                class_statistics.support.sum())
-
-    # merge dataframes
-    metrics = class_statistics.append(avg_metrics)
+    # drop overall accuracy
+    overall_accuracy = df.loc['accuracy'].loc['f1-score']
+    metrics = df.drop(index='accuracy')
 
     # create a figure
     fig, ax = plt.subplots(1, 1, figsize=figsize)

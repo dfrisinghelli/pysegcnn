@@ -704,13 +704,18 @@ def plot_classification_report(report, labels, figsize=(10, 10), **kwargs):
     overall_accuracy = report['accuracy']
 
     # convert classification report to pandas DataFrame
-    report_df = pd.DataFrame(report)
+    report_df = pd.DataFrame(report).transpose()
+
+    # add errors of commission and omission
+    report_df.insert(loc=3, column='commission', value=1 - report_df.precision)
+    report_df.insert(loc=4, column='omission', value=1 - report_df.recall)
 
     # create a DataFrame only consisting of the class-wise statistics
-    class_statistics = report_df[labels].transpose()
+    class_statistics = report_df.transpose()[labels].transpose()
 
     # create a DataFrame only consisting of the average metrics
-    avg_metrics = report_df.drop(columns=labels + ['accuracy']).transpose()
+    avg_metrics = report_df.transpose().drop(
+        columns=labels + ['accuracy']).transpose()
     avg_metrics.support = 1
 
     # convert support values to relative values

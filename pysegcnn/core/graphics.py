@@ -430,6 +430,10 @@ def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
            ylabel='True',
            xlabel='Predicted')
 
+    # rotate x-tick labels
+    for label in ax.get_xticklabels():
+        label.set_rotation(90)
+
     # add colorbar axes
     cax = fig.add_axes([ax.get_position().x1 + 0.025, ax.get_position().y0,
                         0.05, ax.get_position().y1 - ax.get_position().y0])
@@ -739,7 +743,7 @@ def plot_classification_report(report, labels, figsize=(10, 10), **kwargs):
             color='white', lw=3)
 
     # set figure title
-    ax.set_title('Overall accuracy: {:.2f}'.format(overall_accuracy), pad=20)
+    ax.set_title('Accuracy: {:.2f}'.format(overall_accuracy), pad=20)
 
     return fig
 

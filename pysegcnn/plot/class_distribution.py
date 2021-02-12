@@ -22,7 +22,7 @@ from pysegcnn.core.trainer import DatasetConfig
 from pysegcnn.core.graphics import plot_class_distribution
 from pysegcnn.core.logging import log_conf
 from pysegcnn.plot.plot_config import (PLOT_PATH, BANDS, FIGSIZE, ALPHA,
-                                       DATASETS, DPI)
+                                       DATASETS)
 
 
 if __name__ == '__main__':
@@ -42,5 +42,5 @@ if __name__ == '__main__':
         fig = plot_class_distribution(ds, FIGSIZE, ALPHA)
 
         # save figure
-        filename = PLOT_PATH.joinpath('{}_sdist.png'.format(name))
-        fig.savefig(filename, dpi=DPI, bbox_inches='tight')
+        filename = PLOT_PATH.joinpath('{}_sdist.pdf'.format(name))
+        fig.savefig(filename, bbox_inches='tight')

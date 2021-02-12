@@ -23,7 +23,7 @@ from pysegcnn.core.trainer import DatasetConfig
 from pysegcnn.core.graphics import plot_sample
 from pysegcnn.core.logging import log_conf
 from pysegcnn.plot.plot_config import (PLOT_PATH, BANDS, FIGSIZE, ALPHA,
-                                       DATASETS, PLOT_BANDS, DPI)
+                                       DATASETS, PLOT_BANDS)
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -57,5 +57,5 @@ if __name__ == '__main__':
                               alpha=ALPHA, figsize=FIGSIZE)
 
             # save the figure
-            fig.savefig(PLOT_PATH.joinpath('.'.join([scene_id, 'png'])),
-                        dpi=DPI, bbox_inches='tight')
+            fig.savefig(PLOT_PATH.joinpath('.'.join([scene_id, 'pdf'])),
+                        bbox_inches='tight')

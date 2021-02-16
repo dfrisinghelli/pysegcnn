@@ -176,9 +176,9 @@ def evaluation_parser():
 
     # optional argument: dataset path
     parser.add_argument('-ds', '--dataset-path', type=str,
-                        help=('Path to the datasets on the current machine {}.'
+                        help=('Path to the datasets on the current machine. '
                               'Per default, it is assumed to be same as during'
-                              ' model training .'.format(default)),
+                              ' model training.'),
                         default='', metavar='')
 
     return parser

@@ -819,6 +819,8 @@ class StandardEoDataset(ImageDataset):
             The preprocessed sample ground truth.
 
         """
+        # set spectral data of pixels labeled as NoData to 0
+        # data[:, np.where(gt == self.cval)] = 0
         return data, gt
 
     def compose_scenes(self):
@@ -996,7 +998,7 @@ class AlcdDataset(StandardEoDataset):
             The image size (height, width).
 
         """
-        return (1830, 1830)
+        return (5490, 5490)
 
     @staticmethod
     def get_sensor():

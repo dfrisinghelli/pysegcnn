@@ -2733,7 +2733,7 @@ class NetworkInference(BaseConfig):
             df = pd.DataFrame(dtype=float)
             for name, output in inference.items():
                 # classification report DataFrame for all individual models
-                df = pd.concat((df, df))
+                df = pd.concat([df, output['report']], axis=0)
 
             # compute k-fold average estimate of each metric across all models
             report = df.groupby(df.index, sort=False).mean()

@@ -2733,7 +2733,8 @@ class NetworkInference(BaseConfig):
             df = pd.DataFrame(dtype=float)
             for name, output in inference.items():
                 # classification report DataFrame for all individual models
-                df = pd.concat([df, output['report']], axis=0)
+                report = output['report']
+                df = pd.concat([df, report], axis=0)
 
             # compute k-fold average estimate of each metric across all models
             LOGGER.info('Calculating k-fold estimate of metrics ...')
@@ -2755,8 +2756,8 @@ class NetworkInference(BaseConfig):
                 cm_agg = np.zeros(shape=2 * (len(labels), ))
 
                 # update aggregated confusion matrix
-                for _, metrics in inference.items():
-                    cm_agg += metrics['cm']
+                for name, output in inference.items():
+                    cm_agg += output['cm']
 
                 # save aggregated confusion matrix to dictionary
                 inference['cm'] = cm_agg

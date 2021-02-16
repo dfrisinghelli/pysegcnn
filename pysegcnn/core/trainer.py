@@ -2730,7 +2730,7 @@ class NetworkInference(BaseConfig):
                 ['{}'.format(mstate.name) for mstate in self.state_files]))
 
             # iterate over the individual models
-            df = pd.DataFrame()
+            df = pd.DataFrame(dtype=float)
             for name, output in inference.items():
                 # classification report DataFrame for all individual models
                 df = pd.concat((df, df))

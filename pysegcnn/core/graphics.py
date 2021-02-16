@@ -345,7 +345,7 @@ def plot_sample(x, use_bands, labels,
 
 
 def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
-                          cmap='YlGnBu', state_file=None, subset=None,
+                          cmap='Blues', state_file=None, subset=None,
                           outpath=os.path.join(HERE, '_graphics/')):
     """Plot the confusion matrix ``cm``.
 
@@ -360,7 +360,7 @@ def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
     figsize : `tuple` [`int`], optional
         The figure size in centimeters. The default is `(10, 10)`.
     cmap : `str`, optional
-        A matplotlib colormap. The default is `'YlGnBu'`.
+        A matplotlib colormap. The default is `'Blues'`.
     state_file : `str` or `None` or :py:class:`pathlib.Path`, optional
         Filename to save the plot to. ``state`` should be an existing model
         state file ending with `'.pt'`. The default is `None`, i.e. the plot is
@@ -684,7 +684,7 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
 
 
 def plot_classification_report(report, labels, figsize=(10, 10),
-                               cmap='YlGnBu', **kwargs):
+                               cmap='Blues', **kwargs):
     """Plot the :py:func:`sklearn.metrics.classification_report` as heatmap.
 
     Parameters
@@ -699,7 +699,7 @@ def plot_classification_report(report, labels, figsize=(10, 10),
     figsize : `tuple` [`int`], optional
         The figure size in centimeters. The default is `(10, 10)`.
     cmap : `str`, optional
-        A matplotlib colormap. The default is `'YlGnBu'`.
+        A matplotlib colormap. The default is `'Blues'`.
     **kwargs :
         Additional keyword arguments passed to :py:func:`seaborn.heatmap`.
 

@@ -2598,7 +2598,7 @@ class NetworkInference(BaseConfig):
                                                     '_eval.pt'))
 
     def report_name(self, state_file):
-        return str(state_file.name).replace(state_file.suffix, '_cr.png')
+        return str(state_file.name).replace(state_file.suffix, '_cr.pdf')
 
     def evaluate(self):
         """Evaluate the models on a defined dataset.
@@ -2688,7 +2688,7 @@ class NetworkInference(BaseConfig):
 
             # plot classification report
             fig = plot_classification_report(report, self.class_names)
-            fig.savefig(report_name, dpi=300, bbox_inches='tight')
+            fig.savefig(report_name, bbox_inches='tight')
 
             # check whether to calculate confusion matrix
             if self.cm:
@@ -2745,7 +2745,7 @@ class NetworkInference(BaseConfig):
             # plot classification report
             fig = plot_classification_report(report, labels)
             report_name = self.report_path.joinpath(self.report_name(kfold))
-            fig.savefig(report_name, dpi=300, bbox_inches='tight')
+            fig.savefig(report_name, bbox_inches='tight')
 
             # check whether to compute the aggregated confusion matrix
             if self.cm:

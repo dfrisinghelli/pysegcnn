@@ -443,10 +443,10 @@ def plot_confusion_matrix(cm, labels, normalize=True, figsize=(10, 10),
     if state_file is not None:
         os.makedirs(outpath, exist_ok=True)
         basename = os.path.basename(state_file).replace(
-            '.pt', '_cm_{}.png'.format(subset) if subset is not None else
-            '_cm.png')
+            '.pt', '_cm_{}.pdf'.format(subset) if subset is not None else
+            '_cm.pdf')
         filename = check_filename_length(os.path.join(outpath, basename))
-        fig.savefig(filename, dpi=300, bbox_inches='tight')
+        fig.savefig(filename, bbox_inches='tight')
 
     return fig, ax
 
@@ -562,8 +562,8 @@ def plot_loss(state_file, figsize=(10, 10), step=5,
     # save figure
     os.makedirs(outpath, exist_ok=True)
     filename = check_filename_length(os.path.join(
-        outpath, os.path.basename(state_file).replace('.pt', '_loss.png')))
-    fig.savefig(filename, dpi=300, bbox_inches='tight')
+        outpath, os.path.basename(state_file).replace('.pt', '_loss.pdf')))
+    fig.savefig(filename, bbox_inches='tight')
 
     return fig
 

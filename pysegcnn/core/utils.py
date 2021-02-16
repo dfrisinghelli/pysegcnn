@@ -510,6 +510,7 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
         for ds in hdf:
 
             # name of the current subdataset
+            hdf_ds = gdal.Open(ds[0])
             name = ds[0].split(':')[-1].lower()
 
             # filename of the GeoTIFF
@@ -518,8 +519,13 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
 
             # convert hdf subdataset to GeoTIFF
             LOGGER.info('Converting: {}'.format(tif_name.name))
-            gdal.Translate(str(tif_name), gdal.Open(ds[0]), creationOptions=[
+            gdal.Translate(str(tif_name), hdf_ds, creationOptions=[
                 'COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES'], **kwargs)
+
+            # set metadata field
+            tif_ds = gdal.Open(str(tif_name))
+            tif_ds.SetMetadata(hdf_ds.GetMetadata())
+            del tif_ds
 
         # check whether to create a GeoTIFF stack
         if create_stack:

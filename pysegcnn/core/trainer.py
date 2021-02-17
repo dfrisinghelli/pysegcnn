@@ -2566,11 +2566,7 @@ class NetworkInference(BaseConfig):
 
             # filename for the plot of the current batch
             batch_name = '_'.join([model.state_file.stem,
-                                  '{}_{}.pt'.format(self.trg_ds.name, batch)])
-
-            # check if the current batch name exceeds the Windows limit of
-            # 255 characters
-            batch_name = check_filename_length(batch_name)
+                                  '{}_{}.pdf'.format(self.trg_ds.name, batch)])
 
             # calculate the accuracy of the prediction
             progress += ', Accuracy: {:.2f}'.format(
@@ -2581,15 +2577,18 @@ class NetworkInference(BaseConfig):
             if self.plot:
 
                 # plot inputs, ground truth and model predictions
-                _ = plot_sample(inputs.clip(0, 1),
-                                self.bands,
-                                self.use_labels,
-                                y=labels,
-                                y_pred={model.__class__.__name__: prdctn},
-                                accuracy=True,
-                                state=batch_name,
-                                plot_path=self.scenes_path,
-                                **self.plot_kwargs)
+                fig = plot_sample(inputs.clip(0, 1),
+                                  self.bands,
+                                  self.use_labels,
+                                  y=labels,
+                                  y_pred={'Prediction': prdctn},
+                                  accuracy=True,
+                                  **self.plot_kwargs)
+
+                # save figure
+                fig.savefig(check_filename_length(
+                    self.scenes_path.joinpath(batch_name)),
+                    bbox_inches='tight')
 
         return output
 

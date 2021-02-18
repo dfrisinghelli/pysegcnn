@@ -2538,9 +2538,9 @@ class NetworkInference(BaseConfig):
                 batch + 1, len(self.dataloader))
 
             # check if tensor is on gpu and convert to numpy array
-            inputs = inputs.cpu().numpy()
-            labels = labels.cpu().numpy()
-            prdctn = prdctn.cpu().numpy()
+            inputs = inputs.cpu().numpy().flatten(axis=0)
+            labels = labels.cpu().numpy().flatten(axis=0)
+            prdctn = prdctn.cpu().numpy().flatten(axis=0)
 
             # check whether to reconstruct the scenes of a dataset
             if self.predict_scene:

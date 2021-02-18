@@ -2545,24 +2545,28 @@ class NetworkInference(BaseConfig):
             # check whether to reconstruct the scenes of a dataset
             if self.predict_scene:
 
+                # append model predictions of current batch to scene dictionary
+                for k, v in zip(INFERENCE_NAMES, [inputs, labels, prdctn]):
+                    scenes[k].append(v)
+
                 # check if an entire scene is processed
-                if batch % self.trg_ds.dataset.tiles == 0 and batch != 0:
+                if (batch + 1) % self.trg_ds.dataset.tiles == 0 and batch != 0:
 
                     # convert scene dictionary to numpy arrays
-                    inputs, labels, prdctn = [np.asarray(v) for _, v in
-                                              scenes.items()]
+                    inputs, labels, prdctn = [
+                        np.asarray(v) for _, v in scenes.items()]
 
                     # tiles of the current scene
                     current_tiles = self.trg_ds.indices[
-                        np.arange(batch - self.trg_ds.dataset.tiles, batch)]
+                        np.arange((batch + 1) - self.trg_ds.dataset.tiles,
+                                  batch)]
 
                     # name of the current scene
                     batch = np.unique([self.trg_ds.dataset.scenes[sid]['id']
                                        for sid in current_tiles]).item()
 
                     # modify the progress string
-                    progress = progress.replace('Sample', 'Scene')
-                    progress += ' Id: {}'.format(batch)
+                    progress = 'Scene Id: {}'.format(batch)
 
                     # reconstruct the entire scene
                     inputs = reconstruct_scene(inputs)
@@ -2602,10 +2606,6 @@ class NetworkInference(BaseConfig):
                         fig.savefig(check_filename_length(
                             self.scenes_path.joinpath(batch_name)),
                             bbox_inches='tight')
-
-                # append model predictions of current batch to scene dictionary
-                for k, v in zip(INFERENCE_NAMES, [inputs, labels, prdctn]):
-                    scenes[k].append(v)
 
             else:
                 # save current batch to output dictionary

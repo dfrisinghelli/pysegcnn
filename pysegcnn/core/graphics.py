@@ -280,9 +280,9 @@ def plot_sample(x, use_bands, labels,
     fig.axes[0].imshow(rgb)
 
     # set title
-    fig.axes[0].text(0.5, 1.04, 'R = {}, G = {}, B = {}'.format(*bands),
-                     transform=fig.axes[0].transAxes, ha='center',
-                     va='bottom')
+    # fig.axes[0].text(0.5, 1.04, 'R={}, G={}, B={}'.format(*bands),
+    #                  transform=fig.axes[0].transAxes, ha='center',
+    #                  va='bottom')
 
     # check whether to plot ground truth
     if y is not None:
@@ -318,17 +318,19 @@ def plot_sample(x, use_bands, labels,
         if not ax.images:
             fig.delaxes(ax)
 
+        # hide both x and y-ticks
+        ax.set_xticks([])
+        ax.set_yticks([])
+
         # hide axis and labels
         if hide_labels:
-
             # hide axis ticks, labels and text artists
             ax.axis('off')
             for t in ax.texts:
                 t.set_visible(False)
 
-    # adjust spacing when hiding labels
-    if hide_labels:
-        fig.subplots_adjust(wspace=0.02)
+    # adjust spacing
+    fig.subplots_adjust(wspace=0.02)
 
     # if a ground truth or a model prediction is plotted, add legend
     if len(fig.axes) > 1 and not hide_labels:

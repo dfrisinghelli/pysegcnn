@@ -174,7 +174,6 @@ PACKAGES = find_packages(exclude=['tests'])
 # https://packaging.python.org/en/latest/requirements.html
 INSTALL_REQUIRES = ['numpy',
                     'pandas',
-                    'torch',
                     'scipy',
                     'scikit-learn',
                     'gdal>=3.2',

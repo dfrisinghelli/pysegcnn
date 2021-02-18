@@ -2545,10 +2545,6 @@ class NetworkInference(BaseConfig):
             # check whether to reconstruct the scenes of a dataset
             if self.predict_scene:
 
-                # append model predictions of current batch to scene dictionary
-                for k, v in zip(INFERENCE_NAMES, [inputs, labels, prdctn]):
-                    scenes[k].append(v)
-
                 # check if an entire scene is processed
                 if batch % self.trg_ds.dataset.tiles == 0 and batch != 0:
 
@@ -2606,6 +2602,10 @@ class NetworkInference(BaseConfig):
                         fig.savefig(check_filename_length(
                             self.scenes_path.joinpath(batch_name)),
                             bbox_inches='tight')
+
+                # append model predictions of current batch to scene dictionary
+                for k, v in zip(INFERENCE_NAMES, [inputs, labels, prdctn]):
+                    scenes[k].append(v)
 
             else:
                 # save current batch to output dictionary

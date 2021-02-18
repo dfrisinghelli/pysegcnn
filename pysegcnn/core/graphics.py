@@ -257,8 +257,8 @@ def plot_sample(x, use_bands, labels,
     norm = BoundaryNorm(list(sorted_labels.keys()) + [255], cmap.N)
 
     # create a patch (proxy artist) for every color
-    patches = [mpatches.Patch(color=v['color'], label=v['label']) for _, v in
-               sorted_labels.items()]
+    # patches = [mpatches.Patch(color=v['color'], label=v['label']) for _, v in
+    #            sorted_labels.items()]
 
     # number of required axes
     naxes = len(y_pred) + 2
@@ -333,9 +333,10 @@ def plot_sample(x, use_bands, labels,
     fig.subplots_adjust(wspace=0.02)
 
     # if a ground truth or a model prediction is plotted, add legend
-    if len(fig.axes) > 1 and not hide_labels:
-        fig.axes[-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
-                            frameon=False)
+    # if len(fig.axes) > 1 and not hide_labels:
+    #     fig.axes[-1].legend(handles=patches, bbox_to_anchor=(1.05, 1), loc=2,
+    #                         frameon=False)
+
     # save figure
     if state is not None:
         # chech maximum filename length of 260 characters on Windows

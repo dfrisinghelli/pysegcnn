@@ -8,6 +8,8 @@ dependencies:
   - pandas
   - scipy
   - scikit-learn
+  - xarray
   - gdal>=3.2
+  - netcdf4
   - matplotlib
   - seaborn

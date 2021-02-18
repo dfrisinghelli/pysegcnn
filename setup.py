@@ -180,7 +180,8 @@ INSTALL_REQUIRES = ['numpy',
                     'gdal>=3.2',
                     'netcdf4',
                     'matplotlib',
-                    'seaborn'
+                    'seaborn',
+                    'ipython'
                     ]
 
 # Specify which Python versions you support. In contrast to the

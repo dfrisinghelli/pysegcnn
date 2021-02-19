@@ -2717,7 +2717,8 @@ class NetworkInference(BaseConfig):
                         .format(report_name))
             report = classification_report(
                 y_true, y_pred, target_names=self.class_names,
-                output_dict=True, zero_division=1)
+                output_dict=True, zero_division=1,
+                labels=np.asarray(list(self.use_labels.keys())))
 
             # store report in output dictionary
             output['report'] = report2df(report, self.class_names)

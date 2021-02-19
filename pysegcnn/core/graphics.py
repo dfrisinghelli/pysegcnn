@@ -718,9 +718,13 @@ def plot_classification_report(report, labels, figsize=(10, 10),
         # convert to DataFrame
         df = report2df(report, labels)
 
-    # drop overall accuracy
-    overall_accuracy = df.loc['accuracy'].loc['f1-score']
-    metrics = df.drop(index='accuracy')
+    # drop overall accuracy/micro avg
+    try:
+        overall_accuracy = df.loc['accuracy'].loc['f1-score']
+        metrics = df.drop(index='accuracy')
+    except KeyError:
+        overall_accuracy = df.loc['micro avg'].loc['f1-score']
+        metrics = df.drop(index='micro avg')
 
     # create a figure
     fig, ax = plt.subplots(1, 1, figsize=figsize)

@@ -2777,9 +2777,13 @@ class NetworkInference(BaseConfig):
             LOGGER.info('Calculating k-fold estimate of metrics ...')
             report = df.groupby(df.index, sort=False).mean()
 
-            # labels to predict
-            labels = list(report.index.drop(['macro avg', 'weighted avg',
-                                             'accuracy']))
+            # labels to predict: drop averages
+            try:
+                labels = list(report.index.drop(['macro avg', 'weighted avg',
+                                                 'accuracy']))
+            except KeyError:
+                labels = list(report.index.drop(['macro avg', 'weighted avg',
+                                                 'micro avg']))
 
             # plot classification report
             fig = plot_classification_report(report, labels)

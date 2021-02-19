@@ -2013,6 +2013,9 @@ class NetworkInference(BaseConfig):
         Whether to aggregate the statistics of the different models in
         ``state_files``. Useful to aggregate the results of mutliple model
         runs in cross validation. The default is `False`.
+    save : `bool`
+        Whether to save the model evaluations to a file. The default is
+        `False`.
     ds : `dict`
         The dataset configuration dictionary passed to
         :py:class:`pysegcnn.core.trainer.DatasetConfig` when evaluating on
@@ -2084,6 +2087,7 @@ class NetworkInference(BaseConfig):
     domain: str = 'src'
     test: object = False
     aggregate: bool = False
+    save: bool = False
     ds: dict = dataclasses.field(default_factory={})
     ds_split: dict = dataclasses.field(default_factory={})
     drive_path: str = ''
@@ -2668,7 +2672,7 @@ class NetworkInference(BaseConfig):
             log.init_log('Evaluating model: {}.'.format(state))
 
             # check whether model was already evaluated
-            if self.eval_file(state).exists():
+            if self.save and self.eval_file(state).exists():
                 LOGGER.info('Found existing model evaluation: {}.'
                             .format(self.eval_file(state)))
 
@@ -2740,9 +2744,10 @@ class NetworkInference(BaseConfig):
                     outpath=self.perfmc_path)
 
             # save model predictions to file
-            LOGGER.info('Saving model evaluation: {}'
-                        .format(self.eval_file(state)))
-            torch.save(output, self.eval_file(state))
+            if self.save:
+                LOGGER.info('Saving model evaluation: {}'
+                            .format(self.eval_file(state)))
+                torch.save(output, self.eval_file(state))
 
             # save model predictions to list
             inference[state.stem] = output

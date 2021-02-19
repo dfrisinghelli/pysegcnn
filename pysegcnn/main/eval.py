@@ -71,6 +71,7 @@ if __name__ == '__main__':
             domain=args.domain,
             test=args.subset,
             aggregate=args.aggregate,
+            save=args.save,
             ds=ds,
             ds_split=ds_split,
             drive_path=args.dataset_path,

@@ -162,6 +162,12 @@ def evaluation_parser():
                               .format(default)),
                         default=False, nargs='?', const=True, metavar='')
 
+    # optional argument: whether to save model evaluations
+    parser.add_argument('-sv', '--save', type=bool,
+                        help=('Save model evaluations {}.'
+                              .format(default)),
+                        default=False, nargs='?', const=True, metavar='')
+
     # optional argument: whether to overwrite existing files
     parser.add_argument('-o', '--overwrite', type=bool,
                         help=('Overwrite existing model evaluations {}.'

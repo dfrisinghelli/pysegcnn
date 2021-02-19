@@ -31,6 +31,7 @@ from logging.config import dictConfig
 # externals
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -2607,6 +2608,10 @@ class NetworkInference(BaseConfig):
                             self.scenes_path.joinpath(batch_name)),
                             bbox_inches='tight')
 
+                        # close figure
+                        plt.close('all')
+                        plt.close(fig)
+
             else:
                 # save current batch to output dictionary
                 output[batch] = {k: v for k, v in zip(INFERENCE_NAMES,
@@ -2716,6 +2721,7 @@ class NetworkInference(BaseConfig):
             # plot classification report
             fig = plot_classification_report(report, self.class_names)
             fig.savefig(report_name, bbox_inches='tight')
+            plt.close(fig)
 
             # check whether to calculate confusion matrix
             if self.cm:
@@ -2773,6 +2779,7 @@ class NetworkInference(BaseConfig):
             fig = plot_classification_report(report, labels)
             report_name = self.report_path.joinpath(self.report_name(kfold))
             fig.savefig(report_name, bbox_inches='tight')
+            plt.close(fig)
 
             # check whether to compute the aggregated confusion matrix
             if self.cm:

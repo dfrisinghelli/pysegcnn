@@ -2784,7 +2784,7 @@ class NetworkInference(BaseConfig):
                 # check if for some scenes micro average is calculated rather
                 # than accuracy due to missing class labels
                 labels = list(report.index.drop(['macro avg', 'weighted avg',
-                                                 'micro_avg', 'accuracy']))
+                                                 'micro avg', 'accuracy']))
             except KeyError:
                 # micro average is not calculated for any scene: each scene
                 # contains all the classes

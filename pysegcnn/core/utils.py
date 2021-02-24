@@ -500,6 +500,20 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
         for tif in tifs:
             tif.unlink()
 
+    # header file
+    hdr = pathlib.Path('.'.join([str(path), 'hdr']))
+
+    # check if header file exists and contains projection
+    wkt = None
+    if hdr.exists():
+        LOGGER.info('Found header file: {}'.format(hdr))
+        with open(hdr, 'r') as file:
+            # search for WKT-projection string
+            content = file.read()
+            wkt = re.search('PROJCS[^}]*', content)
+        if wkt is not None:
+            wkt = wkt[0]
+
     # read the hdf dataset
     hdf = gdal.Open(str(path)).GetSubDatasets()
 
@@ -519,12 +533,15 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
 
             # convert hdf subdataset to GeoTIFF
             LOGGER.info('Converting: {}'.format(tif_name.name))
-            gdal.Translate(str(tif_name), hdf_ds, creationOptions=[
-                'COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES'], **kwargs)
+            gdal.Translate(str(tif_name), hdf_ds, outputSRS=wkt,
+                           creationOptions=[
+                               'COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES'],
+                           **kwargs)
 
             # set metadata field
             tif_ds = gdal.Open(str(tif_name))
             tif_ds.SetMetadata(hdf_ds.GetMetadata())
+
             del tif_ds
 
         # check whether to create a GeoTIFF stack

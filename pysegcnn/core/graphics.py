@@ -39,18 +39,18 @@ from pysegcnn.main.train_config import HERE
 
 # plot font size configuration
 SMALL = 12
-MEDIUM = 14
+MEDIUM = 15
 BIG = 16
 
 # controls default font size
 plt.rc('font', size=MEDIUM)
 
 # axes labels size
-plt.rc('axes', titlesize=BIG, labelsize=MEDIUM)
+plt.rc('axes', titlesize=BIG, labelsize=BIG)
 
 # axes ticks size
-plt.rc('xtick', labelsize=SMALL)
-plt.rc('ytick', labelsize=SMALL)
+plt.rc('xtick', labelsize=MEDIUM)
+plt.rc('ytick', labelsize=MEDIUM)
 
 # legend font size
 plt.rc('legend', fontsize=MEDIUM)

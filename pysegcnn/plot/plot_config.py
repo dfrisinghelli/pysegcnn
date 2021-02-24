@@ -49,7 +49,8 @@ BANDS = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2']
 
 # plot parameters
 FIGSIZE = (10, 10)
-ALPHA = 0.5
+ALPHA = 5
 
 # natural with atmospheric removal
-PLOT_BANDS = ['swir2', 'nir', 'green']
+# PLOT_BANDS = ['swir2', 'nir', 'green']
+PLOT_BANDS = ['red', 'green', 'blue']

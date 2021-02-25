@@ -38,9 +38,8 @@ from pysegcnn.core.utils import (accuracy_function, check_filename_length,
 from pysegcnn.main.train_config import HERE
 
 # plot font size configuration
-SMALL = 12
-MEDIUM = 15
-BIG = 16
+MEDIUM = 22
+BIG = 24
 
 # controls default font size
 plt.rc('font', size=MEDIUM)

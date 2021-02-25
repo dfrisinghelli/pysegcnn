@@ -434,7 +434,7 @@ def read_hdf(path, **kwargs):
     return hdf_ds
 
 
-def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
+def hdf2tifs(path, outpath, overwrite=False, create_stack=True, **kwargs):
     """Convert a file in Hierarchical Data Format (HDF) to GeoTIFFs.
 
     The GeoTIFFs share the same filename as ``path``, appended by the name of
@@ -449,8 +449,8 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
     ----------
     path : `str` or py:class:`pathlib.Path`
         The path to the hdf file to convert.
-    outpath : `str` or py:class:`pathlib.Path`, optional
-        Path to save the GeoTIFF files. The default is `None`.
+    outpath : `str` or py:class:`pathlib.Path`
+        Path to save the GeoTIFF files.
     overwrite : `bool`, optional
         Whether to overwrite existing GeoTIFF files in ``outpath``. The default
         is `False`.
@@ -467,18 +467,13 @@ def hdf2tifs(path, outpath=None, overwrite=False, create_stack=True, **kwargs):
                                '.he5')):
         raise ValueError('{} is not an hdf file.'.format(path))
 
-    # check whether an output path is defined
-    if outpath is None:
-        outpath = path.parent
-    else:
-        outpath = pathlib.Path(outpath)
-
-    # create the output directory
+    # create the output directory for the GeoTiffs
+    outpath = pathlib.Path(outpath)
     outpath = outpath.joinpath(path.stem.replace('.', '_'))
 
     # check whether the output path exists
     if not outpath.exists():
-        LOGGER.info('mkdir {}'.format(str(outpath)))
+        LOGGER.info('mkdir {}'.format(outpath))
         outpath.mkdir(parents=True, exist_ok=True)
 
     # check whether the output path contains GeoTIFF files

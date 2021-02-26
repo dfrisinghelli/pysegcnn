@@ -2593,9 +2593,10 @@ class NetworkInference(BaseConfig):
                     if self.plot:
 
                         # title for prediction
-                        title = ''.join([(v[0] + str(k)) for k, v in
-                                         self.src_ds.sensor.band_dict().items()
-                                         if v in self.bands])
+                        title = ''.join([
+                            (v[0] + str(k)) for k, v in
+                            self.src_ds.dataset.sensor.band_dict().items()
+                            if v in self.bands])
 
                         # plot inputs, ground truth and model predictions
                         fig = plot_sample(inputs.clip(0, 1),

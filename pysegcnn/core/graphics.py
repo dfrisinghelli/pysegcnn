@@ -304,7 +304,7 @@ def plot_sample(x, use_bands, labels,
         # check whether the ground truth is specified and calculate accuracy
         if y is not None and accuracy:
             acc = accuracy_function(v, y)
-            k += ' ({:.2f}%)'.format(acc * 100)
+            k = '{:.2f}%'.format(acc * 100)
 
         # plot model prediction
         ax.imshow(v, cmap=cmap, interpolation='nearest', norm=norm)

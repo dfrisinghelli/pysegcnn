@@ -2314,7 +2314,7 @@ class NetworkInference(BaseConfig):
             identifiers used for evaluation.
 
         """
-        return np.array([list(self._original_target_labels_labels.keys()),
+        return np.array([list(self._original_target_labels.keys()),
                          list(self.target_labels.keys())]).T
 
     @property

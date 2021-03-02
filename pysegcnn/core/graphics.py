@@ -243,7 +243,7 @@ def plot_sample(x, use_bands, labels,
     # check whether to apply constrast stretching
     rgb = np.dstack([np.clip(
         contrast_stretching(x[use_bands.index(band), ...], alpha), 0, 1)
-        for band in bands])
+        for band in bands]).astype(np.float32)
 
     # sort the labels in ascending order
     sorted_labels = {k: v for k, v in sorted(labels.items())}

@@ -2532,10 +2532,6 @@ class NetworkInference(BaseConfig):
                 prdctn = F.softmax(
                     model(inputs), dim=1).argmax(dim=1).squeeze()
 
-            # check whether the source and target domain labels differ
-            if self.apply_label_map:
-                prdctn = self.map_to_target(prdctn)
-
             # progress string to log
             progress = 'Sample: {:d}/{:d}'.format(
                 batch + 1, len(self.dataloader))
@@ -2544,6 +2540,10 @@ class NetworkInference(BaseConfig):
             inputs = inputs.cpu().numpy().squeeze()
             labels = labels.cpu().numpy().squeeze()
             prdctn = prdctn.cpu().numpy().squeeze()
+
+            # check whether the source and target domain labels differ
+            if self.apply_label_map:
+                prdctn = self.map_to_target(prdctn)
 
             # check whether to reconstruct the scenes of a dataset
             if self.predict_scene:

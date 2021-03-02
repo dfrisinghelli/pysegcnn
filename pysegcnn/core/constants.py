@@ -189,7 +189,7 @@ class Gdal2Numpy(enum.Enum):
 Sparcs2Alcd = LabelMapping({
 
     SparcsLabels.Shadow.id: AlcdLabels.Shadow.id,
-    SparcsLabels.Shadow_over_water: AlcdLabels.Shadow.id,
+    SparcsLabels.Shadow_over_water.id: AlcdLabels.Shadow.id,
     SparcsLabels.Water.id: AlcdLabels.Water.id,
     SparcsLabels.Snow.id: AlcdLabels.Snow.id,
     SparcsLabels.Land.id: AlcdLabels.Land.id,

@@ -20,8 +20,9 @@ License
 import pathlib
 
 # path to the datasets on the current machine
-DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
+# DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
+DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -29,26 +30,29 @@ DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
             }
 
 # name of the target dataset
-TRG_DS = 'Alcd'
+TRG_DS = 'Sparcs'
 
 # spectral bands to use for evaluation
-BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
+BANDS = ['red', 'green', 'blue']
 
 # tile size of a single sample
-TILE_SIZE = 128
+TILE_SIZE = 64
 
 # the target dataset configuration dictionary
 trg_ds = {
-    'dataset_name': 'Sparcs',
+    'dataset_name': TRG_DS,
     'root_dir': DATASETS[TRG_DS],
-    'gt_pattern': '(.*)Labels\\.tif',
+    #'gt_pattern': '(.*)Labels\\.tif',
+    'gt_pattern': '(.*)mask\\.png',
     'bands': BANDS,
     'tile_size': TILE_SIZE,
     'pad': True,
-    'sort': True,
+    'sort': False,
     'transforms': [],
-    'merge_labels': {'Cirrus': 'Cloud',
-                     'Not_used': 'No_data'}
+    # 'merge_labels': {'Cirrus': 'Cloud',
+    #                 'Not_used': 'No_data'}
+    'merge_labels': {'Shadow_over_water': 'Shadow',
+                     'Flooded': 'Land'}
 
 }
 
@@ -61,6 +65,6 @@ trg_ds_split = {
     'seed': 0,
     'shuffle': True,
     'ttratio': 1,
-    'tvratio': 0.8,
+    'tvratio': 0.95,
 
 }

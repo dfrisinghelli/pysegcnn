@@ -22,7 +22,8 @@ import pathlib
 # path to the datasets on the current machine
 # DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
-DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
+# DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets')
+DRIVE_PATH = pathlib.Path('/localscratch/dfrisinghelli_eurac/Datasets/')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -33,10 +34,10 @@ DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
 TRG_DS = 'Sparcs'
 
 # spectral bands to use for evaluation
-BANDS = ['red', 'green', 'blue']
+BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
 
 # tile size of a single sample
-TILE_SIZE = 64
+TILE_SIZE = 256
 
 # the target dataset configuration dictionary
 trg_ds = {
@@ -65,6 +66,6 @@ trg_ds_split = {
     'seed': 0,
     'shuffle': True,
     'ttratio': 1,
-    'tvratio': 0.95,
+    'tvratio': 0.05,
 
 }

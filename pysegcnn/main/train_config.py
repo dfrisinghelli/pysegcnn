@@ -32,7 +32,9 @@ HERE = pathlib.Path(__file__).resolve().parent
 # DRIVE_PATH = pathlib.Path('C:/Eurac/Projects/CCISNOW/Datasets/')
 # DRIVE_PATH = pathlib.Path('/mnt/CEPH_PROJECTS/cci_snow/dfrisinghelli/Datasets/')  # nopep8
 # DRIVE_PATH = pathlib.Path('/home/dfrisinghelli/Datasets/')
-DRIVE_PATH = pathlib.Path('/home/clusterusers/dfrisinghelli_eurac/Datasets/')
+# DRIVE_PATH = pathlib.Path('/home/clusterusers/dfrisinghelli_eurac/Datasets/')
+# DRIVE_PATH = pathlib.Path('/scratch/dfrisinghelli_eurac/Datasets/')
+DRIVE_PATH = pathlib.Path('/localscratch/dfrisinghelli_eurac/Datasets/')
 
 # name and paths to the datasets
 DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
@@ -40,13 +42,13 @@ DATASETS = {'Sparcs': DRIVE_PATH.joinpath('Sparcs'),
             }
 
 # name of the dataset
-DS_NAME = 'Sparcs'
+DS_NAME = 'Alcd'
 
 # spectral bands to use for training
-BANDS = ['red', 'green', 'blue']
+BANDS = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
 
 # tile size of a single sample
-TILE_SIZE = 128
+TILE_SIZE = 256
 
 # number of folds for cross validation
 K_FOLDS = 10
@@ -65,8 +67,8 @@ ds_config = {
     'root_dir': DATASETS[DS_NAME],
 
     # a regex pattern to match the ground truth file naming convention
-    'gt_pattern': '(.*)mask\\.png',
-    # 'gt_pattern': '(.*)class\\.img',
+    # 'gt_pattern': '(.*)mask\\.png',
+    'gt_pattern': '(.*)Labels\\.tif',
 
     # define the bands to use to train the segmentation network:
     # either a list of bands, e.g. ['red', 'green', 'nir', 'swir2', ...]
@@ -140,8 +142,10 @@ ds_config = {
     # values are the corresponding labels to be mapped to.
     # NOTE: Passing an empty dictionary means all labels are preserved as is
     # 'merge_labels': {}
-    'merge_labels': {'Shadow_over_water': 'Shadow',
-                     'Flooded': 'Land'}
+    # 'merge_labels': {'Shadow_over_water': 'Shadow',
+    #                  'Flooded': 'Land'}
+    'merge_labels': {'Cirrus': 'Cloud',
+                     'Not_used': 'No_data'},
 
     # EXAMPLE: merge label class 'Shadow over Water' to label class 'Shadow'
     # 'merge_labels': {'Shadow_over_water': 'Shadow'}
@@ -236,7 +240,7 @@ model_config = {
     # define the batch size
     # determines how many samples of the dataset are processed until the
     # weights of the network are updated (via mini-batch gradient descent)
-    'batch_size': 256,
+    'batch_size': 64,
 
     # the seed for the random number generator intializing the network weights
     'torch_seed': 0,

@@ -101,7 +101,7 @@ if __name__ == '__main__':
             # transfer learning
             net, optimizer, checkpoint = trn_sf.transfer_model(
                 trn_sf.pretrained_path,
-                nclasses=len(src_ds).labels,
+                nclasses=len(src_ds.labels),
                 optim_kwargs=net_mc.optim_kwargs,
                 freeze=trn_sf.freeze)
         else:

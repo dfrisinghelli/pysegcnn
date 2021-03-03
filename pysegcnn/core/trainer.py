@@ -816,7 +816,7 @@ class StateConfig(BaseConfig):
                     # state file for models fine-tuned to target domain
                     # PretrainedModel_DatasetConfig.pt
                     state = '_'.join([
-                        tc.pretrained_model, 'sda_{}'.format(src_ds_state),
+                        tc.pretrained_path.stem, 'sda_{}'.format(src_ds_state),
                         src_ds_ext])
                 else:
                     # state file for models trained via unsupervised domain

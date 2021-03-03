@@ -1668,7 +1668,7 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
                 'trg_train_dl': self.trg_train_dl,
                 'trg_valid_dl': self.trg_valid_dl,
                 'trg_test_dl': self.trg_test_dl,
-                'uda': self.uda,
+                'supervised': self.supervised,
                 'uda_pos': self.uda_pos,
                 'uda_lambda': self.uda_lambda}
 

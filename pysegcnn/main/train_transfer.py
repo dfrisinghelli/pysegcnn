@@ -94,6 +94,7 @@ if __name__ == '__main__':
         # (xiii) instanciate logging configuration
         net_lc = LogConfig(state_file)
         dictConfig(log_conf(net_lc.log_file))
+        net_lc.init_log('Initializing model: {}'.format(state_file.name))
 
         # (xiv) instanciate the model
         if trn_sf.supervised or trn_sf.uda_from_pretrained:
@@ -117,7 +118,7 @@ if __name__ == '__main__':
         trainer = DomainAdaptationTrainer(
             model=net,
             optimizer=optimizer,
-            state_file=state_file,
+            state_file=net.state_file,
             src_train_dl=src_tra_dl,
             src_valid_dl=src_val_dl,
             src_test_dl=src_tes_dl,

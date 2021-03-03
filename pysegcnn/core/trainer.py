@@ -2731,18 +2731,12 @@ class NetworkInference(BaseConfig):
 
                 # calculate confusion matrix
                 LOGGER.info('Computing confusion matrix ...')
-
-                # move predictions and labels to GPU if available
-                y_true = torch.Tensor(y_true).to(self.device)
-                y_pred = torch.Tensor(y_pred).to(self.device)
-                labels_gpu = torch.Tensor(
-                    np.asarray(list(self.use_labels.keys()))).to(self.device)
-
-                # compute confusion matrix
-                conf_mat = confusion_matrix(y_true, y_pred, labels=labels_gpu)
+                conf_mat = confusion_matrix(
+                    y_true, y_pred,
+                    labels=np.asarray(list(self.use_labels.keys())))
 
                 # add confusion matrix to model output
-                output['cm'] = conf_mat.cpu().numpy()
+                output['cm'] = conf_mat
 
                 # plot confusion matrix
                 plot_confusion_matrix(

@@ -110,11 +110,14 @@ if __name__ == '__main__':
             net, optimizer, checkpoint = net_mc.init_model(
                 len(src_ds.use_bands), len(src_ds.labels), state_file)
 
+        # set the model state file
+        net.state_file = state_file
+
         # (xv) instanciate the network trainer class
         trainer = DomainAdaptationTrainer(
             model=net,
             optimizer=optimizer,
-            state_file=net.state_file,
+            state_file=state_file,
             src_train_dl=src_tra_dl,
             src_valid_dl=src_val_dl,
             src_test_dl=src_tes_dl,

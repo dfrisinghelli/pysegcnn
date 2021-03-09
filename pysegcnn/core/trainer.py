@@ -1536,7 +1536,7 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
 
         return src_feature, trg_feature, src_feature
 
-    def uda_frwd(self, src_input, trg_input):
+    def uda_forward(self, src_input, trg_input):
         """Forward function for deep domain adaptation.
 
         Parameters
@@ -1598,8 +1598,8 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
             self.optimizer.zero_grad()
 
             # forward pass
-            src_feature, trg_feature, src_prdctn = self.uda_forward(src_input,
-                                                                    trg_input)
+            src_feature, trg_feature, src_prdctn = self.uda_forward(
+                src_input, trg_input)
 
             # compute classification loss
             cla_loss = self.cla_loss_function(src_prdctn, src_label.long())

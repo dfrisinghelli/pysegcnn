@@ -1548,16 +1548,22 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
 
         """
         if self.uda_pos == 'inp':
-            self._inp_uda(src_input, trg_input)
+            src_feature, trg_feature, src_prdctn = self._inp_uda(
+                src_input, trg_input)
 
         if self.uda_pos == 'enc':
-            self._enc_uda(src_input, trg_input)
+            src_feature, trg_feature, src_prdctn = self._enc_uda(
+                src_input, trg_input)
 
         if self.uda_pos == 'dec':
-            self._dec_uda(src_input, trg_input)
+            src_feature, trg_feature, src_prdctn = self._dec_uda(
+                src_input, trg_input)
 
         if self.uda_pos == 'cla':
-            self._cla_uda(src_input, trg_input)
+            src_feature, trg_feature, src_prdctn = self._cla_uda(
+                src_input, trg_input)
+
+        return src_feature, trg_feature, src_prdctn
 
     def train_domain_adaptation(self, epoch):
         """Train a model for an epoch on the source and target domain.

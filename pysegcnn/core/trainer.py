@@ -1481,6 +1481,7 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
 
             # adjust metrics to accomodate domain adaptation metrics
             self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
+            self.tracker.initialize()
 
     def _inp_uda(self, src_input, trg_input):
         """Domain adaptation at input feature level."""

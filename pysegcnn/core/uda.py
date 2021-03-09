@@ -73,8 +73,8 @@ def coral(source, target, device='cpu'):
         trg_band = trg_band.to(device)
 
         # source and target covariance matrices
-        src_cov = cov_coral(src_band)
-        trg_cov = cov_coral(trg_band)
+        src_cov = cov_coral(src_band, device=device)
+        trg_cov = cov_coral(trg_band, device=device)
 
         # Frobenius norm: distance between covariance matrices
         coral_loss += torch.pow(src_cov - trg_cov, 2).sum().sqrt()
@@ -85,7 +85,7 @@ def coral(source, target, device='cpu'):
     return coral_loss
 
 
-def cov_coral(M):
+def cov_coral(M, device='cpu'):
     """Compute the covariance matrix.
 
     Parameters
@@ -103,7 +103,7 @@ def cov_coral(M):
     bs = M.size(0)
 
     # right hand side term
-    rt = torch.matmul(torch.ones(1, bs), M)
+    rt = torch.matmul(torch.ones(1, bs).to(device), M)
     rt = torch.matmul(rt.t(), rt)
 
     # squared input matrix

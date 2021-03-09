@@ -46,6 +46,10 @@ SUFFIXES = ['toa_ref', 'toa_rad', 'toa_brt']
 # maximum number of filename characters on Windows
 MAX_FILENAME_CHARS_WINDOWS = 260
 
+# file suffixes for hierarchical data format
+HIERARCHICAL_DATA_FORMAT = ['.h4', '.hdf', '.hdf4', '.hdf5', '.he2', '.h5',
+                            '.he5', 'nc']
+
 
 def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     r"""Read an image to a :py:class:`numpy.ndarray`.
@@ -412,8 +416,8 @@ def read_hdf(path, **kwargs):
 
     """
     # check if the path points to an hdf file
-    if not str(path).endswith(('.h4', '.hdf', '.hdf4', '.hdf5', '.he2', '.h5',
-                               '.he5')):
+    path = pathlib.Path(path)
+    if path.suffix not in HIERARCHICAL_DATA_FORMAT:
         raise ValueError('{} is not an hdf file.'.format(path))
 
     # read the hdf dataset
@@ -463,8 +467,7 @@ def hdf2tifs(path, outpath, overwrite=False, create_stack=True, **kwargs):
     """
     # check if the path points to an hdf file
     path = pathlib.Path(path)
-    if not str(path).endswith(('.h4', '.hdf', '.hdf4', '.hdf5', '.he2', '.h5',
-                               '.he5')):
+    if path.suffix not in HIERARCHICAL_DATA_FORMAT:
         raise ValueError('{} is not an hdf file.'.format(path))
 
     # create the output directory for the GeoTiffs

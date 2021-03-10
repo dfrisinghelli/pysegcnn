@@ -2692,8 +2692,8 @@ class NetworkInference(BaseConfig):
                     self.eval_file(state).unlink()
 
             # plot loss and accuracy
-            plot_loss(check_filename_length(state),
-                      outpath=self.perfmc_path)
+            # plot_loss(check_filename_length(state),
+            #           outpath=self.perfmc_path)
 
             # load the target dataset to evaluate the model on
             self.trg_ds = self.load_dataset(

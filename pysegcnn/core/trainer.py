@@ -1483,6 +1483,9 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
             self.tracker.train_metrics.extend(['cla_loss', 'uda_loss'])
             self.tracker.initialize()
 
+            # overwrite number of training mini-batches: use target domain
+            self.tmbatch = len(self.trg_train_dl)
+
     def _inp_uda(self, src_input, trg_input):
         """Domain adaptation at input feature level."""
 

@@ -1579,22 +1579,22 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
             The current epoch.
 
         """
-        # create target domain iterator
-        target = iter(self.trg_train_dl)
+        # create source domain iterator
+        source = iter(self.src_train_dl)
 
         # increase domain adaptation weight with increasing epochs
         # uda_lambda = self.uda_lambda * ((epoch + 1) / self.epochs)
 
         # iterate over the number of samples
-        for batch, (src_input, src_label) in enumerate(self.src_train_dl):
+        for batch, (trg_input, _) in enumerate(self.trg_train_dl):
 
             # get the target domain input data
             try:
-                trg_input, _ = target.next()
+                src_input, src_label = source.next()
             # in case the iterator is finished, re-instanciate it
             except StopIteration:
-                target = iter(self.trg_train_dl)
-                trg_input, _ = target.next()
+                source = iter(self.src_train_dl)
+                src_input, src_label = source.next()
 
             # send the data to the gpu if available
             src_input, src_label = (src_input.to(self.device),

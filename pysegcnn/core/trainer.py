@@ -149,7 +149,7 @@ class DatasetConfig(BaseConfig):
     sort: bool = False
     transforms: list = dataclasses.field(default_factory=list)
     pad: bool = False
-    merge_labels: dict = dataclasses.field(default_factory=list)
+    merge_labels: dict = dataclasses.field(default_factory=dict)
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -400,7 +400,7 @@ class ModelConfig(BaseConfig):
     torch_seed: int = 0
     batch_size: int = 64
     checkpoint: bool = False
-    optim_kwargs: dict = dataclasses.field(default_factory={})
+    optim_kwargs: dict = dataclasses.field(default_factory=dict)
     early_stop: bool = False
     mode: str = 'max'
     delta: float = 0
@@ -1076,7 +1076,7 @@ class ClassificationNetworkTrainer(BaseConfig):
     mode: str = 'max'
     delta: float = 0
     patience: int = 10
-    checkpoint_state: dict = dataclasses.field(default_factory={})
+    checkpoint_state: dict = dataclasses.field(default_factory=dict)
     save: bool = True
 
     def __post_init__(self):
@@ -2098,8 +2098,8 @@ class NetworkInference(BaseConfig):
     test: object = False
     aggregate: bool = False
     save: bool = False
-    ds: dict = dataclasses.field(default_factory={})
-    ds_split: dict = dataclasses.field(default_factory={})
+    ds: dict = dataclasses.field(default_factory=dict)
+    ds_split: dict = dataclasses.field(default_factory=dict)
     drive_path: str = ''
     map_labels: bool = False
     predict_scene: bool = True

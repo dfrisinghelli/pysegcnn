@@ -1091,6 +1091,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         """
         super().__post_init__()
+        LogConfig.init_log('Initializing network trainer.')
 
         # the device to train the model on
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else

@@ -51,7 +51,7 @@ from pysegcnn.core.models import (SupportedModels, SupportedOptimizers,
 from pysegcnn.core.uda import SupportedUdaMethods, CoralLoss, UDA_POSITIONS
 from pysegcnn.core.layers import Conv2dSame
 from pysegcnn.core.logging import log_conf
-from pysegcnn.core.graphics import (plot_loss, plot_confusion_matrix,
+from pysegcnn.core.graphics import (plot_confusion_matrix,
                                     plot_sample, plot_classification_report)
 from pysegcnn.core.constants import map_labels
 from pysegcnn.main.train_config import HERE
@@ -1264,21 +1264,26 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         return self.training_state
 
-    def predict(self, dataloader):
+    def predict(self, dataloader, return_pred=False):
         """Model inference at training time.
 
         Parameters
         ----------
         dataloader : :py:class:`torch.utils.data.DataLoader`
             The validation dataloader to evaluate the model predictions.
+        return_pred : `bool`
+            Whether to return the model predictions. The default is `False`.
 
         Returns
         -------
         accuracy : :py:class:`numpy.ndarray`
             The mean model prediction accuracy on each mini-batch in the
-            validation set.
+            validation set. Returned if ``return_pred`` is `False`.
         loss : :py:class:`numpy.ndarray`
             The model loss for each mini-batch in the validation set.
+            Returned if ``return_pred`` is `False`.
+        pred :
+            The model predictions. Returned if ``return_pred`` is `True`.
 
         """
         # set the model to evaluation mode
@@ -1288,6 +1293,7 @@ class ClassificationNetworkTrainer(BaseConfig):
         # create arrays of the observed loss and accuracy
         accuracy = []
         loss = []
+        predictions = []
 
         # iterate over the validation/test set
         LOGGER.info('Calculating accuracy on the validation set ...')
@@ -1307,6 +1313,8 @@ class ClassificationNetworkTrainer(BaseConfig):
 
             # calculate predicted class labels
             pred = F.softmax(outputs, dim=1).argmax(dim=1)
+            if return_pred:
+                predictions.append(pred)
 
             # calculate accuracy on current batch
             acc = accuracy_function(pred, labels)
@@ -1320,7 +1328,12 @@ class ClassificationNetworkTrainer(BaseConfig):
         LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
                     .format(self.model.epoch, np.mean(accuracy) * 100))
 
-        return accuracy, loss
+        if return_pred:
+            # return only predictions, if specified
+            return predictions
+        else:
+            # per default return observed accuracies and loss
+            return accuracy, loss
 
     def save_state(self):
         """Save the model state."""
@@ -2694,10 +2707,6 @@ class NetworkInference(BaseConfig):
                     LOGGER.info('Overwriting model evaluation: {}.'
                                 .format(self.eval_file(state)))
                     self.eval_file(state).unlink()
-
-            # plot loss and accuracy
-            # plot_loss(check_filename_length(state),
-            #           outpath=self.perfmc_path)
 
             # load the target dataset to evaluate the model on
             self.trg_ds = self.load_dataset(

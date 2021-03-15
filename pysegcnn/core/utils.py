@@ -32,6 +32,7 @@ import xml.etree.ElementTree as ET
 import torch
 import numpy as np
 import pandas as pd
+import xarray as xr
 from osgeo import gdal, ogr, osr
 
 # locals
@@ -391,16 +392,13 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
     compress_raster(tmp_path, filename)
 
 
-def read_hdf(path, **kwargs):
-    """Read a file in Hierarchical Data Format (HDF) to a dictionary.
+def read_hdf4(path):
+    """Read a file in Hierarchical Data Format 4 (HDF4).
 
     Parameters
     ----------
     path : `str` or py:class:`pathlib.Path`
-        The path to the hdf file to read.
-    **kwargs:
-        Additional keyword arguments passed to
-        :py:func:`pysegcnn.core.utils.img2np`.
+        The path to the hdf4 file to read.
 
     Raises
     ------
@@ -409,10 +407,8 @@ def read_hdf(path, **kwargs):
 
     Returns
     -------
-    hdf_ds : `dict` [`str`, :py:class:`numpy.ndarray`]
-        The hdf file as a dictionary. The keys are the names of the
-        different datasets in the hdf file and the values are the corresponding
-        data as a :py:class:`numpy.ndarray`.
+    hdf_ds : :py:class:`xarray.Dataset`
+        The HDF4 file as :py:class:`xarray.Dataset`.
 
     """
     # check if the path points to an hdf file
@@ -420,22 +416,19 @@ def read_hdf(path, **kwargs):
     if path.suffix not in HIERARCHICAL_DATA_FORMAT:
         raise ValueError('{} is not an hdf file.'.format(path))
 
-    # read the hdf dataset
-    hdf = gdal.Open(str(path)).GetSubDatasets()
+    # read the hdf dataset: get the different subdatasets
+    sub_datasets = gdal.Open(str(path)).GetSubDatasets()
 
-    # iterate over the different subsets and store arrays in dictionary
-    hdf_ds = {}
-    for ds in hdf:
-        # name of the current dataset
-        name = ds[0].split(':')[-1]
+    # iterate over the different subsets
+    subsets = []
+    for filename in sub_datasets:
+        ds_name = filename[0].split(':')[-1]
+        subsets.append(xr.open_rasterio(filename[0]).to_dataset(name=ds_name))
 
-        # read the dataset to a numpy array
-        data = img2np(ds[0], **kwargs)
+    # merge subsets to single xarray dataset
+    hdf_ds = xr.merge(subsets)
 
-        # store in dictionary
-        hdf_ds[name] = data
-
-    return hdf_ds
+    return hdf_ds.squeeze()
 
 
 def hdf2tifs(path, outpath, overwrite=False, create_stack=True, **kwargs):

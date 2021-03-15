@@ -10,7 +10,11 @@ dependencies:
   - scikit-learn
   - xarray
   - gdal>=3.2
+  - rasterio
   - netcdf4
+  - h5py
+  - h5netdf
   - matplotlib
   - seaborn
   - ipython
+

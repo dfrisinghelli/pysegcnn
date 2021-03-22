@@ -87,6 +87,48 @@ class Conv2dSame(nn.Conv2d):
         return int(d * (k - 1) / 2)
 
 
+class Conv1dSame(nn.Conv1d):
+    """A convolution preserving the shape of its input.
+
+    Given the kernel size, the dilation and a stride of 1, the padding is
+    calculated such that the output of the convolution has the same spatial
+    dimensions as the input.
+
+    Attributes
+    ----------
+    padding : `tuple` [`int`]
+        The amount of padding, (pad_height, pad_width).
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        """Initialize.
+
+        Parameters
+        ----------
+        *args: `list` [`str`]
+            positional arguments passed to :py:class:`torch.nn.Conv2d`:
+                ``'in_channels'``: `int`
+                    Number of input channels.
+                ``'out_channels'``: `int`
+                    Number of output channels.
+                ``'kernel_size'``: `int` or `tuple` [`int`]
+                    Size of the convolving kernel.
+        **kwargs: `dict` [`str`]
+            Additional keyword arguments passed to :py:class:`torch.nn.Conv2d`.
+
+        """
+        super().__init__(*args, **kwargs)
+
+        # initialize layer weights after He et al. (2015) (kaiming uniform) for
+        # ReLu non-linearity
+        nn.init.kaiming_uniform_(self.weight, nonlinearity='relu')
+
+        # amount of padding to conserve shape of input
+        self.padding = (Conv2dSame.same_padding(
+            self.dilation[0], self.kernel_size[0]),)
+
+
 def conv_bn_relu(in_channels, out_channels, **kwargs):
     """Block of convolution, batch normalization and rectified linear unit.
 

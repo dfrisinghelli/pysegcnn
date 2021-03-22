@@ -1293,7 +1293,9 @@ class ClassificationNetworkTrainer(BaseConfig):
         # create arrays of the observed loss and accuracy
         accuracy = []
         loss = []
-        predictions = []
+
+        # create dictionary of predictions and corresponding probabilities
+        predictions = {'y_pred': [], 'y_prob': []}
 
         # iterate over the validation/test set
         LOGGER.info('Calculating accuracy on the validation set ...')
@@ -1312,12 +1314,13 @@ class ClassificationNetworkTrainer(BaseConfig):
             loss.append(cla_loss.item())
 
             # calculate predicted class labels
-            pred = F.softmax(outputs, dim=1).argmax(dim=1)
+            pred = F.softmax(outputs, dim=1).max(dim=1)
             if return_pred:
-                predictions.append(pred)
+                predictions['y_pred'].append(pred.indices)
+                predictions['y_prob'].append(pred.values)
 
             # calculate accuracy on current batch
-            acc = accuracy_function(pred, labels)
+            acc = accuracy_function(pred.indices, labels)
             accuracy.append(acc)
 
             # print progress

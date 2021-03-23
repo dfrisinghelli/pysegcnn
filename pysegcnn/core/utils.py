@@ -2150,6 +2150,61 @@ def reproject_vector(src_ds, trg_ds, ref_ds=None, epsg=None, overwrite=False):
     del src_ds, trg_ds
 
 
+def utm_spatial_reference(utm_id, north=True):
+    """Define a spatial reference of the projected UTM coordinate system.
+
+    Parameters
+    ----------
+    utm_id : `int`
+        UTM zone identifier.
+    north : `bool`, optional
+        Whether to UTM zone ``utm_id`` is located on the northern or southern
+        hemisphere. The default is `True`.
+
+    Returns
+    -------
+    crs : :py:class:`osgeo.osr.SpatialReference`
+        Spatial reference system of the UTM zone.
+
+    """
+
+    # define a coordinate reference system
+    crs = osr.SpatialReference()
+
+    # define UTM zone and spheroid
+    crs.SetProjCS('WGS84 / UTM zone {}'
+                  .format(''.join([str(utm_id), 'N' if north else 'S'])))
+    crs.SetWellKnownGeogCS('WGS84')
+    crs.SetUTM(utm_id)
+
+    # identify epsg code
+    crs.AutoIdentifyEPSG()
+
+    return crs
+
+
+def mgrs_tile_extent(mgrs_kml, tile):
+
+    # parse mgrs kml file using xml
+    tree = ET.parse(mgrs_kml)
+    root = tree.getroot()
+
+    # kml namespace: required to search for correct tag names
+    ns = re.match(r'{.*}', root.tag).group(0)
+
+    # get the tags of the different tiles
+    tiles = [item for item in tree.iter('{}Placemark'.format(ns))]
+
+    return tiles
+
+
+# def raster2mgrs(src_ds, tile, overwrite=False):
+
+#     # spatial reference system of the tile
+#     utm_id = int(re.search('T[0-6][0-9]', tile)[0].strip('T'))
+#     tile_crs = utm_spatial_reference(utm_id)
+
+
 def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
                   burn_value=255, no_data=0, overwrite=False):
     """Convert a shapefile to a GeoTIFF.

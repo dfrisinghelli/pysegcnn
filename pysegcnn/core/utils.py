@@ -1920,9 +1920,10 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         The raster dataset to reproject.
     trg_ds : `str` or :py:class:`pathlib.Path`
         The target raster dataset.
-    ref_ds : `str` or :py:class:`pathlib.Path`, optional
-        A reference raster dataset, whose coordinate reference system is used
-        for reprojection. The default is `None`.
+    ref_ds : :py:class:`pathlib.Path` or :py:class:`osgeo.osr.SpatialReference`
+        Either a reference raster dataset, whose coordinate reference system is
+        used for reprojection or a valid spatial reference object. The default
+        is `None`.
     epsg : `int`, optional
         The EPSG code of the target coordinate reference system. The default is
         `None`.
@@ -1977,17 +1978,26 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
 
     # check whether a reference raster is provided
     if ref_ds is not None:
-        # read reference dataset
-        ref_path = pathlib.Path(ref_ds)
-        ref_ds = gdal.Open(str(ref_path))
 
-        # get the projection of the reference dataset
-        ref_sr = ref_ds.GetSpatialRef().ExportToWkt()
+        if isinstance(ref_ds, osr.SpatialReference):
+            ref_sr = ref_ds.ExportToWkt()
 
-        # get the spatial resolution of the reference dataset
-        ref_gt = ref_ds.GetGeoTransform()
-        ref_xres = ref_gt[1]
-        ref_yres = ref_gt[-1]
+            # the specified spatial resolution
+            ref_xres = pixel_size[0]
+            ref_yres = pixel_size[1]
+
+        else:
+            # read reference dataset
+            ref_path = pathlib.Path(ref_ds)
+            ref_ds = gdal.Open(str(ref_path))
+
+            # get the projection of the reference dataset
+            ref_sr = ref_ds.GetSpatialRef().ExportToWkt()
+
+            # get the spatial resolution of the reference dataset
+            ref_gt = ref_ds.GetGeoTransform()
+            ref_xres = ref_gt[1]
+            ref_yres = ref_gt[-1]
 
     else:
         # check whether an epsg code is provided
@@ -2183,26 +2193,136 @@ def utm_spatial_reference(utm_id, north=True):
     return crs
 
 
-def mgrs_tile_extent(mgrs_kml, tile):
+def mgrs_tile_extent(mgrs_grid, tile_names):
+    """Extracts the extent of Sentinel-2 tiles from the `MGRS tiling grid`_.
+
+    Parameters
+    ----------
+    mgrs_grid : `str` or :py:class:`pathlib.Path`
+        Path to the Sentinel-2 tiling grid kml file.
+    tile_names : `list` [`int`]
+        Name of the tiles to extract.
+
+    Returns
+    -------
+    tile_coordinates : `dict` [`str`, `tuple`]
+        Extent of the tiles. The keys are the name of the tiles and the values
+        are a tuple of the bounding box coordinates in clockwise order,
+        starting from the top-left corner.
+
+    .. _MGRS tiling grid:
+        https://sentinel.esa.int/web/sentinel/missions/sentinel-2/data-products
+
+    """
 
     # parse mgrs kml file using xml
-    tree = ET.parse(mgrs_kml)
+    LOGGER.info('Parsing MGRS grid ...')
+    tree = ET.parse(str(mgrs_grid))
     root = tree.getroot()
 
     # kml namespace: required to search for correct tag names
     ns = re.match(r'{.*}', root.tag).group(0)
 
-    # get the tags of the different tiles
+    # get the tags and names of the different tiles
     tiles = [item for item in tree.iter('{}Placemark'.format(ns))]
+    names = [item.find('{}name'.format(ns)).text for item in tiles]
 
-    return tiles
+    # get the tiles of interest
+    tile_coordinates = {}
+    for tile in tile_names:
+        # tag of current tile
+        tile_tag = tiles[names.index(tile.lstrip('T'))]
+
+        # get the coordinates of the bounding box
+        bbox = list(tile_tag.iter('{}LinearRing'.format(ns))).pop()
+        coordinates = bbox.find('{}coordinates'.format(ns)).text.strip()
+
+        # read the coordinates to tuples defining tile corners
+        # tl: top left, tr: top right, br: bottom right, bl: bottom left
+        tl, tr, br, bl = [tuple([np.float(c) for c in point.split(',')])
+                          for point in coordinates.split(',0')[:-2]]
+
+        # store tile extent in dictionary
+        tile_coordinates[tile] = (tl, tr, br, bl)
+
+    LOGGER.info('Found coordinates for tiles: {}'.format(
+        ', '.join(tile_coordinates.keys())))
+    return tile_coordinates
 
 
-# def raster2mgrs(src_ds, tile, overwrite=False):
+def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
 
-#     # spatial reference system of the tile
-#     utm_id = int(re.search('T[0-6][0-9]', tile)[0].strip('T'))
-#     tile_crs = utm_spatial_reference(utm_id)
+    # convert source and target paths to pathlib.Path objects
+    src_ds = pathlib.Path(src_ds)
+    trg_path = pathlib.Path(trg_path)
+    LOGGER.info('Initializing tiling of: {}'.format(src_ds.name))
+
+    # get the extent of the tiles
+    extent = mgrs_tile_extent(mgrs_grid, tiles)
+
+    # get the coordinate reference system of the source dataset
+    ds = gdal.Open(str(src_ds))
+    src_crs = ds.GetSpatialRef()
+    LOGGER.info('Coordinate reference system: {}'.format(src_crs.GetName()))
+
+    # source spatial reference system of the tiles: WGS84
+    tl_crs = osr.SpatialReference()
+    tl_crs.SetWellKnownGeogCS('WGS84')
+
+    # iterate over the tiles of interest
+    for tile in tiles:
+        LOGGER.info('Clipping to tile: {}'.format(tile))
+
+        # target spatial reference system of the tile
+        utm_id = int(re.search('(T|)[0-6][0-9]', tile)[0].lstrip('T'))
+        trg_crs = utm_spatial_reference(utm_id)
+
+        # extent of the tile
+        bbox = extent[tile.lstrip('T')]
+
+        # coordinate transformation: from tile crs (WGS84) to src crs
+        crs_tr = osr.CoordinateTransformation(tl_crs, src_crs)
+
+        # transform extent of tile to source coordinate system
+
+        # TransfromPoint expects input:
+        #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
+        #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
+        x_tl, y_tl, _ = np.round(crs_tr.TransformPoint(bbox[0][1], bbox[0][0]),
+                                 decimals=10)
+        x_br, y_br, _ = np.round(crs_tr.TransformPoint(bbox[2][1], bbox[2][0]),
+                                 decimals=10)
+
+        # extent of the tile in the source coordinate reference system
+        tile_extent = (x_tl, y_tl, x_br, y_br)
+
+        # extract tile extent from source dataset
+        clip_ds = trg_path.joinpath(src_ds.stem + '_{}_clip.tif'.format(tile))
+        clip_raster(src_ds, tile_extent, clip_ds)
+
+        # reproject to target coordinate reference system
+        repr_ds = trg_path.joinpath(src_ds.stem + '_{}_repr.tif'.format(tile))
+        reproject_raster(clip_ds, repr_ds, ref_ds=trg_crs, **kwargs)
+
+        # remove the clipped dataset from disk
+        clip_ds.unlink()
+
+        # transform extent of tile to target coordinate system
+        crs_tr = osr.CoordinateTransformation(src_crs, trg_crs)
+        x_tl, y_tl, _ = np.round(
+            crs_tr.TransformPoint(tile_extent[0], tile_extent[1]), decimals=5)
+        x_br, y_br, _ = np.round(
+            crs_tr.TransformPoint(tile_extent[2], tile_extent[3]), decimals=5)
+
+        # extent of the tile in the target coordinate reference system
+        tile_extent = (x_tl, y_tl, x_br, y_br)
+
+        # clip reprojected raster to exact tile extent
+        trg_ds = trg_path.joinpath(src_ds.stem + '_{}.tif'.format(tile))
+        clip_raster(repr_ds, tile_extent, trg_ds)
+
+        # remove reprojected dataset from disk
+        repr_ds.unlink()
 
 
 def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
@@ -2460,8 +2580,10 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     ----------
     src_ds : `str` or :py:class:`pathlib.Path`
         The input raster to clip.
-    mask_ds : `str` or :py:class:`pathlib.Path`
-        The raster defining the extent of interest.
+    mask_ds : `str` or :py:class:`pathlib.Path` or `tuple`
+        A raster or a `tuple`  defining the extent of interest. If a `tuple`,
+        it is assumed to define the extent in the coordinate system of
+        ``src_ds`` as: (x_min, y_min, x_max, y_max).
     trg_ds : `str` or :py:class:`pathlib.Path`
         The clipped raster dataset.
     overwrite : `bool`, optional
@@ -2477,17 +2599,16 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
     src_path = pathlib.Path(src_ds)
-    mask_path = pathlib.Path(mask_ds)
 
     # check whether the source dataset exists
     if not src_path.exists():
         LOGGER.info('{} does not exist.'.format(str(src_path)))
         return
 
-    # check whether the mask exists
-    if not mask_path.exists():
-        LOGGER.info('{} does not exist.'.format(str(mask_path)))
-        return
+    # source dataset spatial reference
+    src_ds = gdal.Open(str(src_path))
+    src_sr = osr.SpatialReference()
+    src_sr.ImportFromWkt(src_ds.GetProjection())
 
     # check whether the output datasets exists
     trg_path = pathlib.Path(trg_ds)
@@ -2503,37 +2624,43 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
         LOGGER.info('Overwrite {}'.format(str(trg_path)))
         trg_path.unlink()
 
-    # mask is a raster dataset
-    mask_ds = gdal.Open(str(mask_path))
+    # mask is defined as extent
+    if isinstance(mask_ds, tuple):
+        extent = mask_ds
+    else:
 
-    # spatial extent of the mask: (x_min, x_max, y_min, y_max)
-    gt = mask_ds.GetGeoTransform()
-    extent = [gt[0], gt[0] + gt[1] * mask_ds.RasterXSize,
-              gt[3] + gt[5] * mask_ds.RasterYSize, gt[3]]
+        # check whether the mask exists
+        mask_path = pathlib.Path(mask_ds)
+        if not mask_path.exists():
+            LOGGER.info('{} does not exist.'.format(str(mask_path)))
+            return
 
-    # mask dataset spatial reference
-    mask_sr = osr.SpatialReference()
-    mask_sr.ImportFromWkt(mask_ds.GetProjection())
+        # mask is a raster dataset
+        mask_ds = gdal.Open(str(mask_path))
 
-    # source dataset spatial reference
-    src_ds = gdal.Open(str(src_path))
-    src_sr = osr.SpatialReference()
-    src_sr.ImportFromWkt(src_ds.GetProjection())
+        # spatial extent of the mask: (x_min, x_max, y_min, y_max)
+        gt = mask_ds.GetGeoTransform()
+        extent = [gt[0], gt[0] + gt[1] * mask_ds.RasterXSize,
+                  gt[3] + gt[5] * mask_ds.RasterYSize, gt[3]]
 
-    # coordinate transformation: from mask to source
-    crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
+        # mask dataset spatial reference
+        mask_sr = osr.SpatialReference()
+        mask_sr.ImportFromWkt(mask_ds.GetProjection())
 
-    # transform extent of mask to source coordinate system
+        # coordinate transformation: from mask to source
+        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
 
-    # TransfromPoint expects input:
-    #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
-    #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
-    x_tl, y_tl, _ = crs_tr.TransformPoint(extent[0], extent[-1])
-    x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[2])
+        # transform extent of mask to source coordinate system
 
-    # extent of the mask in the source reference coordinate system:
-    # (x_min, y_min, x_max, y_max)
-    extent = [x_tl, y_br, x_br, y_tl]
+        # TransfromPoint expects input:
+        #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
+        #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
+        x_tl, y_tl, _ = crs_tr.TransformPoint(extent[0], extent[-1])
+        x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[2])
+
+        # extent of the mask in the source reference coordinate system:
+        # (x_min, y_min, x_max, y_max)
+        extent = [x_tl, y_br, x_br, y_tl]
 
     # create a temporary file
     tmp_path = _tmp_path(trg_path)

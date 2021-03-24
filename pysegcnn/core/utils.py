@@ -2243,7 +2243,7 @@ def mgrs_tile_extent(mgrs_grid, tile_names):
                           for point in coordinates.split(',0')[:-2]]
 
         # store tile extent in dictionary
-        tile_coordinates[tile] = (tl, tr, br, bl)
+        tile_coordinates[tile.lstrip('T')] = (tl, tr, br, bl)
 
     LOGGER.info('Found coordinates for tiles: {}'.format(
         ', '.join(tile_coordinates.keys())))
@@ -2257,13 +2257,13 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
     trg_path = pathlib.Path(trg_path)
     LOGGER.info('Initializing tiling of: {}'.format(src_ds.name))
 
-    # get the extent of the tiles
-    extent = mgrs_tile_extent(mgrs_grid, tiles)
-
     # get the coordinate reference system of the source dataset
     ds = gdal.Open(str(src_ds))
     src_crs = ds.GetSpatialRef()
     LOGGER.info('Coordinate reference system: {}'.format(src_crs.GetName()))
+
+    # get the extent of the tiles
+    extent = mgrs_tile_extent(mgrs_grid, tiles)
 
     # source spatial reference system of the tiles: WGS84
     tl_crs = osr.SpatialReference()
@@ -2293,8 +2293,13 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
         x_br, y_br, _ = np.round(crs_tr.TransformPoint(bbox[2][1], bbox[2][0]),
                                  decimals=10)
 
-        # extent of the tile in the source coordinate reference system
-        tile_extent = (x_tl, y_tl, x_br, y_br)
+        # calculate a pixel buffer around tile extent: be sure to include
+        # the whole tile
+        pixel_buffer = ((x_br - x_tl) / ds.GetGeoTransform()[1]) * 2
+
+        # buffered extent of the tile in the source coordinate reference system
+        tile_extent = (x_tl - pixel_buffer, y_tl + pixel_buffer,
+                       x_br + pixel_buffer, y_br - pixel_buffer)
 
         # extract tile extent from source dataset
         clip_ds = trg_path.joinpath(src_ds.stem + '_{}_clip.tif'.format(tile))
@@ -2309,10 +2314,8 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
 
         # transform extent of tile to target coordinate system
         crs_tr = osr.CoordinateTransformation(src_crs, trg_crs)
-        x_tl, y_tl, _ = np.round(
-            crs_tr.TransformPoint(tile_extent[0], tile_extent[1]), decimals=5)
-        x_br, y_br, _ = np.round(
-            crs_tr.TransformPoint(tile_extent[2], tile_extent[3]), decimals=5)
+        x_tl, y_tl, _ = np.round(crs_tr.TransformPoint(x_tl, y_tl), decimals=5)
+        x_br, y_br, _ = np.round(crs_tr.TransformPoint(x_br, y_br), decimals=5)
 
         # extent of the tile in the target coordinate reference system
         tile_extent = (x_tl, y_tl, x_br, y_br)
@@ -2670,10 +2673,12 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
     gdal.Warp(str(tmp_path), str(src_path),
               outputBounds=extent,
+              outputBoundsSRS=src_ds.GetSpatialRef(),
               xRes=src_ds.GetGeoTransform()[1],
               yRes=src_ds.GetGeoTransform()[5],
               srcNodata=src_no_data,
-              dstNodata=trg_no_data)
+              dstNodata=trg_no_data,
+              targetAlignedPixels=True)
 
     # compress raster dataset
     compress_raster(tmp_path, trg_path)

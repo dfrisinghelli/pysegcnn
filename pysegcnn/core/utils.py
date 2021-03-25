@@ -2250,7 +2250,7 @@ def mgrs_tile_extent(mgrs_grid, tile_names):
     return tile_coordinates
 
 
-def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
+def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
 
     # convert source and target paths to pathlib.Path objects
     src_ds = pathlib.Path(src_ds)
@@ -2288,14 +2288,12 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
         # TransfromPoint expects input:
         #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
         #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
-        x_tl, y_tl, _ = np.round(crs_tr.TransformPoint(bbox[0][1], bbox[0][0]),
-                                 decimals=10)
-        x_br, y_br, _ = np.round(crs_tr.TransformPoint(bbox[2][1], bbox[2][0]),
-                                 decimals=10)
+        x_tl, y_tl, _ = crs_tr.TransformPoint(bbox[0][1], bbox[0][0])
+        x_br, y_br, _ = crs_tr.TransformPoint(bbox[2][1], bbox[2][0])
 
-        # calculate a pixel buffer around tile extent: be sure to include
-        # the whole tile
-        pixel_buffer = ((x_br - x_tl) / ds.GetGeoTransform()[1]) * 2
+        # calculate a pixel buffer: extend the tile extent by 10% to ensure
+        # that the whole tile is clipped
+        pixel_buffer = (x_br - x_tl) / 10
 
         # buffered extent of the tile in the source coordinate reference system
         tile_extent = (x_tl - pixel_buffer, y_tl + pixel_buffer,
@@ -2303,11 +2301,12 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
 
         # extract tile extent from source dataset
         clip_ds = trg_path.joinpath(src_ds.stem + '_{}_clip.tif'.format(tile))
-        clip_raster(src_ds, tile_extent, clip_ds)
+        clip_raster(src_ds, tile_extent, clip_ds, overwrite=overwrite)
 
         # reproject to target coordinate reference system
         repr_ds = trg_path.joinpath(src_ds.stem + '_{}_repr.tif'.format(tile))
-        reproject_raster(clip_ds, repr_ds, ref_ds=trg_crs, **kwargs)
+        reproject_raster(clip_ds, repr_ds, ref_ds=trg_crs, overwrite=overwrite,
+                         **kwargs)
 
         # remove the clipped dataset from disk
         clip_ds.unlink()
@@ -2322,7 +2321,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, **kwargs):
 
         # clip reprojected raster to exact tile extent
         trg_ds = trg_path.joinpath(src_ds.stem + '_{}.tif'.format(tile))
-        clip_raster(repr_ds, tile_extent, trg_ds)
+        clip_raster(repr_ds, tile_extent, trg_ds, overwrite=overwrite)
 
         # remove reprojected dataset from disk
         repr_ds.unlink()

@@ -1974,13 +1974,13 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
                           gdal.GetDataTypeName(out_type)).value(no_data)
 
     # get the projection of the source dataset
-    src_sr = src_ds.GetSpatialRef().ExportToWkt()
+    src_sr = src_ds.GetSpatialRef()
 
     # check whether a reference raster is provided
     if ref_ds is not None:
 
         if isinstance(ref_ds, osr.SpatialReference):
-            ref_sr = ref_ds.ExportToWkt()
+            ref_sr = ref_ds
 
             # the specified spatial resolution
             ref_xres = pixel_size[0]
@@ -1992,7 +1992,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
             ref_ds = gdal.Open(str(ref_path))
 
             # get the projection of the reference dataset
-            ref_sr = ref_ds.GetSpatialRef().ExportToWkt()
+            ref_sr = ref_ds.GetSpatialRef()
 
             # get the spatial resolution of the reference dataset
             ref_gt = ref_ds.GetGeoTransform()
@@ -2007,9 +2007,10 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
             ref_sr = src_sr
             LOGGER.info('Neither a reference dataset nor an epsg code provided'
                         '. Using the source spatial reference.')
-
-        # the specified projection
-        ref_sr = 'epsg:{}'.format(epsg)
+        else:
+            # the specified projection
+            ref_sr = osr.SpatialReference()
+            ref_sr.ImportFromEPSG(epsg)
 
         # the specified spatial resolution
         ref_xres = pixel_size[0]
@@ -2019,10 +2020,11 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
     tmp_path = _tmp_path(trg_path)
 
     # reproject source dataset to target projection
-    LOGGER.info('Reproject: {}'.format(src_path.name))
+    LOGGER.info('Reproject: {}, Coordinate reference system: {}'.format(
+        src_path.name, ref_sr.GetName()))
     gdal.Warp(str(tmp_path), str(src_path),
-              srcSRS=src_sr,
-              dstSRS=ref_sr,
+              srcSRS=src_sr.ExportToWkt(),
+              dstSRS=ref_sr.ExportToWkt(),
               outputType=out_type,
               dstNodata=no_data,
               xRes=ref_xres,
@@ -2291,13 +2293,13 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
         x_tl, y_tl, _ = crs_tr.TransformPoint(bbox[0][1], bbox[0][0])
         x_br, y_br, _ = crs_tr.TransformPoint(bbox[2][1], bbox[2][0])
 
-        # calculate a pixel buffer: extend the tile extent by 10% to ensure
+        # calculate a pixel buffer: extend the tile extent by 20% to ensure
         # that the whole tile is clipped
-        pixel_buffer = (x_br - x_tl) / 10
+        pixel_buffer = (x_br - x_tl) / 5
 
         # buffered extent of the tile in the source coordinate reference system
-        tile_extent = (x_tl - pixel_buffer, y_tl + pixel_buffer,
-                       x_br + pixel_buffer, y_br - pixel_buffer)
+        tile_extent = (x_tl - pixel_buffer, y_br - pixel_buffer,
+                       x_br + pixel_buffer, y_tl + pixel_buffer)
 
         # extract tile extent from source dataset
         clip_ds = trg_path.joinpath(src_ds.stem + '_{}_clip.tif'.format(tile))
@@ -2317,7 +2319,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
         x_br, y_br, _ = np.round(crs_tr.TransformPoint(x_br, y_br), decimals=5)
 
         # extent of the tile in the target coordinate reference system
-        tile_extent = (x_tl, y_tl, x_br, y_br)
+        tile_extent = (x_tl, y_br, x_br, y_tl)
 
         # clip reprojected raster to exact tile extent
         trg_ds = trg_path.joinpath(src_ds.stem + '_{}.tif'.format(tile))

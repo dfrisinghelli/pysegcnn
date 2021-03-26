@@ -1069,7 +1069,7 @@ class ClassificationNetworkTrainer(BaseConfig):
     state_file: pathlib.Path
     src_train_dl: DataLoader
     src_valid_dl: DataLoader
-    src_test_dl: DataLoader
+    src_test_dl:  DataLoader = DataLoader(None)
     epochs: int = 1
     nthreads: int = torch.get_num_threads()
     early_stop: bool = False

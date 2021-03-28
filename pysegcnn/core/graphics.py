@@ -594,8 +594,8 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
     cls_ds = {k: v for k, v in cls_ds.items() if np.any(v)}
 
     # number of pixels of each class
-    npix_per_class = {k: '{:.2f}M'.format(v.shape[0] * 1e-6) for k, v in
-                      cls_ds.items()}
+    # npix_per_class = {k: '{:.2f}M'.format(v.shape[0] * 1e-6) for k, v in
+    #                   cls_ds.items()}
 
     # labels and colors for the different classes
     labels = [ds.labels[cls_id]['label'] for cls_id in cls_ds.keys()]
@@ -663,13 +663,13 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
                     ha='center', va='bottom')
 
     # create a patch (proxy artist) for every class
-    patches = [mpatches.Patch(color=ds.labels[k]['color'], label=v) for k, v in
-               npix_per_class.items()]
+    # patches = [mpatches.Patch(color=ds.labels[k]['color'], label=v) for k, v
+    #            in npix_per_class.items()]
 
     # add legend with number of pixels per class to plot
-    axes[-2].legend(handles=patches, loc='upper left', frameon=False,
-                    bbox_to_anchor=(0, -axes[-2].get_position().y0),
-                    ncol=len(labels))
+    # axes[-2].legend(handles=patches, loc='upper left', frameon=False,
+    #                 bbox_to_anchor=(0, -axes[-2].get_position().y0),
+    #                 ncol=len(labels))
 
     # adjust space between subplots
     fig.subplots_adjust(hspace=0.075, wspace=0.025)

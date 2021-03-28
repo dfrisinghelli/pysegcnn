@@ -157,14 +157,14 @@ class AlcdLabels(Label):
 
     """
 
-    No_data = 0, 'black'
-    Not_used = 1, 'black'
-    Cloud = 2, 'lightgrey'
-    Cirrus = 3, 'lightgrey'
     Shadow = 4, 'grey'
-    Land = 5, 'seagreen'
     Water = 6, 'mediumblue'
     Snow = 7, 'mediumturquoise'
+    Land = 5, 'seagreen'
+    Cloud = 2, 'lightgrey'
+    Cirrus = 3, 'lightgrey'
+    No_data = 0, 'black'
+    Not_used = 1, 'black'
 
 
 class Gdal2Numpy(enum.Enum):

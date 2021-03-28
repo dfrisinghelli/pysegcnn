@@ -230,6 +230,10 @@ class ImageDataset(Dataset):
         # starting from 0 as required by PyTorch, i.e. [0, 1, 2, ..., nclasses]
         self.labels = {i: v for i, (_, v) in enumerate(self._labels.items())}
 
+        # mapping from original labels to model labels
+        self.label_map = np.stack([list(self._labels.keys()),
+                                   list(self.labels.keys())], axis=1)
+
         # list of ground truth images
         self.gt = []
 
@@ -494,9 +498,7 @@ class ImageDataset(Dataset):
             gt[np.where(gt == old_id)] = new_id
 
         # replace the original labels by an increasing sequence of class labels
-        gtmap = np.stack([list(self._labels.keys()), list(self.labels.keys())],
-                         axis=1)
-        gt = array_replace(gt, gtmap)
+        gt = array_replace(gt, self.label_map)
 
         return gt
 

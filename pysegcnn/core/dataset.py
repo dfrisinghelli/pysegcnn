@@ -40,7 +40,8 @@ from pysegcnn.core.constants import (MultiSpectralSensor, Landsat8, Sentinel2,
                                      Label, SparcsLabels, Cloud95Labels,
                                      AlcdLabels)
 from pysegcnn.core.utils import (img2np, is_divisible, tile_topleft_corner,
-                                 parse_landsat_scene, parse_sentinel2_scene)
+                                 parse_landsat_scene, parse_sentinel2_scene,
+                                 array_replace)
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -493,8 +494,9 @@ class ImageDataset(Dataset):
             gt[np.where(gt == old_id)] = new_id
 
         # replace the original labels by an increasing sequence of class labels
-        for old_id, new_id in zip(self._labels.keys(), self.labels.keys()):
-            gt[np.where(gt == old_id)] = new_id
+        gtmap = np.stack([list(self._labels.keys()), list(self.labels.keys())],
+                         axis=1)
+        gt = array_replace(gt, gtmap)
 
         return gt
 

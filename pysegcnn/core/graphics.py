@@ -627,7 +627,7 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
                            medianprops={'color': 'black'})
 
         # set axis y-limits: physical limits are (0, 1) for reflectance data
-        ax.set_ylim(-0.1, 1.2)
+        ax.set_ylim(-0.1, 1.25)
         ax.set_yticks(np.arange(0, 1.2, 0.2))
 
         # set colors of the boxes for the classes

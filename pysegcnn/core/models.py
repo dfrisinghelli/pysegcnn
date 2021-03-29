@@ -199,6 +199,7 @@ class Network(nn.Module):
             raise FileNotFoundError('{} does not exist.'.format(state_file))
 
         # load the model state
+        LOGGER.info('Loading model: {}'.format(state_file))
         model_state = torch.load(state_file)
 
         return model_state

@@ -663,9 +663,8 @@ def plot_class_distribution(ds, figsize=(16, 9), alpha=0.5):
                     ha='center', va='bottom')
 
     # add text with number of pixels per class to plot
-    for i, pos in enumerate(axes[-2].get_xticks()):
-        axes[-2].text(pos, axes[-2].get_ylim()[0] - 0.1, npix_per_class[i],
-                      ha='center')
+    for i, lab in enumerate(npix_per_class):
+        axes[-2].text(i + 1, axes[-2].get_ylim()[0] - 0.1, lab, ha='center')
 
     # adjust space between subplots
     fig.subplots_adjust(hspace=0.075, wspace=0.025)

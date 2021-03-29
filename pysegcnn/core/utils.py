@@ -376,10 +376,11 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
         # specified
         if epsg is not None and geotransform is not None:
             # create the spatial reference from the epsg code
-            sr = osr.SpatialReference().ImportFromEPSG(epsg).ExporttoWkt()
+            sr = osr.SpatialReference()
+            sr.ImportFromEPSG(epsg)
 
             # set spatial reference from epsg
-            tmp_ds.SetProjection(sr)
+            tmp_ds.SetProjection(sr.ExporttoWkt())
             tmp_ds.SetGeoTransform(geotransform)
         else:
             raise ValueError('Both "epsg" and "geotransform" required to set '

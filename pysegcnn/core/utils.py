@@ -2316,8 +2316,8 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
 
         # transform extent of tile to target coordinate system
         crs_tr = osr.CoordinateTransformation(src_crs, trg_crs)
-        x_tl, y_tl, _ = np.round(crs_tr.TransformPoint(x_tl, y_tl), decimals=5)
-        x_br, y_br, _ = np.round(crs_tr.TransformPoint(x_br, y_br), decimals=5)
+        x_tl, y_tl, _ = np.round(crs_tr.TransformPoint(x_tl, y_tl), decimals=2)
+        x_br, y_br, _ = np.round(crs_tr.TransformPoint(x_br, y_br), decimals=2)
 
         # extent of the tile in the target coordinate reference system
         tile_extent = (x_tl, y_br, x_br, y_tl)

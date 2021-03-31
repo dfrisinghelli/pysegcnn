@@ -1099,7 +1099,12 @@ class ClassificationNetworkTrainer(BaseConfig):
         # set the number of threads
         torch.set_num_threads(self.nthreads)
 
-        # send the model to the gpu if available
+        # check if multiple gpus are available
+        if torch.cuda.device_count() > 1:
+            LOGGER.info('Using {} available GPUs.')
+            self.model = nn.DataParallel(self.model)
+
+        # send the model to the gpu(s)
         self.model = self.model.to(self.device)
 
         # instanciate multiclass classification loss function: categorical
@@ -2721,6 +2726,11 @@ class NetworkInference(BaseConfig):
 
             # load the pretrained model
             model, _ = Network.load_pretrained_model(state)
+
+            # check if multiple gpus are available
+            if torch.cuda.device_count() > 1:
+                LOGGER.info('Using {} available GPUs.')
+                model = nn.DataParallel(model)
 
             # evaluate the model on the target dataset
             output = self.predict(model)

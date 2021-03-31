@@ -13,7 +13,7 @@ dependencies:
   - rasterio
   - netcdf4
   - h5py
-  - h5netdf
+  - h5netcdf
   - matplotlib
   - seaborn
   - ipython

@@ -2633,29 +2633,37 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     if isinstance(mask_ds, tuple):
         extent = mask_ds
     else:
-
         # check whether the mask exists
         mask_path = pathlib.Path(mask_ds)
         if not mask_path.exists():
             LOGGER.info('{} does not exist.'.format(str(mask_path)))
             return
 
-        # mask is a raster dataset
-        mask_ds = gdal.Open(str(mask_path))
+        # check whether the mask is a shapefile or a raster
+        if mask_path.suffix == '.shp':
+            # mask is a shapefile
+            mask_ds = ogr.Open(str(mask_path))
+            mask_lr = mask_ds.GetLayer()
 
-        # spatial extent of the mask: (x_min, x_max, y_min, y_max)
-        gt = mask_ds.GetGeoTransform()
-        extent = [gt[0], gt[0] + gt[1] * mask_ds.RasterXSize,
-                  gt[3] + gt[5] * mask_ds.RasterYSize, gt[3]]
+            # spatial reference of the shapefile
+            mask_sr = mask_lr.GetSpatialRef()
 
-        # mask dataset spatial reference
-        mask_sr = osr.SpatialReference()
-        mask_sr.ImportFromWkt(mask_ds.GetProjection())
+            # extent of the shapefile: (x_min, x_max, y_min, y_max)
+            extent = mask_lr.GetExtent()
+        else:
+            # mask is a raster dataset
+            mask_ds = gdal.Open(str(mask_path))
 
-        # coordinate transformation: from mask to source
-        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
+            # spatial extent of the mask: (x_min, x_max, y_min, y_max)
+            gt = mask_ds.GetGeoTransform()
+            extent = [gt[0], gt[0] + gt[1] * mask_ds.RasterXSize,
+                      gt[3] + gt[5] * mask_ds.RasterYSize, gt[3]]
+
+            # mask dataset spatial reference
+            mask_sr = mask_ds.GetSpatialRef()
 
         # transform extent of mask to source coordinate system
+        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
 
         # TransfromPoint expects input:
         #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
@@ -2773,7 +2781,7 @@ def gdb2shp(src_ds, feature=''):
         src_ds, src_ds.parent, feature))
 
 
-def merge_tifs(trg_ds, tifs):
+def merge_tifs(trg_ds, tifs, **kwargs):
     """Mosaic a set of images.
 
     Parameters
@@ -2782,12 +2790,23 @@ def merge_tifs(trg_ds, tifs):
         Path to the output GeoTiff file.
     tifs : `list` [`str` or :py:class:`pathlib.Path`]
         List of paths to the GeoTiffs to mosaic.
+    **kwargs : `dict`, optional
+        Optional keyword arguments passed to :py:func:`osgeo.gdal.Warp`.
 
     """
+    # check if target path exists
+    trg_ds = pathlib.Path(trg_ds)
+    if not trg_ds.parent.exists():
+        LOGGER.info('mkdir {}'.format(trg_ds.parent))
+        trg_ds.parent.mkdir(parents=True, exist_ok=True)
+
     # create mosaic
     tmp_path = _tmp_path(trg_ds)
     LOGGER.info('Create mosaic: {}'.format(trg_ds))
-    gdal.Warp(str(tmp_path), [str(tif) for tif in tifs])
+    LOGGER.info('Using rasters:')
+    LOGGER.info(('\n ' + (len(__name__) + 1) * ' ').join(
+            ['{}'.format(str(tif)) for tif in tifs]))
+    gdal.Warp(str(tmp_path), [str(tif) for tif in tifs], **kwargs)
 
     # compress raster
     compress_raster(tmp_path, trg_ds)

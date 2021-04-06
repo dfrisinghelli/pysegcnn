@@ -2586,8 +2586,8 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     src_ds : `str` or :py:class:`pathlib.Path`
         The input raster to clip.
     mask_ds : `str` or :py:class:`pathlib.Path` or `tuple`
-        A raster or a `tuple`  defining the extent of interest. If a `tuple`,
-        it is assumed to define the extent in the coordinate system of
+        A raster, shapefile or a `tuple`  defining the extent of interest. If a
+        `tuple`, it is assumed to define the extent in the coordinate system of
         ``src_ds`` as: (x_min, y_min, x_max, y_max).
     trg_ds : `str` or :py:class:`pathlib.Path`
         The clipped raster dataset.

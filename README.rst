@@ -12,13 +12,7 @@ Installation
 
 Requirements
 ------------
-``pysegcnn`` is a pure Python package that works on both Windows and Linux.
-
-.. important::
-
-    ``pysegcnn`` requires ``Python>=3.7``.
-
-The list of dependencies, in addition to ``pytorch``, is defined in ``environment.yml``.
+``pysegcnn`` requires ``Python>=3.7``. The list of dependencies, in addition to `PyTorch <https://pytorch.org/>`_ , is defined in ``environment.yml`` and ``requirements.txt``.
 
 Download
 ---------
@@ -65,6 +59,12 @@ Activate your environment using:
 .. code-block:: bash
 
     conda activate pysegcnn
+
+Alternatively, use the ``requirements.txt`` file to install the dependencies in an existing conda environment:
+
+.. code-block:: bash
+    
+    conda install --file requirements.txt
 
 Install PyTorch
 ---------------

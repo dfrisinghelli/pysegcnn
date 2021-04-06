@@ -1,0 +1,22 @@
+# install packages
+# $ conda install --file requirements.txt
+
+# scientific stack
+numpy
+pandas
+scipy
+scikit-learn
+
+# data I/O
+xarray
+dask
+gdal
+rasterio
+netcdf4
+h5py
+h5netcdf
+
+# visualization
+matplotlib
+seaborn
+ipython

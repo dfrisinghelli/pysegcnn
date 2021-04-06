@@ -17,12 +17,12 @@ Requirements
 Download
 ---------
 You can download ``pysegcnn`` from this repository's
-`website <https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn>`_
+`website <https://github.com/dfrisinghelli/pysegcnn>`_
 or alternatively use ``git`` from terminal:
 
 .. code-block:: bash
 
-    git clone https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn.git
+    git clone https://github.com/dfrisinghelli/pysegcnn.git
 
 This creates a copy of the repository in your current directory on the file
 system.
@@ -114,7 +114,7 @@ License
 =======
 If not explicitly stated otherwise, this repository is licensed under the
 **GNU GENERAL PUBLIC LICENSE v3.0**
-(see `LICENSE <https://gitlab.inf.unibz.it/REMSEN/ccisnow/pysegcnn/-/blob/master/LICENSE>`_).
+(see `LICENSE <https://github.com/dfrisinghelli/pysegcnn/blob/master/LICENSE>`_).
 
 Acknowledgements
 ================

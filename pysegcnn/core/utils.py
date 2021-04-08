@@ -122,8 +122,13 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     # check the type of path
     if isinstance(path, str) or isinstance(path, pathlib.Path):
 
-        # the image dataset as returned by gdal
-        img = gdal.Open(str(path))
+        # check if the path is a url
+        if str(path).startswith('http'):
+            # gdal virtual file system for url paths
+            img = gdal.Open('/vsicurl/{}'.format(str(path)))
+        else:
+            # image is stored in a file system
+            img = gdal.Open(str(path))
 
         # number of bands
         bands = img.RasterCount

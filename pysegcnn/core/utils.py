@@ -2258,8 +2258,29 @@ def mgrs_tile_extent(mgrs_grid, tile_names):
     return tile_coordinates
 
 
-def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
+def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False,
+                no_data=255, **kwargs):
+    """Tile a raster into the Sentinel-2 military grid reference system.
 
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The raster dataset to divide into tiles.
+    mgrs_grid : `str` or :py:class:`pathlib.Path`
+        The mgrs grid kml file.
+    tiles : `str` or :py:class:`pathlib.Path` or `list` [`str`]
+        Tiles of interest as list or as newline-delimited textfile.
+    trg_path : `str` or :py:class:`pathlib.Path`
+        Path to save tiles.
+    overwrite : `bool`, optional
+        Whether to overwrite existing tiles. The default is `False`.
+    no_data : `float` or `int`, optional
+        Value to assign to missing values. The default is `255`.
+    **kwargs : `dict`
+        Optional keyword arguments passed to
+        :py:func:`pysegcnn.core.utils.reproject_raster`.
+
+    """
     # convert source and target paths to pathlib.Path objects
     src_ds = pathlib.Path(src_ds)
     trg_path = pathlib.Path(trg_path)
@@ -2314,7 +2335,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
         # reproject to target coordinate reference system
         repr_ds = trg_path.joinpath(src_ds.stem + '_{}_repr.tif'.format(tile))
         reproject_raster(clip_ds, repr_ds, ref_ds=trg_crs, overwrite=overwrite,
-                         **kwargs)
+                         no_data=no_data, **kwargs)
 
         # remove the clipped dataset from disk
         clip_ds.unlink()

@@ -25,7 +25,6 @@ import numpy as np
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 import seaborn as sns
 from matplotlib.colors import ListedColormap, BoundaryNorm
@@ -725,7 +724,7 @@ def plot_classification_report(report, labels, figsize=(10, 10),
     fig, ax = plt.subplots(1, 1, figsize=figsize)
 
     # plot class wise statistics as heatmap
-    sns.heatmap(metrics, vmin=0, vmax=1, annot=True, fmt='.2f',
+    sns.heatmap(metrics, annot=True, fmt='.2f',
                 ax=ax, xticklabels=[c.capitalize() for c in metrics.columns],
                 yticklabels=[r.capitalize() for r in metrics.index], cmap=cmap,
                 **kwargs)

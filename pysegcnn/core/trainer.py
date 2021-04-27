@@ -1101,8 +1101,9 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         # check if multiple gpus are available
         if torch.cuda.device_count() > 1:
-            LOGGER.info('Using {} available GPUs.')
-            self.model = nn.DataParallel(self.model)
+            LOGGER.info('Using {} available GPUs.'.format(
+                torch.cuda.device_count()))
+            self.model = nn.DataParallel(self.model, dim=0)
 
         # send the model to the gpu(s)
         self.model = self.model.to(self.device)
@@ -1232,7 +1233,10 @@ class ClassificationNetworkTrainer(BaseConfig):
             self.train_epoch(epoch)
 
             # update the number of epochs trained
-            self.model.epoch += 1
+            if isinstance(self.model, nn.DataParallel):
+                self.model.module.epoch += 1
+            else:
+                self.model.epoch += 1
 
             # whether to evaluate model performance on the validation set and
             # early stop the training process
@@ -1287,7 +1291,7 @@ class ClassificationNetworkTrainer(BaseConfig):
         loss : :py:class:`numpy.ndarray`
             The model loss for each mini-batch in the validation set.
             Returned if ``return_pred`` is `False`.
-        pred :
+        pred : `dict` [`str`: :py:class:`numpy.ndarray`]
             The model predictions. Returned if ``return_pred`` is `True`.
 
         """
@@ -1333,8 +1337,10 @@ class ClassificationNetworkTrainer(BaseConfig):
                         .format(batch + 1, len(dataloader), acc))
 
         # calculate overall accuracy on the validation/test set
+        epoch = (self.model.module.epoch if
+                 isinstance(self.model,nn.DataParallel) else self.model.epoch)
         LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
-                    .format(self.model.epoch, np.mean(accuracy) * 100))
+                    .format(epoch, np.mean(accuracy) * 100))
 
         if return_pred:
             # return only predictions, if specified
@@ -1345,10 +1351,16 @@ class ClassificationNetworkTrainer(BaseConfig):
 
     def save_state(self):
         """Save the model state."""
-        _ = self.model.save(self.state_file,
-                            self.optimizer,
-                            state=self.training_state,
-                            **self.params_to_save)
+        if isinstance(self.model, nn.DataParallel):
+            _ = self.model.module.save(self.state_file,
+                                       self.optimizer,
+                                       state=self.training_state,
+                                       **self.params_to_save)
+        else:
+            _ = self.model.save(self.state_file,
+                                self.optimizer,
+                                state=self.training_state,
+                                **self.params_to_save)
 
     @property
     def training_state(self):

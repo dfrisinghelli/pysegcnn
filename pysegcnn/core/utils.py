@@ -791,7 +791,7 @@ def reconstruct_scene(tiles):
     topleft = tile_topleft_corner(img_size, tile_size)
 
     # iterate over the tiles
-    scene = np.zeros(shape=(nbands,) + img_size)
+    scene = np.zeros(shape=(nbands,) + img_size, dtype=tiles.dtype)
     for t in range(tiles.shape[0]):
         scene[...,
               topleft[t][0]: topleft[t][0] + tile_size,

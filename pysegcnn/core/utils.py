@@ -276,7 +276,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
 
 
 def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
-           geotransform=None, overwrite=False):
+           geotransform=None, overwrite=False, compress=False):
     """Save a :py:class`numpy.ndarray` as a GeoTIFF.
 
     The spatial coordinate reference system can be specified in two ways:
@@ -312,6 +312,8 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
         the spatial reference.
     overwrite : `bool`, optional
         Whether to overwrite ``filename`` if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     .. _EPSG:
         https://epsg.io/
@@ -395,7 +397,7 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
     del trg_band, tmp_ds
 
     # compress raster
-    compress_raster(tmp_path, filename)
+    compress_raster(tmp_path, filename, compress=compress)
 
 
 def read_hdf4(path):
@@ -1901,7 +1903,8 @@ def get_epsg(ras_ds):
 
 
 def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
-                     pixel_size=(None, None), no_data=0, overwrite=False):
+                     pixel_size=(None, None), no_data=0, overwrite=False,
+                     compress=False):
     """Reproject a raster to a defined coordinate reference system.
 
     Reproject ``src_ds`` to ``trg_ds`` using either:
@@ -1943,6 +1946,8 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the target raster. The default is `False`.
 
     .. _EPSG:
         https://epsg.io/
@@ -2038,7 +2043,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
               resampleAlg=resample)
 
     # compress raster
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear gdal cache
     del src_ds, ref_ds
@@ -2357,7 +2362,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False,
 
 
 def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
-                  burn_value=255, no_data=0, overwrite=False):
+                  burn_value=255, no_data=0, overwrite=False, compress=False):
     """Convert a shapefile to a GeoTIFF.
 
     The vector data in the shapefile is converted to a GeoTIFF with a spatial
@@ -2390,6 +2395,8 @@ def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
         The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     Raises
     ------
@@ -2454,7 +2461,7 @@ def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
                    outputSRS=src_lr.GetSpatialRef(), burnValues=burn_value)
 
     # compress raster dataset
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source dataset
     del src_ds
@@ -2521,7 +2528,7 @@ def dec2bin(number, nbits=8):
 
 
 def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
-                    src_no_data=None, trg_no_data=None):
+                    src_no_data=None, trg_no_data=None, compress=False):
     """Extract raster values by a shapefile.
 
     Extract the extent of ``mask_ds`` from ``src_ds``. The masked values of
@@ -2547,6 +2554,8 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
     trg_no_data : `int` or `float`, optional
         The value to assign to NoData values in ``trg_ds``. The default is
         `None`, which means conserving the NoData value of ``src_ds``.
+    compress : `bool`, optional
+        Whether to compress the target raster. The default is `False`.
 
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
@@ -2594,14 +2603,14 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
               dstNodata=trg_no_data)
 
     # compress raster
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source dataset
     del src_ds
 
 
 def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
-                trg_no_data=None):
+                trg_no_data=None, compress=False):
     """Clip raster to extent of another raster.
 
     Clip the extent of ``src_ds`` to the extent of ``mask_ds``. The clipped
@@ -2626,6 +2635,8 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     trg_no_data : `int` or `float`, optional
         The value to assign to NoData values in ``trg_ds``. The default is
         `None`, which means conserving the NoData value of ``src_ds``.
+    compress : `bool`, optional
+        Whether to compress the clipped raster. The default is `False`.
 
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
@@ -2717,7 +2728,7 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
               targetAlignedPixels=True)
 
     # compress raster dataset
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source and mask dataset
     del src_ds, mask_ds
@@ -2807,7 +2818,7 @@ def gdb2shp(src_ds, feature=''):
         src_ds, src_ds.parent, feature))
 
 
-def merge_tifs(trg_ds, tifs, **kwargs):
+def merge_tifs(trg_ds, tifs, compress=False, **kwargs):
     """Mosaic a set of images.
 
     Parameters
@@ -2818,6 +2829,8 @@ def merge_tifs(trg_ds, tifs, **kwargs):
         List of paths to the GeoTiffs to mosaic.
     **kwargs : `dict`, optional
         Optional keyword arguments passed to :py:func:`osgeo.gdal.Warp`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     """
     # check if target path exists
@@ -2835,10 +2848,10 @@ def merge_tifs(trg_ds, tifs, **kwargs):
     gdal.Warp(str(tmp_path), [str(tif) for tif in tifs], **kwargs)
 
     # compress raster
-    compress_raster(tmp_path, trg_ds)
+    compress_raster(tmp_path, trg_ds, compress=compress)
 
 
-def compress_raster(src_ds, trg_ds):
+def compress_raster(src_ds, trg_ds, compress=True):
     """Compress a raster dataset using :py:func:`gdal.Translate`.
 
     Parameters
@@ -2847,6 +2860,8 @@ def compress_raster(src_ds, trg_ds):
         Path to the raster dataset to compress.
     trg_ds : `str` or :py:class:`pathlib.Path`
         Path to save the compressed raster dataset.
+    compress : `bool`, optional
+        Whether to apply compression. The default is `True`.
 
     """
     # check if the raster dataset exists
@@ -2857,8 +2872,12 @@ def compress_raster(src_ds, trg_ds):
 
     # compress raster dataset
     LOGGER.info('Compressing: {}'.format(trg_ds))
-    gdal.Translate(str(trg_ds), str(src_ds), creationOptions=[
-        'COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES'])
+    options = None
+    if compress:
+        options=['COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES']
+
+    # save raster dataset
+    gdal.Translate(str(trg_ds), str(src_ds), creationOptions=options)
 
     # remove uncompressed raster dataset
     src_ds.unlink()

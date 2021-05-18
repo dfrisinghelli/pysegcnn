@@ -2624,6 +2624,15 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
         The spatial reference of the points to extract. Either an EPSG code or
         a :py:class:`osgeo.osr.SpatialReference` object.
 
+    Returns
+    -------
+    points_in_raster : `list` [`tuple`]
+        List of points (x, y) within the extent of ``src_ds``.
+    rows : :py:class:`numpy.ndarray`
+        Row indices of the points within ``src_ds``.
+    cols : :py:class:`numpy.ndarray`
+        Column indices of the points within ``src_ds``.
+
     """
     # check whether the source dataset exists
     src_ds = pathlib.Path(src_ds)
@@ -2663,7 +2672,7 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
         if ((extent[0] < point_tr[0] < extent[1]) &
             (extent[2] < point_tr[1] < extent[3])):
             # point is located within raster extent
-            points_in_raster.append(point[:2])
+            points_in_raster.append((point[1], point[0]))
             points_in_raster_tr.append(point_tr[:2])
 
     # convert physical coordinates to pixel coordinates

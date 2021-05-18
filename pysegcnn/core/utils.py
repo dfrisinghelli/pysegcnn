@@ -2609,8 +2609,74 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
     del src_ds
 
 
-def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
-                trg_no_data=None, compress=False):
+def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
+    """Extract coordinates of points ``(p_x, p_y)`` from raster ``src_ds``.
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The input raster to extract values from.
+    p_x : :py:class:`numpy.ndarray`
+        X-coordinates of the points to extract.
+    p_y : :py:class:`numpy.ndarray`
+        Y-coordinates of the points to extract.
+    point_sr : `int` or :py:class:`osgeo.osr.SpatialReference`
+        The spatial reference of the points to extract. Either an EPSG code or
+        a :py:class:`osgeo.osr.SpatialReference` object.
+
+    """
+    # check whether the source dataset exists
+    src_ds = pathlib.Path(src_ds)
+    if not src_ds.exists():
+        LOGGER.info('{} does not exist.'.format(str(src_ds)))
+        return
+
+    # read the source dataset
+    ds = gdal.Open(str(src_ds))
+    gt = ds.GetGeoTransform()
+
+    # extent of the raster: (x_min, x_max, y_min, y_max)
+    extent = [gt[0], gt[0] + ds.RasterXSize * gt[1],
+              gt[3] + ds.RasterYSize * gt[-1], gt[3]]
+
+    # spatial reference of the input raster
+    trg_sr = ds.GetSpatialRef()
+
+    # spatial reference of the point dataset
+    if isinstance(point_sr, int):
+        src_sr = osr.SpatialReference()
+        src_sr.ImportFromEPSG(point_sr)
+    else:
+        src_sr = point_sr
+
+    # define coordinate transformation
+    crs_tr = osr.CoordinateTransformation(src_sr, trg_sr)
+
+    # transform points to target coordinate system
+    points = [(y, x) for y, x in zip(p_y, p_x)]  # (y, x)
+    points_tr = crs_tr.TransformPoints(points)   # (x, y)
+
+    # check which points are within the raster's extent
+    points_in_raster = []
+    points_in_raster_tr = []
+    for point, point_tr in zip(points, points_tr):
+        if ((extent[0] < point_tr[0] < extent[1]) &
+            (extent[2] < point_tr[1] < extent[3])):
+            # point is located within raster extent
+            points_in_raster.append(point[:2])
+            points_in_raster_tr.append(point_tr[:2])
+
+    # convert physical coordinates to pixel coordinates
+    cols = np.asarray([int(np.round((p[0] - gt[0]) / gt[1])) for p in
+                       points_in_raster_tr])
+    rows = np.asarray([int(np.round((p[1] - gt[3]) / gt[-1])) for p in
+                       points_in_raster_tr])
+
+    return points_in_raster, rows, cols
+
+
+def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
+                src_no_data=None, trg_no_data=None, compress=False):
     """Clip raster to extent of another raster.
 
     Clip the extent of ``src_ds`` to the extent of ``mask_ds``. The clipped
@@ -2626,6 +2692,8 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
         ``src_ds`` as: (x_min, y_min, x_max, y_max).
     trg_ds : `str` or :py:class:`pathlib.Path`
         The clipped raster dataset.
+    fmt : `str` or None
+        Format of the output raster. The default is `None`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
     src_no_data : `int` or `float`, optional
@@ -2718,20 +2786,23 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     # clip raster extent
     LOGGER.info('Clipping: {}, Extent: (x_tl={:.2f}, y_br={:.2f}, x_br={:.2f},'
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
-    gdal.Warp(str(tmp_path), str(src_path),
-              outputBounds=extent,
-              outputBoundsSRS=src_ds.GetSpatialRef(),
-              xRes=src_ds.GetGeoTransform()[1],
-              yRes=src_ds.GetGeoTransform()[5],
-              srcNodata=src_no_data,
-              dstNodata=trg_no_data,
-              targetAlignedPixels=True)
+    ds = gdal.Warp(str(tmp_path), str(src_path),
+                   outputBounds=extent,
+                   outputBoundsSRS=src_ds.GetSpatialRef(),
+                   xRes=src_ds.GetGeoTransform()[1],
+                   yRes=src_ds.GetGeoTransform()[5],
+                   srcNodata=src_no_data,
+                   dstNodata=trg_no_data,
+                   targetAlignedPixels=True,
+                   format=fmt)
 
     # compress raster dataset
     compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source and mask dataset
     del src_ds, mask_ds
+
+    return ds
 
 
 def pixels_within_lowres(top_left, res_prop):

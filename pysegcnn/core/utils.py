@@ -1410,6 +1410,37 @@ def search_files(directory, pattern):
     return matches
 
 
+def recurse_path(path):
+    """Recursively list all files in ``path``.
+
+    Parameters
+    ----------
+    path : `str` or :py:class:`pathlib.Path`
+        The directory to recursively search.
+
+    Returns
+    -------
+    files : `list` [:py:class:`pathlib.Path`]
+        List of all files in ``path``.
+
+    """
+    # list of all files in the path
+    files = []
+
+    # recursively search files in the path
+    path = pathlib.Path(path)
+    if path.is_dir():
+        for item in path.iterdir():
+            if item.is_file():
+                files.append(item)
+            else:
+                files.extend(recurse_path(item))
+    else:
+        files.append(path)
+
+    return files
+
+
 def read_landsat_metadata(file):
     """Parse the Landsat metadata *_MTL.txt file.
 
@@ -2676,10 +2707,10 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
             points_in_raster_tr.append(point_tr[:2])
 
     # convert physical coordinates to pixel coordinates
-    cols = np.asarray([int(np.round((p[0] - gt[0]) / gt[1])) for p in
-                       points_in_raster_tr])
-    rows = np.asarray([int(np.round((p[1] - gt[3]) / gt[-1])) for p in
-                       points_in_raster_tr])
+    cols = np.asarray([min(int(np.round((p[0] - gt[0]) / gt[1])),
+                           ds.RasterXSize - 1) for p in points_in_raster_tr])
+    rows = np.asarray([min(int(np.round((p[1] - gt[3]) / gt[-1])),
+                           ds.RasterYSize) for p in points_in_raster_tr])
 
     return points_in_raster, rows, cols
 

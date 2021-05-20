@@ -1398,6 +1398,8 @@ def search_files(directory, pattern):
         List of files in ``directory`` matching ``pattern``.
 
     """
+    LOGGER.info('Searching: {}, pattern: {}'.format(directory, pattern))
+
     # create regular expression
     pattern = re.compile(pattern)
 

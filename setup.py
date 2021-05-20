@@ -222,10 +222,6 @@ DATA_FILES = {}
 # "scripts" keyword. Entry points provide cross-platform support and allow
 # `pip` to create the appropriate form of executable for the target
 # platform.
-#
-# For example, the following would provide a command called `pylandsat`
-# which executes the function `pylandsat` from this package's cli.py
-# module when invoked:
 ENTRY_POINTS = {}
 
 

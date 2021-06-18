@@ -2699,8 +2699,8 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
     points_in_raster = []
     points_in_raster_tr = []
     for point, point_tr in zip(points, points_tr):
-        if ((extent[0] < point_tr[0] < extent[1]) &
-            (extent[2] < point_tr[1] < extent[3])):
+        if ((extent[0] < point_tr[0] < extent[2]) &
+            (extent[1] < point_tr[1] < extent[3])):
             # point is located within raster extent
             points_in_raster.append((point[1], point[0]))
             points_in_raster_tr.append(point_tr[:2])
@@ -2711,7 +2711,7 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
         row, col = ds.index(p[0], p[1])
         rows.append(row), cols.append(col)
 
-    return points_in_raster, rows, col
+    return points_in_raster, rows, cols
 
 
 def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,

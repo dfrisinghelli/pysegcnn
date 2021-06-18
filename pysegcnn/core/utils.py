@@ -33,6 +33,7 @@ import torch
 import numpy as np
 import pandas as pd
 import xarray as xr
+import rasterio
 from osgeo import gdal, ogr, osr
 
 # locals
@@ -2674,15 +2675,11 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
         return
 
     # read the source dataset
-    ds = gdal.Open(str(src_ds))
-    gt = ds.GetGeoTransform()
-
-    # extent of the raster: (x_min, x_max, y_min, y_max)
-    extent = [gt[0], gt[0] + ds.RasterXSize * gt[1],
-              gt[3] + ds.RasterYSize * gt[-1], gt[3]]
+    ds = rasterio.open(src_ds)
+    extent = ds.bounds
 
     # spatial reference of the input raster
-    trg_sr = ds.GetSpatialRef()
+    trg_sr = gdal.Open(str(src_ds)).GetSpatialRef()
 
     # spatial reference of the point dataset
     if isinstance(point_sr, int):
@@ -2709,12 +2706,12 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
             points_in_raster_tr.append(point_tr[:2])
 
     # convert physical coordinates to pixel coordinates
-    cols = np.asarray([min(int((p[0] - gt[0]) / gt[1]),
-                           ds.RasterXSize - 1) for p in points_in_raster_tr])
-    rows = np.asarray([min(int((p[1] - gt[3]) / gt[-1]),
-                           ds.RasterYSize - 1) for p in points_in_raster_tr])
+    rows, cols = [], []
+    for p in points_in_raster_tr:
+        row, col = ds.index(p[0], p[1])
+        rows.append(row), cols.append(col)
 
-    return points_in_raster, rows, cols
+    return points_in_raster, rows, col
 
 
 def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,

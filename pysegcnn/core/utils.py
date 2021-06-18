@@ -2709,10 +2709,10 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
             points_in_raster_tr.append(point_tr[:2])
 
     # convert physical coordinates to pixel coordinates
-    cols = np.asarray([min(int(np.ceil((p[0] - gt[0]) / gt[1])),
+    cols = np.asarray([min(int((p[0] - gt[0]) / gt[1]),
                            ds.RasterXSize - 1) for p in points_in_raster_tr])
-    rows = np.asarray([min(int(np.floor((p[1] - gt[3]) / gt[-1])),
-                           ds.RasterYSize) for p in points_in_raster_tr])
+    rows = np.asarray([min(int((p[1] - gt[3]) / gt[-1]),
+                           ds.RasterYSize - 1) for p in points_in_raster_tr])
 
     return points_in_raster, rows, cols
 

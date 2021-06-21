@@ -2827,7 +2827,6 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
     ds = gdal.Warp(str(tmp_path), str(src_path),
                    outputBounds=extent,
-                   outputBoundsSRS=src_sr,
                    xRes=src_ds.GetGeoTransform()[1],
                    yRes=src_ds.GetGeoTransform()[5],
                    srcNodata=src_no_data,

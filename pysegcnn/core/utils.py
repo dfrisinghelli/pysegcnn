@@ -2828,11 +2828,12 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
     ds = gdal.Warp(str(tmp_path), str(src_path),
                    outputBounds=extent,
                    outputBoundsSRS=src_sr,
+                   dstSRS=src_sr,
                    xRes=src_ds.GetGeoTransform()[1],
                    yRes=src_ds.GetGeoTransform()[5],
                    srcNodata=src_no_data,
                    dstNodata=trg_no_data,
-                   targetAlignedPixels=True,
+                   # targetAlignedPixels=True,
                    format=fmt)
 
     # compress raster dataset

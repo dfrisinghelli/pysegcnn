@@ -2812,8 +2812,8 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
         # TransfromPoint expects input:
         #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
         #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
-        x_tl, y_tl, _ = crs_tr.TransformPoint(extent[0], extent[-1])
-        x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[2])
+        x_tl, y_tl, _ = crs_tr.TransformPoint(extent[-1], extent[0])
+        x_br, y_br, _ = crs_tr.TransformPoint(extent[2], extent[1])
 
         # extent of the mask in the source reference coordinate system:
         # (x_min, y_min, x_max, y_max)
@@ -2827,7 +2827,7 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
     ds = gdal.Warp(str(tmp_path), str(src_path),
                    outputBounds=extent,
-                   outputBoundsSRS=src_ds.GetSpatialRef(),
+                   outputBoundsSRS=src_sr,
                    xRes=src_ds.GetGeoTransform()[1],
                    yRes=src_ds.GetGeoTransform()[5],
                    srcNodata=src_no_data,

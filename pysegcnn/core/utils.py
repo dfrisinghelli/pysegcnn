@@ -2981,10 +2981,12 @@ def compress_raster(src_ds, trg_ds, compress=True):
         return
 
     # compress raster dataset
-    LOGGER.info('Compressing: {}'.format(trg_ds))
     options = None
     if compress:
+        LOGGER.info('Compressing: {}'.format(trg_ds))
         options=['COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES']
+    else:
+        LOGGER.info('Saving: {}'.format(trg_ds))
 
     # save raster dataset
     gdal.Translate(str(trg_ds), str(src_ds), creationOptions=options)

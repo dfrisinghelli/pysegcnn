@@ -2924,8 +2924,9 @@ def gdb2shp(src_ds, feature=''):
 
     """
     # call the osgeo ogr2ogr system utility
+    src_ds = pathlib.Path(src_ds)
     subprocess.run('ogr2ogr -f "ESRI Shapefile" {} {} {}'.format(
-        src_ds, src_ds.parent, feature))
+        str(src_ds).replace('.gbd', '.shp'), str(src_ds), feature))
 
 
 def merge_tifs(trg_ds, tifs, compress=False, **kwargs):

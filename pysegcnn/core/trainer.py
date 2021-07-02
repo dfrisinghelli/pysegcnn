@@ -1120,7 +1120,8 @@ class NetworkTrainer(BaseConfig):
                 (0, 'valid_accu', np.max) if self.mode == 'max' else
                 (np.inf, 'valid_loss', np.min))
         else:
-            self.best, self.metric, self.mfn = (np.inf, 'valid_loss', np.min)
+            self.mode, self.best, self.metric, self.mfn = (
+                'min', np.inf, 'valid_loss', np.min)
 
         # initialize metric tracker
         self.tracker.initialize()

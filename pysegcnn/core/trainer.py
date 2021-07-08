@@ -1359,7 +1359,7 @@ class NetworkTrainer(BaseConfig):
                  isinstance(self.model, nn.DataParallel) else self.model.epoch)
         overall = ('Mean accuracy: {:.2f}%'.format(np.mean(accuracy) * 100) if
                    self.classification else
-                   'Mean loss: {:.2f}%'.format(np.mean(loss)))
+                   'Mean loss: {:.2f}'.format(np.mean(loss)))
         LOGGER.info(', '.join(['Epoch: {:d}'.format(epoch), overall]))
 
         if self.classification and return_pred:

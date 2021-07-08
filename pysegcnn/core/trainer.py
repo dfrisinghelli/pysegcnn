@@ -1019,6 +1019,9 @@ class NetworkTrainer(BaseConfig):
     save : `bool`
         Whether to save the model state to ``state_file``. The default is
         `True`.
+    save_loaders : `bool`
+        Whether to save the training, validation and test data loaders. Useful
+        when evaluating model accuracy. The default is `True`.
     multi_gpu : `bool`
         Whether to use multiple GPUs, if available. The default is `False`.
     classification : `bool`
@@ -1073,6 +1076,7 @@ class NetworkTrainer(BaseConfig):
     patience: int = 10
     checkpoint_state: dict = dataclasses.field(default_factory=dict)
     save: bool = True
+    save_loaders: bool = True
     multi_gpu: bool = False
     classification: bool = True
 
@@ -1412,7 +1416,7 @@ class NetworkTrainer(BaseConfig):
         """The parameters and variables to save in the model state file."""
         return {'src_train_dl': self.src_train_dl,
                 'src_valid_dl': self.src_valid_dl,
-                'src_test_dl': self.src_test_dl}
+                'src_test_dl': self.src_test_dl} if self.save_loaders else {}
 
     def _build_model_repr_(self):
         """Build the model representation.

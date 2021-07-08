@@ -27,8 +27,9 @@ import torch.optim as optim
 
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, ConvBnReluMaxPool,
-                                  ConvBnReluMaxUnpool, Conv2dSame)
-from pysegcnn.core.utils import check_filename_length, item_in_enum
+                                  ConvBnReluMaxUnpool, ConvBnReluUpsample,
+                                  Conv2dSame)
+from pysegcnn.core.utils import check_filename_length
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -484,6 +485,74 @@ class SegNet(ConvolutionalAutoEncoder):
                          filters=filters,
                          skip=skip,
                          **kwargs)
+
+
+class USegNet(ConvolutionalAutoEncoder):
+    """An implementation of `SegNet`_ with interpolation in PyTorch.
+
+    .. _SegNet:
+        https://arxiv.org/abs/1511.00561
+
+    Attributes
+    ----------
+    state_file : `str` or `None` or :py:class:`pathlib.Path`
+        The model state file, where the model parameters are saved.
+    in_channels : `int`
+        Number of channels of the input images.
+    nclasses : `int`
+        Number of classes.
+    filters : `list` [`int`]
+        List of the number of convolutional filters in each block.
+    skip : `bool`
+        Whether to apply skip connections from the encoder to the decoder.
+    kwargs : `dict` [`str`]
+        Additional keyword arguments passed to
+        :py:class:`pysegcnn.core.layers.Conv2dSame`.
+    epoch : `int`
+        Number of epochs the model was trained.
+    encoder : :py:class:`pysegcnn.core.layers.Encoder`
+        The convolutional encoder.
+    decoder : :py:class:`pysegcnn.core.layers.Decoder`
+        The convolutional decoder.
+    classifier : :py:class:`pysegcnn.core.layers.Conv2dSame`
+        The classification layer, a 1x1 convolution.
+
+    """
+
+    def __init__(self, state_file, in_channels, nclasses,
+                 filters=[32, 64, 128, 256], skip=True,
+                 kwargs={'kernel_size': 3, 'stride': 1, 'dilation': 1}):
+        """Initialize.
+
+        Parameters
+        ----------
+        state_file : `str` or `None` or :py:class:`pathlib.Path`
+            The model state file, where the model parameters are saved.
+        in_channels : `int`
+            Number of channels of the input images.
+        nclasses : `int`
+            Number of classes.
+        filters : `list` [`int`], optional
+            List of input channels to each convolutional block. The default is
+            `[32, 64, 128, 256]`.
+        skip : `bool`, optional
+            Whether to apply skip connections from the encoder to the decoder.
+            The default is `True`.
+        kwargs: `dict` [`str`: `int`]
+            Additional keyword arguments passed to
+            :py:class:`pysegcnn.core.layers.Conv2dSame`. The default is
+            `{'kernel_size': 3, 'stride': 1, 'dilation': 1}`.
+
+        """
+        super().__init__(state_file=state_file,
+                         in_channels=in_channels,
+                         nclasses=nclasses,
+                         encoder_block=ConvBnReluMaxPool,
+                         decoder_block=ConvBnReluUpsample,
+                         filters=filters,
+                         skip=skip,
+                         **kwargs)
+
 
 
 class SupportedModels(enum.Enum):

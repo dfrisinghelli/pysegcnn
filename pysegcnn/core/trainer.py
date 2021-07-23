@@ -1182,9 +1182,7 @@ class NetworkTrainer(BaseConfig):
             if self.classification:
                 loss = self.loss_function(outputs, labels.long())
             else:
-                # exclude potentially missing values
-                mask = ~torch.isnan(labels)
-                loss = self.loss_function(outputs[mask], labels[mask])
+                loss = self.loss_function(outputs, labels)
 
             # compute the gradients of the loss function w.r.t.
             # the network weights

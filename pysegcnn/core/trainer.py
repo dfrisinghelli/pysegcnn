@@ -1334,9 +1334,7 @@ class NetworkTrainer(BaseConfig):
             if self.classification:
                 val_loss = self.loss_function(outputs, labels.long())
             else:
-                # exclude potentially missing values
-                mask = ~torch.isnan(labels)
-                val_loss = self.loss_function(outputs[mask], labels[mask])
+                val_loss = self.loss_function(outputs, labels)
             loss.append(val_loss.item())
 
             # calculate predicted class labels

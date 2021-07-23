@@ -1194,8 +1194,7 @@ class NetworkTrainer(BaseConfig):
 
             # clip gradients
             if self.clip_gradients:
-                nn.utils.nnclip_grad_value_(self.model.parameters(),
-                                            clip_value=1.0)
+                nn.utils.clip_grad_value_(self.model.parameters(), 1.0)
 
             # update the weights
             self.optimizer.step()
@@ -1691,8 +1690,7 @@ class DomainAdaptationTrainer(NetworkTrainer):
 
             # clip gradients
             if self.clip_gradients:
-                nn.utils.nnclip_grad_value_(self.model.parameters(),
-                                            clip_value=1.0)
+                nn.utils.clip_grad_value_(self.model.parameters(), 1.0)
 
             # update the weights
             self.optimizer.step()

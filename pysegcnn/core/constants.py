@@ -16,6 +16,7 @@ License
 
 # builtins
 import enum
+from collections.abc import Iterable
 
 # externals
 import numpy as np
@@ -116,7 +117,17 @@ class LabelMapping(dict):
 
     def to_numpy(self):
         """Return the label mapping dictionary as :py:class:`numpy.ndarray`."""
-        return np.array(list(self.items()))
+
+        # check for multiple labels
+        mapping = {}
+        for k, v in self.items():
+            if isinstance(k, Iterable):
+                for label in k:
+                    mapping[label] = v
+            else:
+                mapping[k] = v
+
+        return np.array(list(mapping.items()))
 
 
 class SparcsLabels(Label):

@@ -2523,7 +2523,8 @@ def array_replace(array, lookup):
 
     """
     # create an index array to replace the values in the lookup table
-    indices = np.arange(np.int(lookup[:, 0].max()) + 1)
+    indices = np.arange(np.int(lookup[:, 0].min()),
+                        np.int(lookup[:, 0].max()) + 1)
     indices[lookup[:, 0].astype(np.int)] = lookup[:, 1]
 
     # the array with the replaced values

@@ -2827,7 +2827,9 @@ def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
     tmp_path = _tmp_path(trg_path)
 
     # check if a buffer is specified
-    extent = [x + buffer for x in extent] if buffer is not None else extent
+    if buffer is not None:
+        extent = [extent[0] - buffer, extent[1] - buffer,
+                  extent[2] + buffer, extent[3] + buffer]
 
     # clip raster extent
     LOGGER.info('Clipping: {}, Extent: (x_tl={:.2f}, y_br={:.2f}, x_br={:.2f},'

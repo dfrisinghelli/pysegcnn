@@ -2714,8 +2714,9 @@ def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
     return points_in_raster, rows, cols
 
 
-def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
-                src_no_data=None, trg_no_data=None, compress=False):
+def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
+                overwrite=False, src_no_data=None, trg_no_data=None,
+                compress=False):
     """Clip raster to extent of another raster.
 
     Clip the extent of ``src_ds`` to the extent of ``mask_ds``. The clipped
@@ -2731,6 +2732,9 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
         ``src_ds`` as: (x_min, y_min, x_max, y_max).
     trg_ds : `str` or :py:class:`pathlib.Path`
         The clipped raster dataset.
+    buffer : `float` or `int`, optional
+        Add a buffer to the extent to clip. If specified, it has to be in units
+        of the coordinate system of ``src_ds``. The default is `None`.
     fmt : `str` or None
         Format of the output raster. The default is `None`.
     overwrite : `bool`, optional
@@ -2821,6 +2825,9 @@ def clip_raster(src_ds, mask_ds, trg_ds, fmt=None, overwrite=False,
 
     # create a temporary file
     tmp_path = _tmp_path(trg_path)
+
+    # check if a buffer is specified
+    extent = [x + buffer for x in extent] if buffer is not None else extent
 
     # clip raster extent
     LOGGER.info('Clipping: {}, Extent: (x_tl={:.2f}, y_br={:.2f}, x_br={:.2f},'

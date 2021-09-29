@@ -2834,18 +2834,38 @@ def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
         extent = [extent[0] - buffer, extent[1] - buffer,
                   extent[2] + buffer, extent[3] + buffer]
 
+    # clip raster
+    try:
+        ds = gdal.Warp(str(tmp_path), str(src_path),
+                       outputBounds=extent,
+                       outputBoundsSRS=src_sr,
+                       xRes=src_ds.GetGeoTransform()[1],
+                       yRes=src_ds.GetGeoTransform()[-1],
+                       srcNodata=src_no_data,
+                       dstNodata=trg_no_data,
+                       format=fmt)
+        ds.FlushCache()  # REQUIRED: writes dataset to disk!
+
+    # catch AttirbuteError when TransformPoint inverts outputs from (x, y)
+    # to (y, x) which results in ds=None
+    except AttributeError:
+
+        # invert extent: from: (y_tl, x_br, y_br, x_tl)
+        #                to  : (x_tl, y_br, x_br, y_tl)
+        extent = extent[::-1]
+        ds = gdal.Warp(str(tmp_path), str(src_path),
+                       outputBounds=extent,
+                       outputBoundsSRS=src_sr,
+                       xRes=src_ds.GetGeoTransform()[1],
+                       yRes=src_ds.GetGeoTransform()[-1],
+                       srcNodata=src_no_data,
+                       dstNodata=trg_no_data,
+                       format=fmt)
+        ds.FlushCache()  # REQUIRED: writes dataset to disk!
+
     # clip raster extent
     LOGGER.info('Clipping: {}, Extent: (x_tl={:.2f}, y_br={:.2f}, x_br={:.2f},'
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
-    ds = gdal.Warp(str(tmp_path), str(src_path),
-                   outputBounds=extent,
-                   outputBoundsSRS=src_sr,
-                   xRes=src_ds.GetGeoTransform()[1],
-                   yRes=src_ds.GetGeoTransform()[-1],
-                   srcNodata=src_no_data,
-                   dstNodata=trg_no_data,
-                   format=fmt)
-    ds.FlushCache()  # REQUIRED: writes dataset to disk!
 
     # compress raster dataset
     compress_raster(tmp_path, trg_path, compress=compress)

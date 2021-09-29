@@ -2846,10 +2846,11 @@ def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
                        format=fmt)
         ds.FlushCache()  # REQUIRED: writes dataset to disk!
 
+
     # catch AttirbuteError when TransformPoint inverts outputs from (x, y)
     # to (y, x) which results in ds=None
     except AttributeError:
-
+        LOGGER.info('Inverting coordinates ...')
         # invert extent: from: (y_tl, x_br, y_br, x_tl)
         #                to  : (x_tl, y_br, x_br, y_tl)
         extent = extent[::-1]

@@ -2810,14 +2810,17 @@ def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
             # mask dataset spatial reference
             mask_sr = mask_ds.GetSpatialRef()
 
-        # transform extent of mask to source coordinate system
-        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
-
         # TransfromPoint expects input:
         #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
         #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
-        x_tl, y_tl, _ = crs_tr.TransformPoint(extent[-1], extent[0])
-        x_br, y_br, _ = crs_tr.TransformPoint(extent[2], extent[1])
+        # require traditional order to avoid this behaviour
+        # x, y, z = TransformPoint(x, y, z)
+        mask_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
+        # transform extent of mask to source coordinate system
+        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
+        x_tl, y_tl, _ = crs_tr.TransformPoint(extent[0], extent[-1])
+        x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[-2])
 
         # extent of the mask in the source reference coordinate system:
         # (x_min, y_min, x_max, y_max)

@@ -1296,7 +1296,7 @@ class NetworkTrainer(BaseConfig):
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
                 LOGGER.info('Epoch: {:d}, Learning rate: {:.5f}'.format(
-                    epoch + 1, self.lr_scheduler.get_last_lr()))
+                    epoch + 1, self.lr_scheduler.get_last_lr().pop()))
 
         return self.training_state
 

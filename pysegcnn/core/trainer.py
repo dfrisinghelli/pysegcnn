@@ -1228,7 +1228,7 @@ class NetworkTrainer(BaseConfig):
             if self.update_lr_after_batch:
                 self.lr_scheduler.step()
                 progress = ', '.join([progress, 'Learning rate: {:.5f}'.format(
-                    self.lr_scheduler.get_lr().pop())])
+                    self.lr_scheduler.get_last_lr().pop())])
 
             # print progress
             LOGGER.info(progress)
@@ -1308,7 +1308,7 @@ class NetworkTrainer(BaseConfig):
                 self.update_lr_after_batch):
                 self.lr_scheduler.step()
                 LOGGER.info('Epoch: {:d}, Learning rate: {:.5f}'.format(
-                    epoch + 1, self.lr_scheduler.get_lr().pop()))
+                    epoch + 1, self.lr_scheduler.get_last_lr().pop()))
 
         return self.training_state
 

@@ -1190,8 +1190,13 @@ class NetworkTrainer(BaseConfig):
             else:
                 loss = self.loss_function(outputs, labels)
 
-            # compute the gradients of the loss function w.r.t.
-            # the network weights
+            # stop training if loss is NaN
+            if torch.isnan(loss):
+                LOGGER.info('Encountered NaN in loss. Stopping training ...')
+                return self.training_state
+
+            # compute the gradients of the loss function w.r.t. the network
+            # weights
             loss.backward()
 
             # clip gradients

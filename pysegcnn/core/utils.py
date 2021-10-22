@@ -1402,7 +1402,7 @@ def search_files(directory, pattern):
     LOGGER.info('Searching: {}, pattern: {}'.format(directory, pattern))
 
     # create regular expression
-    pattern = re.compile(pattern)
+    pattern = re.compile(re.escape(pattern))
 
     # recursively search for files matching the pattern
     matches = []

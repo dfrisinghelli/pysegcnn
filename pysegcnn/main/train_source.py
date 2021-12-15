@@ -36,7 +36,7 @@ from logging.config import dictConfig
 # locals
 from pysegcnn.core.trainer import (DatasetConfig, SplitConfig, ModelConfig,
                                    StateConfig, LogConfig,
-                                   ClassificationNetworkTrainer)
+                                   NetworkTrainer)
 from pysegcnn.main.train_config import ds_config, ds_split_config, model_config
 from pysegcnn.core.logging import log_conf
 
@@ -88,7 +88,7 @@ if __name__ == '__main__':
             len(src_ds.use_bands), len(src_ds.labels), state_file)
 
         # (xi) instanciate the network trainer class
-        trainer = ClassificationNetworkTrainer(
+        trainer = NetworkTrainer(
             model=net,
             optimizer=optimizer,
             state_file=net.state_file,

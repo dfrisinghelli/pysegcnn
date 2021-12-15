@@ -1,20 +1,26 @@
+# create environment
+# $ conda env create -f environment.yml
+# $ conda activate pysegcnn
 name: pysegcnn
 channels:
   - conda-forge
   - defaults
 dependencies:
   - python=3.7
+    # scientific stack
   - numpy
   - pandas
   - scipy
   - scikit-learn
+    # data I/O
   - xarray
-  - gdal>=3.2
+  - dask
+  - gdal
   - rasterio
   - netcdf4
   - h5py
   - h5netcdf
+    # visualization
   - matplotlib
   - seaborn
   - ipython
-

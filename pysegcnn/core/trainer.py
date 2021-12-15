@@ -3,9 +3,6 @@
 This module provides an end-to-end framework of dataclasses designed to train
 segmentation models on image datasets.
 
-See :py:meth:`pysegcnn.core.trainer.NetworkTrainer.init_network_trainer` for a
-complete walkthrough.
-
 License
 -------
 
@@ -37,6 +34,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 from sklearn.metrics import confusion_matrix, classification_report
 
 # locals
@@ -965,17 +963,8 @@ class LogConfig(BaseConfig):
 
 
 @dataclasses.dataclass
-class ClassificationNetworkTrainer(BaseConfig):
-    """Base model training class for classification problems.
-
-    Train an instance of :py:class:`pysegcnn.core.models.Network` on a
-    classification problem. The `categorical cross-entropy loss`_
-    is used as the loss function in combination with the `softmax`_ output
-    layer activation function.
-
-    In case of a binary classification problem, the categorical cross-entropy
-    loss reduces to the binary cross-entropy loss and the softmax function to
-    the standard `logistic function`_.
+class NetworkTrainer(BaseConfig):
+    """Train an instance of :py:class:`pysegcnn.core.models.Network`.
 
     Attributes
     ----------
@@ -999,6 +988,10 @@ class ClassificationNetworkTrainer(BaseConfig):
         The source domain test :py:class:`torch.utils.data.DataLoader`
         instance build from an instance of
         :py:class:`torch.utils.data.Subset`.
+    loss_function : :py:class:`torch.nn.modules.loss._Loss`
+        The loss function to minimize. A subclass of
+        :py:class:`torch.nn.modules.loss._Loss`. The default is
+        :py:class:`torch.nn.CrossEntropyLoss`.
     epochs : `int`
         The maximum number of epochs to train. The default is `1`.
     nthreads : `int`
@@ -1024,14 +1017,22 @@ class ClassificationNetworkTrainer(BaseConfig):
         A model checkpoint for ``model``. If specified, ``checkpoint_state``
         should be a dictionary with keys describing the training metric.
         The default is `{}`.
+    clip_gradients : `bool`
+        Whether to apply gradient clipping. Useful for problems with exploding
+        gradients. The default is `False`.
     save : `bool`
         Whether to save the model state to ``state_file``. The default is
         `True`.
+    save_loaders : `bool`
+        Whether to save the training, validation and test data loaders. Useful
+        when evaluating model accuracy. The default is `True`.
+    multi_gpu : `bool`
+        Whether to use multiple GPUs, if available. The default is `False`.
+    classification : `bool`
+        Whether the task to solve is a classification task. The default is
+        `True`.
     device : `str`
         The device to train the model on, i.e. `cpu` or `cuda`.
-    cla_loss_function : :py:class:`torch.nn.Module`
-        The classification loss function to compute the model error. An
-        instance of :py:class:`torch.nn.CrossEntropyLoss`.
     tracker : :py:class:`pysegcnn.core.trainer.MetricTracker`
         A :py:class:`pysegcnn.core.trainer.MetricTracker` instance tracking
         training metrics, i.e. loss and accuracy.
@@ -1070,6 +1071,8 @@ class ClassificationNetworkTrainer(BaseConfig):
     src_train_dl: DataLoader
     src_valid_dl: DataLoader
     src_test_dl:  DataLoader = DataLoader(None)
+    loss_function: nn.modules.loss._Loss = nn.CrossEntropyLoss()
+    lr_scheduler: (type(None), _LRScheduler) = None
     epochs: int = 1
     nthreads: int = torch.get_num_threads()
     early_stop: bool = False
@@ -1077,7 +1080,11 @@ class ClassificationNetworkTrainer(BaseConfig):
     delta: float = 0
     patience: int = 10
     checkpoint_state: dict = dataclasses.field(default_factory=dict)
+    clip_gradients: bool = False
     save: bool = True
+    save_loaders: bool = True
+    multi_gpu: bool = False
+    classification: bool = True
 
     def __post_init__(self):
         """Check the type of each argument.
@@ -1100,31 +1107,34 @@ class ClassificationNetworkTrainer(BaseConfig):
         torch.set_num_threads(self.nthreads)
 
         # check if multiple gpus are available
-        if torch.cuda.device_count() > 1:
-            LOGGER.info('Using {} available GPUs.')
-            self.model = nn.DataParallel(self.model)
+        if torch.cuda.device_count() > 1 and self.multi_gpu:
+            LOGGER.info('Using {} available GPUs.'.format(
+                torch.cuda.device_count()))
+            self.model = nn.DataParallel(self.model, dim=0)
 
         # send the model to the gpu(s)
         self.model = self.model.to(self.device)
 
-        # instanciate multiclass classification loss function: categorical
-        # cross-entropy loss function
-        self.cla_loss_function = nn.CrossEntropyLoss()
-        LOGGER.info('Classification loss function: {}.'
-                    .format(repr(nn.CrossEntropyLoss)))
+        # instanciate loss function
+        LOGGER.info('Loss function: {}.'.format(repr(self.loss_function)))
 
         # instanciate metric tracker
         self.tracker = MetricTracker(
             train_metrics=['train_loss', 'train_accu'],
             valid_metrics=['valid_loss', 'valid_accu'])
 
+        # check if solving a classification task
+        if self.classification:
+            # check which metric to use for early stopping
+            self.best, self.metric, self.mfn = (
+                (0, 'valid_accu', np.max) if self.mode == 'max' else
+                (np.inf, 'valid_loss', np.min))
+        else:
+            self.mode, self.best, self.metric, self.mfn = (
+                'min', np.inf, 'valid_loss', np.min)
+
         # initialize metric tracker
         self.tracker.initialize()
-
-        # check which metric to use for early stopping
-        self.best, self.metric, self.mfn = (
-            (0, 'valid_accu', np.max) if self.mode == 'max' else
-            (np.inf, 'valid_loss', np.min))
 
         # best metric score on the validation set
         if self.checkpoint_state:
@@ -1161,6 +1171,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         """
         # iterate over the dataloader object
+        log = 'Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, Loss: {:.2f}'
         for batch, (inputs, labels) in enumerate(self.src_train_dl):
 
             # send the data to the gpu if available
@@ -1173,31 +1184,54 @@ class ClassificationNetworkTrainer(BaseConfig):
             # perform forward pass
             outputs = self.model(inputs)
 
-            # compute loss
-            loss = self.cla_loss_function(outputs, labels.long())
+            # compute loss: classification vs. regression
+            if self.classification:
+                loss = self.loss_function(outputs, labels.long())
+            else:
+                loss = self.loss_function(outputs, labels)
 
-            # compute the gradients of the loss function w.r.t.
-            # the network weights
+            # stop training if loss is NaN
+            if torch.isnan(loss):
+                LOGGER.info('Encountered NaN in loss. Stopping training ...')
+                return self.training_state
+
+            # compute the gradients of the loss function w.r.t. the network
+            # weights
             loss.backward()
+
+            # clip gradients
+            if self.clip_gradients:
+                nn.utils.clip_grad_value_(self.model.parameters(), 1.0)
 
             # update the weights
             self.optimizer.step()
 
-            # calculate predicted class labels
-            ypred = F.softmax(outputs, dim=1).argmax(dim=1)
+            # update training loss
+            self.tracker.update('train_loss', loss.item())
+            progress = log.format(epoch + 1, self.epochs, batch + 1,
+                                  self.tmbatch, loss.item())
 
-            # calculate accuracy on current batch
-            acc = accuracy_function(ypred, labels)
+            # calculate model predictions for classification tasks
+            if self.classification:
+                # calculate predicted class labels
+                ypred = F.softmax(outputs, dim=1).argmax(dim=1)
+
+                # calculate accuracy on current batch
+                acc = accuracy_function(ypred, labels)
+
+                # update training accuracy
+                self.tracker.update('train_accu', acc)
+                progress = ', '.join([progress,
+                                      'Accuracy: {:.2f}'.format(acc)])
+
+            # decay learning rate after each batch, if scheduler is specified
+            if self.update_lr_after_batch:
+                self.lr_scheduler.step()
+                progress = ', '.join([progress, 'Learning rate: {:.5f}'.format(
+                    self.lr_scheduler.get_last_lr().pop())])
 
             # print progress
-            LOGGER.info('Epoch: {:d}/{:d}, Mini-batch: {:d}/{:d}, '
-                        'Loss: {:.2f}, Accuracy: {:.2f}'
-                        .format(epoch + 1, self.epochs, batch + 1,
-                                self.tmbatch, loss.item(), acc))
-
-            # update training metrics
-            self.tracker.batch_update(self.tracker.train_metrics,
-                                      [loss.item(), acc])
+            LOGGER.info(progress)
 
     def train_epoch(self, epoch):
         """Train a model for a single epoch on the source domain.
@@ -1232,7 +1266,10 @@ class ClassificationNetworkTrainer(BaseConfig):
             self.train_epoch(epoch)
 
             # update the number of epochs trained
-            self.model.epoch += 1
+            if isinstance(self.model, nn.DataParallel):
+                self.model.module.epoch += 1
+            else:
+                self.model.epoch += 1
 
             # whether to evaluate model performance on the validation set and
             # early stop the training process
@@ -1251,9 +1288,8 @@ class ClassificationNetworkTrainer(BaseConfig):
                 # whether the model improved with respect to the previous epoch
                 if self.es.is_better(epoch_best, self.best, self.delta):
                     self.best = epoch_best
-
-                    # save model state if the model improved with
-                    # respect to the previous epoch
+                    # save model if it improved with respect to the previous
+                    # epoch
                     if self.save:
                         self.save_state()
 
@@ -1266,6 +1302,13 @@ class ClassificationNetworkTrainer(BaseConfig):
                 # saved after each epoch
                 if self.save:
                     self.save_state()
+
+            # decay learning rate after each epoch, if scheduler is specified
+            if (self.update_lr_after_batch is not None and not
+                self.update_lr_after_batch):
+                self.lr_scheduler.step()
+                LOGGER.info('Epoch: {:d}, Learning rate: {:.5f}'.format(
+                    epoch + 1, self.lr_scheduler.get_last_lr().pop()))
 
         return self.training_state
 
@@ -1287,7 +1330,7 @@ class ClassificationNetworkTrainer(BaseConfig):
         loss : :py:class:`numpy.ndarray`
             The model loss for each mini-batch in the validation set.
             Returned if ``return_pred`` is `False`.
-        pred :
+        pred : `dict` [`str`: :py:class:`numpy.ndarray`]
             The model predictions. Returned if ``return_pred`` is `True`.
 
         """
@@ -1304,6 +1347,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         # iterate over the validation/test set
         LOGGER.info('Calculating accuracy on the validation set ...')
+        log = 'Mini-batch: {:d}/{:d}, Loss: {:.2f}'
         for batch, (inputs, labels) in enumerate(dataloader):
 
             # send the data to the gpu if available
@@ -1314,29 +1358,39 @@ class ClassificationNetworkTrainer(BaseConfig):
             with torch.no_grad():
                 outputs = self.model(inputs)
 
-            # compute loss
-            cla_loss = self.cla_loss_function(outputs, labels.long())
-            loss.append(cla_loss.item())
+            # compute loss: classification vs. regression
+            if self.classification:
+                val_loss = self.loss_function(outputs, labels.long())
+            else:
+                val_loss = self.loss_function(outputs, labels)
+            loss.append(val_loss.item())
 
             # calculate predicted class labels
-            pred = F.softmax(outputs, dim=1).max(dim=1)
-            if return_pred:
-                predictions['y_pred'].append(pred.indices)
-                predictions['y_prob'].append(pred.values)
+            progress = log.format(batch + 1, len(dataloader), val_loss)
+            if self.classification:
+                pred = F.softmax(outputs, dim=1).max(dim=1)
+                if return_pred:
+                    predictions['y_pred'].append(pred.indices)
+                    predictions['y_prob'].append(pred.values)
 
-            # calculate accuracy on current batch
-            acc = accuracy_function(pred.indices, labels)
-            accuracy.append(acc)
+                # calculate accuracy on current batch
+                acc = accuracy_function(pred.indices, labels)
+                accuracy.append(acc)
+                progress = ', '.join([progress,
+                                      'Accuracy: {:.2f}'.format(acc)])
 
             # print progress
-            LOGGER.info('Mini-batch: {:d}/{:d}, Accuracy: {:.2f}'
-                        .format(batch + 1, len(dataloader), acc))
+            LOGGER.info(progress)
 
-        # calculate overall accuracy on the validation/test set
-        LOGGER.info('Epoch: {:d}, Mean accuracy: {:.2f}%.'
-                    .format(self.model.epoch, np.mean(accuracy) * 100))
+        # calculate overall accuracy/loss on the validation/test set
+        epoch = (self.model.module.epoch if
+                 isinstance(self.model, nn.DataParallel) else self.model.epoch)
+        overall = ('Mean accuracy: {:.2f}%'.format(np.mean(accuracy) * 100) if
+                   self.classification else
+                   'Mean loss: {:.2f}'.format(np.mean(loss)))
+        LOGGER.info(', '.join(['Epoch: {:d}'.format(epoch), overall]))
 
-        if return_pred:
+        if self.classification and return_pred:
             # return only predictions, if specified
             return predictions
         else:
@@ -1345,10 +1399,28 @@ class ClassificationNetworkTrainer(BaseConfig):
 
     def save_state(self):
         """Save the model state."""
-        _ = self.model.save(self.state_file,
-                            self.optimizer,
-                            state=self.training_state,
-                            **self.params_to_save)
+        if isinstance(self.model, nn.DataParallel):
+            _ = self.model.module.save(self.state_file,
+                                       self.optimizer,
+                                       state=self.training_state,
+                                       **self.params_to_save)
+        else:
+            _ = self.model.save(self.state_file,
+                                self.optimizer,
+                                state=self.training_state,
+                                **self.params_to_save)
+    @property
+    def update_lr_after_batch(self):
+
+        # check if a learning rate scheduler is specified
+        if self.lr_scheduler is None:
+            return
+
+        # check which kind of learning rate scheduler is specified
+        if isinstance(self.lr_scheduler, torch.optim.lr_scheduler.CyclicLR):
+            return True
+        else:
+            return False
 
     @property
     def training_state(self):
@@ -1380,7 +1452,7 @@ class ClassificationNetworkTrainer(BaseConfig):
         """The parameters and variables to save in the model state file."""
         return {'src_train_dl': self.src_train_dl,
                 'src_valid_dl': self.src_valid_dl,
-                'src_test_dl': self.src_test_dl}
+                'src_test_dl': self.src_test_dl} if self.save_loaders else {}
 
     def _build_model_repr_(self):
         """Build the model representation.
@@ -1401,7 +1473,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
         # loss function
         fs += '\n    (loss function):' + '\n' + 8 * ' '
-        fs += ''.join(repr(self.cla_loss_function)).replace('\n',
+        fs += ''.join(repr(self.loss_function)).replace('\n',
                                                             '\n' + 8 * ' ')
 
         # early stopping
@@ -1430,7 +1502,7 @@ class ClassificationNetworkTrainer(BaseConfig):
 
 
 @dataclasses.dataclass
-class DomainAdaptationTrainer(ClassificationNetworkTrainer):
+class DomainAdaptationTrainer(NetworkTrainer):
     """Model training class for domain adaptation.
 
     Train an instance of :py:class:`pysegcnn.core.models.EncoderDecoderNetwork`
@@ -1634,7 +1706,7 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
                 src_input, trg_input)
 
             # compute classification loss
-            cla_loss = self.cla_loss_function(src_prdctn, src_label.long())
+            cla_loss = self.loss_function(src_prdctn, src_label.long())
 
             # compute domain adaptation loss:
             # the difference between source and target domain is computed
@@ -1647,6 +1719,10 @@ class DomainAdaptationTrainer(ClassificationNetworkTrainer):
             # compute the gradients of the loss function w.r.t.
             # the network weights
             tot_loss.backward()
+
+            # clip gradients
+            if self.clip_gradients:
+                nn.utils.clip_grad_value_(self.model.parameters(), 1.0)
 
             # update the weights
             self.optimizer.step()

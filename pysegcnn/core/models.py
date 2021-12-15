@@ -28,7 +28,7 @@ import torch.optim as optim
 # locals
 from pysegcnn.core.layers import (Encoder, Decoder, ConvBnReluMaxPool,
                                   ConvBnReluMaxUnpool, Conv2dSame)
-from pysegcnn.core.utils import check_filename_length, item_in_enum
+from pysegcnn.core.utils import check_filename_length
 
 # module level logger
 LOGGER = logging.getLogger(__name__)
@@ -259,13 +259,19 @@ class Network(nn.Module):
         return optimizer
 
     @staticmethod
-    def load_pretrained_model(state_file):
+    def load_pretrained_model(state_file, model_class, optim_class=None):
         """Load an instance of the pretrained model in ``state_file``.
 
         Parameters
         ----------
         state_file : `str` or :py:class:`pathlib.Path`
-           The model state file containing the pretrained parameters.
+            The model state file containing the pretrained parameters.
+        model_class : :py:class:`pysegcnn.core.models.Network`
+            The model to load, a subclass of
+            :py:class:`pysegcnn.core.models.Network`.
+        optim_class : :py:class:`torch.optim.Optimizer`, optional
+            The optimizer to load, a subclass of
+            :py:class:`torch.optim.Optimizer`.
 
         Returns
         -------
@@ -277,16 +283,9 @@ class Network(nn.Module):
         """
         # get the model class of the pretrained model
         state_file = pathlib.Path(state_file)
-        model_class = item_in_enum(str(state_file.stem).split('_')[0],
-                                   SupportedModels)
-
-        # get the optimizer class of the pretrained model
-        optim_class = item_in_enum(str(state_file.stem).split('_')[1],
-                                   SupportedOptimizers)
 
         # load the pretrained model configuration
-        LOGGER.info('Loading pretrained weights from: {}'
-                    .format(state_file.name))
+        LOGGER.info('Loading pretrained model: {}'.format(state_file.name))
         model_state = Network.load(state_file)
 
         # instanciate the pretrained model architecture
@@ -295,14 +294,18 @@ class Network(nn.Module):
                             nclasses=model_state['nclasses'])
 
         # instanciate the optimizer
-        optimizer = optim_class(model.parameters())
+        if optim_class is not None:
+            # instanciate optimizer
+            optimizer = optim_class(model.parameters())
+
+            # load pretrained optimizer parameters
+            optimizer = Network.load_pretrained_optimizer_weights(
+                optimizer, model_state)
+        else:
+            optimizer = None
 
         # load pretrained model weights
         model = Network.load_pretrained_model_weights(model, model_state)
-
-        # load pretrained optimizer weights
-        optimizer = Network.load_pretrained_optimizer_weights(optimizer,
-                                                              model_state)
 
         return model, optimizer
 

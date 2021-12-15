@@ -33,6 +33,7 @@ import torch
 import numpy as np
 import pandas as pd
 import xarray as xr
+import rasterio
 from osgeo import gdal, ogr, osr
 
 # locals
@@ -122,8 +123,13 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
     # check the type of path
     if isinstance(path, str) or isinstance(path, pathlib.Path):
 
-        # the image dataset as returned by gdal
-        img = gdal.Open(str(path))
+        # check if the path is a url
+        if str(path).startswith('http'):
+            # gdal virtual file system for url paths
+            img = gdal.Open('/vsicurl/{}'.format(str(path)))
+        else:
+            # image is stored in a file system
+            img = gdal.Open(str(path))
 
         # number of bands
         bands = img.RasterCount
@@ -271,7 +277,7 @@ def img2np(path, tile_size=None, tile=None, pad=False, cval=0):
 
 
 def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
-           geotransform=None, overwrite=False):
+           geotransform=None, overwrite=False, compress=False):
     """Save a :py:class`numpy.ndarray` as a GeoTIFF.
 
     The spatial coordinate reference system can be specified in two ways:
@@ -307,6 +313,8 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
         the spatial reference.
     overwrite : `bool`, optional
         Whether to overwrite ``filename`` if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     .. _EPSG:
         https://epsg.io/
@@ -390,7 +398,7 @@ def np2tif(array, filename, no_data=None, names=None, src_ds=None, epsg=None,
     del trg_band, tmp_ds
 
     # compress raster
-    compress_raster(tmp_path, filename)
+    compress_raster(tmp_path, filename, compress=compress)
 
 
 def read_hdf4(path):
@@ -786,7 +794,7 @@ def reconstruct_scene(tiles):
     topleft = tile_topleft_corner(img_size, tile_size)
 
     # iterate over the tiles
-    scene = np.zeros(shape=(nbands,) + img_size)
+    scene = np.zeros(shape=(nbands,) + img_size, dtype=tiles.dtype)
     for t in range(tiles.shape[0]):
         scene[...,
               topleft[t][0]: topleft[t][0] + tile_size,
@@ -1391,6 +1399,8 @@ def search_files(directory, pattern):
         List of files in ``directory`` matching ``pattern``.
 
     """
+    LOGGER.info('Searching: {}, pattern: {}'.format(directory, pattern))
+
     # create regular expression
     pattern = re.compile(pattern)
 
@@ -1401,6 +1411,37 @@ def search_files(directory, pattern):
                         if pattern.search(file)])
 
     return matches
+
+
+def recurse_path(path):
+    """Recursively list all files in ``path``.
+
+    Parameters
+    ----------
+    path : `str` or :py:class:`pathlib.Path`
+        The directory to recursively search.
+
+    Returns
+    -------
+    files : `list` [:py:class:`pathlib.Path`]
+        List of all files in ``path``.
+
+    """
+    # list of all files in the path
+    files = []
+
+    # recursively search files in the path
+    path = pathlib.Path(path)
+    if path.is_dir():
+        for item in path.iterdir():
+            if item.is_file():
+                files.append(item)
+            else:
+                files.extend(recurse_path(item))
+    else:
+        files.append(path)
+
+    return files
 
 
 def read_landsat_metadata(file):
@@ -1896,7 +1937,8 @@ def get_epsg(ras_ds):
 
 
 def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
-                     pixel_size=(None, None), no_data=0, overwrite=False):
+                     pixel_size=(None, None), no_data=0, overwrite=False,
+                     compress=False):
     """Reproject a raster to a defined coordinate reference system.
 
     Reproject ``src_ds`` to ``trg_ds`` using either:
@@ -1938,6 +1980,8 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
         The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the target raster. The default is `False`.
 
     .. _EPSG:
         https://epsg.io/
@@ -2033,7 +2077,7 @@ def reproject_raster(src_ds, trg_ds, ref_ds=None, epsg=None, resample='near',
               resampleAlg=resample)
 
     # compress raster
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear gdal cache
     del src_ds, ref_ds
@@ -2253,8 +2297,29 @@ def mgrs_tile_extent(mgrs_grid, tile_names):
     return tile_coordinates
 
 
-def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
+def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False,
+                no_data=255, **kwargs):
+    """Tile a raster into the Sentinel-2 military grid reference system.
 
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The raster dataset to divide into tiles.
+    mgrs_grid : `str` or :py:class:`pathlib.Path`
+        The mgrs grid kml file.
+    tiles : `str` or :py:class:`pathlib.Path` or `list` [`str`]
+        Tiles of interest as list or as newline-delimited textfile.
+    trg_path : `str` or :py:class:`pathlib.Path`
+        Path to save tiles.
+    overwrite : `bool`, optional
+        Whether to overwrite existing tiles. The default is `False`.
+    no_data : `float` or `int`, optional
+        Value to assign to missing values. The default is `255`.
+    **kwargs : `dict`
+        Optional keyword arguments passed to
+        :py:func:`pysegcnn.core.utils.reproject_raster`.
+
+    """
     # convert source and target paths to pathlib.Path objects
     src_ds = pathlib.Path(src_ds)
     trg_path = pathlib.Path(trg_path)
@@ -2309,7 +2374,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
         # reproject to target coordinate reference system
         repr_ds = trg_path.joinpath(src_ds.stem + '_{}_repr.tif'.format(tile))
         reproject_raster(clip_ds, repr_ds, ref_ds=trg_crs, overwrite=overwrite,
-                         **kwargs)
+                         no_data=no_data, **kwargs)
 
         # remove the clipped dataset from disk
         clip_ds.unlink()
@@ -2331,7 +2396,7 @@ def raster2mgrs(src_ds, mgrs_grid, tiles, trg_path, overwrite=False, **kwargs):
 
 
 def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
-                  burn_value=255, no_data=0, overwrite=False):
+                  burn_value=255, no_data=0, overwrite=False, compress=False):
     """Convert a shapefile to a GeoTIFF.
 
     The vector data in the shapefile is converted to a GeoTIFF with a spatial
@@ -2364,6 +2429,8 @@ def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
         The value to assign to NoData values in ``src_ds``. The default is `0`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     Raises
     ------
@@ -2428,7 +2495,7 @@ def vector2raster(src_ds, trg_ds, pixel_size, out_type, attribute=None,
                    outputSRS=src_lr.GetSpatialRef(), burnValues=burn_value)
 
     # compress raster dataset
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source dataset
     del src_ds
@@ -2456,11 +2523,11 @@ def array_replace(array, lookup):
 
     """
     # create an index array to replace the values in the lookup table
-    indices = np.arange(np.int(lookup[:, 0].max()) + 1)
-    indices[lookup[:, 0].astype(np.int)] = lookup[:, 1]
+    indices = np.arange(int(np.abs(lookup[:, 0].astype(float)).max()) + 1)
+    indices[lookup[:, 0].astype(int)] = lookup[:, 1]
 
     # the array with the replaced values
-    return indices[array].astype(array.dtype)
+    return indices[array.astype(int)].astype(array.dtype)
 
 
 def dec2bin(number, nbits=8):
@@ -2495,7 +2562,7 @@ def dec2bin(number, nbits=8):
 
 
 def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
-                    src_no_data=None, trg_no_data=None):
+                    src_no_data=None, trg_no_data=None, compress=False):
     """Extract raster values by a shapefile.
 
     Extract the extent of ``mask_ds`` from ``src_ds``. The masked values of
@@ -2521,6 +2588,8 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
     trg_no_data : `int` or `float`, optional
         The value to assign to NoData values in ``trg_ds``. The default is
         `None`, which means conserving the NoData value of ``src_ds``.
+    compress : `bool`, optional
+        Whether to compress the target raster. The default is `False`.
 
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
@@ -2568,14 +2637,86 @@ def extract_by_mask(src_ds, mask_ds, trg_ds, overwrite=False,
               dstNodata=trg_no_data)
 
     # compress raster
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source dataset
     del src_ds
 
 
-def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
-                trg_no_data=None):
+def extract_by_points(src_ds, p_x, p_y, point_sr=4326):
+    """Extract coordinates of points ``(p_x, p_y)`` from raster ``src_ds``.
+
+    Parameters
+    ----------
+    src_ds : `str` or :py:class:`pathlib.Path`
+        The input raster to extract values from.
+    p_x : :py:class:`numpy.ndarray`
+        X-coordinates of the points to extract.
+    p_y : :py:class:`numpy.ndarray`
+        Y-coordinates of the points to extract.
+    point_sr : `int` or :py:class:`osgeo.osr.SpatialReference`
+        The spatial reference of the points to extract. Either an EPSG code or
+        a :py:class:`osgeo.osr.SpatialReference` object.
+
+    Returns
+    -------
+    points_in_raster : `list` [`tuple`]
+        List of points (x, y) within the extent of ``src_ds``.
+    rows : :py:class:`numpy.ndarray`
+        Row indices of the points within ``src_ds``.
+    cols : :py:class:`numpy.ndarray`
+        Column indices of the points within ``src_ds``.
+
+    """
+    # check whether the source dataset exists
+    src_ds = pathlib.Path(src_ds)
+    if not src_ds.exists():
+        LOGGER.info('{} does not exist.'.format(str(src_ds)))
+        return
+
+    # read the source dataset
+    ds = rasterio.open(src_ds)
+    extent = ds.bounds
+
+    # spatial reference of the input raster
+    trg_sr = gdal.Open(str(src_ds)).GetSpatialRef()
+
+    # spatial reference of the point dataset
+    if isinstance(point_sr, int):
+        src_sr = osr.SpatialReference()
+        src_sr.ImportFromEPSG(point_sr)
+    else:
+        src_sr = point_sr
+
+    # define coordinate transformation
+    crs_tr = osr.CoordinateTransformation(src_sr, trg_sr)
+
+    # transform points to target coordinate system
+    points = [(y, x) for y, x in zip(p_y, p_x)]  # (y, x)
+    points_tr = crs_tr.TransformPoints(points)   # (x, y)
+
+    # check which points are within the raster's extent
+    points_in_raster = []
+    points_in_raster_tr = []
+    for point, point_tr in zip(points, points_tr):
+        if ((extent[0] < point_tr[0] < extent[2]) &
+            (extent[1] < point_tr[1] < extent[3])):
+            # point is located within raster extent
+            points_in_raster.append((point[1], point[0]))
+            points_in_raster_tr.append(point_tr[:2])
+
+    # convert physical coordinates to pixel coordinates
+    rows, cols = [], []
+    for p in points_in_raster_tr:
+        row, col = ds.index(p[0], p[1])
+        rows.append(row), cols.append(col)
+
+    return points_in_raster, rows, cols
+
+
+def clip_raster(src_ds, mask_ds, trg_ds, buffer=None, fmt=None,
+                overwrite=False, src_no_data=None, trg_no_data=None,
+                compress=False):
     """Clip raster to extent of another raster.
 
     Clip the extent of ``src_ds`` to the extent of ``mask_ds``. The clipped
@@ -2586,11 +2727,16 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     src_ds : `str` or :py:class:`pathlib.Path`
         The input raster to clip.
     mask_ds : `str` or :py:class:`pathlib.Path` or `tuple`
-        A raster or a `tuple`  defining the extent of interest. If a `tuple`,
-        it is assumed to define the extent in the coordinate system of
+        A raster, shapefile or a `tuple`  defining the extent of interest. If a
+        `tuple`, it is assumed to define the extent in the coordinate system of
         ``src_ds`` as: (x_min, y_min, x_max, y_max).
     trg_ds : `str` or :py:class:`pathlib.Path`
         The clipped raster dataset.
+    buffer : `float` or `int`, optional
+        Add a buffer to the extent to clip. If specified, it has to be in units
+        of the coordinate system of ``src_ds``. The default is `None`.
+    fmt : `str` or None
+        Format of the output raster. The default is `None`.
     overwrite : `bool`, optional
         Whether to overwrite ``trg_ds``, if it exists. The default is `False`.
     src_no_data : `int` or `float`, optional
@@ -2600,6 +2746,8 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     trg_no_data : `int` or `float`, optional
         The value to assign to NoData values in ``trg_ds``. The default is
         `None`, which means conserving the NoData value of ``src_ds``.
+    compress : `bool`, optional
+        Whether to compress the clipped raster. The default is `False`.
 
     """
     # convert path to source dataset and mask dataset to pathlib.Path object
@@ -2662,14 +2810,17 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
             # mask dataset spatial reference
             mask_sr = mask_ds.GetSpatialRef()
 
-        # transform extent of mask to source coordinate system
-        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
-
         # TransfromPoint expects input:
         #   - gdal >= 3.0: x, y, z = TransformPoint(y, x)
         #   - gdal < 3.0 : x, y, z = TransformPoint(x, y)
+        # require traditional order to avoid this behaviour
+        # x, y, z = TransformPoint(x, y, z)
+        mask_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+
+        # transform extent of mask to source coordinate system
+        crs_tr = osr.CoordinateTransformation(mask_sr, src_sr)
         x_tl, y_tl, _ = crs_tr.TransformPoint(extent[0], extent[-1])
-        x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[2])
+        x_br, y_br, _ = crs_tr.TransformPoint(extent[1], extent[-2])
 
         # extent of the mask in the source reference coordinate system:
         # (x_min, y_min, x_max, y_max)
@@ -2678,23 +2829,52 @@ def clip_raster(src_ds, mask_ds, trg_ds, overwrite=False, src_no_data=None,
     # create a temporary file
     tmp_path = _tmp_path(trg_path)
 
+    # check if a buffer is specified
+    if buffer is not None:
+        extent = [extent[0] - buffer, extent[1] - buffer,
+                  extent[2] + buffer, extent[3] + buffer]
+
+    # clip raster
+    try:
+        ds = gdal.Warp(str(tmp_path), str(src_path),
+                       outputBounds=extent,
+                       outputBoundsSRS=src_sr,
+                       xRes=src_ds.GetGeoTransform()[1],
+                       yRes=src_ds.GetGeoTransform()[-1],
+                       srcNodata=src_no_data,
+                       dstNodata=trg_no_data,
+                       format=fmt)
+        ds.FlushCache()  # REQUIRED: writes dataset to disk!
+
+
+    # catch AttirbuteError when TransformPoint inverts outputs from (x, y)
+    # to (y, x) which results in ds=None
+    except AttributeError:
+        LOGGER.info('Inverting coordinates ...')
+        # invert extent: from: (y_tl, x_br, y_br, x_tl)
+        #                to  : (x_tl, y_br, x_br, y_tl)
+        extent = extent[::-1]
+        ds = gdal.Warp(str(tmp_path), str(src_path),
+                       outputBounds=extent,
+                       outputBoundsSRS=src_sr,
+                       xRes=src_ds.GetGeoTransform()[1],
+                       yRes=src_ds.GetGeoTransform()[-1],
+                       srcNodata=src_no_data,
+                       dstNodata=trg_no_data,
+                       format=fmt)
+        ds.FlushCache()  # REQUIRED: writes dataset to disk!
+
     # clip raster extent
     LOGGER.info('Clipping: {}, Extent: (x_tl={:.2f}, y_br={:.2f}, x_br={:.2f},'
                 ' y_tl={:.2f})'.format(src_path.name, *extent))
-    gdal.Warp(str(tmp_path), str(src_path),
-              outputBounds=extent,
-              outputBoundsSRS=src_ds.GetSpatialRef(),
-              xRes=src_ds.GetGeoTransform()[1],
-              yRes=src_ds.GetGeoTransform()[5],
-              srcNodata=src_no_data,
-              dstNodata=trg_no_data,
-              targetAlignedPixels=True)
 
     # compress raster dataset
-    compress_raster(tmp_path, trg_path)
+    compress_raster(tmp_path, trg_path, compress=compress)
 
     # clear source and mask dataset
     del src_ds, mask_ds
+
+    return ds
 
 
 def pixels_within_lowres(top_left, res_prop):
@@ -2777,11 +2957,12 @@ def gdb2shp(src_ds, feature=''):
 
     """
     # call the osgeo ogr2ogr system utility
+    src_ds = pathlib.Path(src_ds)
     subprocess.run('ogr2ogr -f "ESRI Shapefile" {} {} {}'.format(
-        src_ds, src_ds.parent, feature))
+        str(src_ds).replace('.gbd', '.shp'), str(src_ds), feature))
 
 
-def merge_tifs(trg_ds, tifs, **kwargs):
+def merge_tifs(trg_ds, tifs, compress=False, **kwargs):
     """Mosaic a set of images.
 
     Parameters
@@ -2792,6 +2973,8 @@ def merge_tifs(trg_ds, tifs, **kwargs):
         List of paths to the GeoTiffs to mosaic.
     **kwargs : `dict`, optional
         Optional keyword arguments passed to :py:func:`osgeo.gdal.Warp`.
+    compress : `bool`, optional
+        Whether to compress the GeoTIFF. The default is `False`.
 
     """
     # check if target path exists
@@ -2809,10 +2992,10 @@ def merge_tifs(trg_ds, tifs, **kwargs):
     gdal.Warp(str(tmp_path), [str(tif) for tif in tifs], **kwargs)
 
     # compress raster
-    compress_raster(tmp_path, trg_ds)
+    compress_raster(tmp_path, trg_ds, compress=compress)
 
 
-def compress_raster(src_ds, trg_ds):
+def compress_raster(src_ds, trg_ds, compress=True):
     """Compress a raster dataset using :py:func:`gdal.Translate`.
 
     Parameters
@@ -2821,6 +3004,8 @@ def compress_raster(src_ds, trg_ds):
         Path to the raster dataset to compress.
     trg_ds : `str` or :py:class:`pathlib.Path`
         Path to save the compressed raster dataset.
+    compress : `bool`, optional
+        Whether to apply compression. The default is `True`.
 
     """
     # check if the raster dataset exists
@@ -2830,9 +3015,15 @@ def compress_raster(src_ds, trg_ds):
         return
 
     # compress raster dataset
-    LOGGER.info('Compressing: {}'.format(trg_ds))
-    gdal.Translate(str(trg_ds), str(src_ds), creationOptions=[
-        'COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES'])
+    options = None
+    if compress:
+        LOGGER.info('Compressing: {}'.format(trg_ds))
+        options=['COMPRESS=DEFLATE', 'PREDICTOR=1', 'TILED=YES']
+    else:
+        LOGGER.info('Saving: {}'.format(trg_ds))
+
+    # save raster dataset
+    gdal.Translate(str(trg_ds), str(src_ds), creationOptions=options)
 
     # remove uncompressed raster dataset
     src_ds.unlink()
